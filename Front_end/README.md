@@ -1,6 +1,3 @@
-Here is a **very brief README** focused only on cloning and running the project:
-
----
 
 # Horizon Fit
 
