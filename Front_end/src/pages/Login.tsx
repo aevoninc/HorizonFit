@@ -2,7 +2,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Activity } from "lucide-react";
@@ -26,7 +32,10 @@ const Login = () => {
       return;
     }
     // Store user session
-    localStorage.setItem("userSession", JSON.stringify({ email: userEmail, type: "user" }));
+    localStorage.setItem(
+      "userSession",
+      JSON.stringify({ email: userEmail, type: "user" })
+    );
     toast({
       title: "Welcome!",
       description: "Login successful",
@@ -45,7 +54,10 @@ const Login = () => {
       return;
     }
     // Store admin session
-    localStorage.setItem("userSession", JSON.stringify({ email: adminEmail, type: "admin" }));
+    localStorage.setItem(
+      "userSession",
+      JSON.stringify({ email: adminEmail, type: "admin" })
+    );
     toast({
       title: "Welcome Doctor!",
       description: "Admin login successful",
@@ -58,10 +70,12 @@ const Login = () => {
       <div className="w-full max-w-md animate-scale-in">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <Activity className="h-10 w-10 text-primary" />
-            <h1 className="text-3xl font-bold text-gradient">Horizon Fit</h1>
+            <img
+              src="/logo.png"
+              alt="Horizon Fit Logo"
+              className="h-16 w-auto md:h-18"
+            />
           </div>
-          <p className="text-sm text-muted-foreground">Live Fit, Dream Big, Go Beyond</p>
         </div>
 
         <Tabs defaultValue="user" className="w-full">
@@ -74,12 +88,17 @@ const Login = () => {
             <Card>
               <CardHeader>
                 <CardTitle>User Login</CardTitle>
-                <CardDescription>Sign in to access your personalized diet plan</CardDescription>
+                <CardDescription>
+                  Sign in to access your personalized diet plan
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleUserLogin} className="space-y-4">
                   <div>
-                    <label htmlFor="user-email" className="block text-sm font-medium mb-2">
+                    <label
+                      htmlFor="user-email"
+                      className="block text-sm font-medium mb-2"
+                    >
                       Email
                     </label>
                     <Input
@@ -92,7 +111,10 @@ const Login = () => {
                     />
                   </div>
                   <div>
-                    <label htmlFor="user-password" className="block text-sm font-medium mb-2">
+                    <label
+                      htmlFor="user-password"
+                      className="block text-sm font-medium mb-2"
+                    >
                       Password
                     </label>
                     <Input
@@ -119,12 +141,17 @@ const Login = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Admin Login</CardTitle>
-                <CardDescription>Sign in to manage user diet plans</CardDescription>
+                <CardDescription>
+                  Sign in to manage user diet plans
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleAdminLogin} className="space-y-4">
                   <div>
-                    <label htmlFor="admin-email" className="block text-sm font-medium mb-2">
+                    <label
+                      htmlFor="admin-email"
+                      className="block text-sm font-medium mb-2"
+                    >
                       Email
                     </label>
                     <Input
@@ -137,7 +164,10 @@ const Login = () => {
                     />
                   </div>
                   <div>
-                    <label htmlFor="admin-password" className="block text-sm font-medium mb-2">
+                    <label
+                      htmlFor="admin-password"
+                      className="block text-sm font-medium mb-2"
+                    >
                       Password
                     </label>
                     <Input

@@ -1,17 +1,26 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Activity, LogOut, Users, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface User {
+  profile: string;
   email: string;
   name: string;
   dietType: "loss" | "gain";
   progress: string;
+  profilePic?: string; // URL of the user's profile image
 }
 
 const Admin = () => {
@@ -23,6 +32,11 @@ const Admin = () => {
   const [newUserName, setNewUserName] = useState("");
   const [newDietType, setNewDietType] = useState<"loss" | "gain">("loss");
   const [newProgress, setNewProgress] = useState("");
+  const [openIndex, setOpenIndex] = useState(null);
+
+  const toggle = (index) => {
+    setOpenIndex(openIndex === index ? null : index);
+  };
 
   useEffect(() => {
     const session = localStorage.getItem("userSession");
@@ -49,12 +63,14 @@ const Admin = () => {
           name: "John Doe",
           dietType: "loss",
           progress: "Week 1: -2kg, following plan consistently",
+          profile:"",
         },
         {
           email: "user2@example.com",
           name: "Jane Smith",
           dietType: "gain",
           progress: "Week 1: +1.5kg, good muscle development",
+          profile: "",
         },
       ];
       setUsers(sampleUsers);
@@ -87,6 +103,7 @@ const Admin = () => {
       name: newUserName,
       dietType: newDietType,
       progress: newProgress || "Just started",
+      profile: ""
     };
 
     const updatedUsers = [...users, newUser];
@@ -123,11 +140,16 @@ const Admin = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Activity className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-bold text-gradient">Horizon Fit - Admin Panel</h1>
+              <img
+                src="/logo.png"
+                alt="Horizon Fit Logo"
+                className="h-14 w-auto md:h-16"
+              />
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">{adminEmail}</span>
+              <span className="text-sm text-muted-foreground">
+                {adminEmail}
+              </span>
               <Button
                 variant="outline"
                 size="sm"
@@ -151,7 +173,7 @@ const Admin = () => {
             Manage diet plans and track user progress
           </p>
 
-          <div className="grid lg:grid-cols-2 gap-8">
+          <div className="grid lg:grid-rows-2-2 gap-8">
             {/* Add New User */}
             <Card className="animate-slide-up">
               <CardHeader>
@@ -159,12 +181,17 @@ const Admin = () => {
                   <Plus className="h-5 w-5" />
                   Add New User
                 </CardTitle>
-                <CardDescription>Create a diet plan for a new user</CardDescription>
+                <CardDescription>
+                  Create a diet plan for a new user
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleAddUser} className="space-y-4">
                   <div>
-                    <label htmlFor="userName" className="block text-sm font-medium mb-2">
+                    <label
+                      htmlFor="userName"
+                      className="block text-sm font-medium mb-2"
+                    >
                       Name
                     </label>
                     <Input
@@ -177,7 +204,10 @@ const Admin = () => {
                   </div>
 
                   <div>
-                    <label htmlFor="userEmail" className="block text-sm font-medium mb-2">
+                    <label
+                      htmlFor="userEmail"
+                      className="block text-sm font-medium mb-2"
+                    >
                       Email
                     </label>
                     <Input
@@ -191,13 +221,19 @@ const Admin = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">Diet Plan Type</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Diet Plan Type
+                    </label>
                     <div className="flex gap-4">
                       <Button
                         type="button"
                         variant={newDietType === "loss" ? "default" : "outline"}
                         onClick={() => setNewDietType("loss")}
-                        className={newDietType === "loss" ? "gradient-orange text-white" : ""}
+                        className={
+                          newDietType === "loss"
+                            ? "gradient-orange text-white"
+                            : ""
+                        }
                       >
                         Weight Loss
                       </Button>
@@ -205,7 +241,11 @@ const Admin = () => {
                         type="button"
                         variant={newDietType === "gain" ? "default" : "outline"}
                         onClick={() => setNewDietType("gain")}
-                        className={newDietType === "gain" ? "gradient-orange text-white" : ""}
+                        className={
+                          newDietType === "gain"
+                            ? "gradient-orange text-white"
+                            : ""
+                        }
                       >
                         Weight Gain
                       </Button>
@@ -213,7 +253,10 @@ const Admin = () => {
                   </div>
 
                   <div>
-                    <label htmlFor="progress" className="block text-sm font-medium mb-2">
+                    <label
+                      htmlFor="progress"
+                      className="block text-sm font-medium mb-2"
+                    >
                       Initial Notes
                     </label>
                     <Textarea
@@ -243,11 +286,13 @@ const Admin = () => {
                     <Users className="h-5 w-5" />
                     Active Users ({users.length})
                   </CardTitle>
-                  <CardDescription>View and manage user diet plans</CardDescription>
+                  <CardDescription>
+                    View and manage user diet plans
+                  </CardDescription>
                 </CardHeader>
               </Card>
 
-              {users.map((user) => (
+              {/* {users.map((user) => (
                 <Card key={user.email} className="hover:border-primary transition-smooth">
                   <CardHeader>
                     <CardTitle className="text-lg">{user.name}</CardTitle>
@@ -278,13 +323,61 @@ const Admin = () => {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              ))} */}
+                {users.map((user, index) => (
+                  <div
+                    key={index}
+                    className="border rounded-lg shadow-sm bg-white"
+                  >
+                    {/* Header */}
+                    <button
+                      onClick={() => toggle(index)}
+                      className="w-full flex items-center justify-between p-4 text-left"
+                    >
+                      {/* LEFT: Profile + Name */}
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={user.profile || "/default.png"}
+                          alt="profile"
+                          className="h-10 w-10 rounded-full object-cover border"
+                        />
+
+                        <span className="font-semibold">{user.name}</span>
+                      </div>
+
+                      {/* RIGHT: Expand Icon */}
+                      <span className="text-xl">
+                        {openIndex === index ? "−" : "+"}
+                      </span>
+                    </button>
+
+                    {/* Details */}
+                    {openIndex === index && (
+                      <div className="px-4 pb-4 text-sm text-gray-700 space-y-2">
+                        <p>
+                          <span className="font-bold">Email:</span> {user.email}
+                        </p>
+                        <p>
+                          <span className="font-bold">Description:</span>{" "}
+                          {user.progress}
+                        </p>
+                        <p>
+                          <span className="font-bold">Diet Type:</span>{" "}
+                          {user.dietType}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              
 
               {users.length === 0 && (
                 <Card>
                   <CardContent className="py-12 text-center">
                     <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No users yet. Add your first user!</p>
+                    <p className="text-muted-foreground">
+                      No users yet. Add your first user!
+                    </p>
                   </CardContent>
                 </Card>
               )}

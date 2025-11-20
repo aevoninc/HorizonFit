@@ -41,25 +41,40 @@ const Index = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Activity className="h-8 w-8 text-primary" />
+              {/* <Activity className="h-8 w-8 text-primary" /> */}
               <div>
-                <h1 className="text-2xl font-bold text-gradient">Horizon Fit</h1>
-                <p className="text-xs text-muted-foreground">Live Fit, Dream Big, Go Beyond</p>
+                <img
+                  src="/logo.png"
+                  alt="Horizon Fit Logo"
+                  className="h-14 w-auto md:h-16"
+                />
               </div>
             </div>
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-6">
-              <a href="#home" className="text-foreground hover:text-primary transition-smooth">
+              <a
+                href="#home"
+                className="text-foreground hover:text-primary transition-smooth"
+              >
                 Home
               </a>
-              <a href="#about" className="text-foreground hover:text-primary transition-smooth">
+              <a
+                href="#about"
+                className="text-foreground hover:text-primary transition-smooth"
+              >
                 About
               </a>
-              <a href="#programs" className="text-foreground hover:text-primary transition-smooth">
+              <a
+                href="#programs"
+                className="text-foreground hover:text-primary transition-smooth"
+              >
                 Programs
               </a>
-              <a href="#contact" className="text-foreground hover:text-primary transition-smooth">
+              <a
+                href="#contact"
+                className="text-foreground hover:text-primary transition-smooth"
+              >
                 Contact
               </a>
               <Button
@@ -76,7 +91,11 @@ const Index = () => {
               className="md:hidden p-2"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              {mobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
             </button>
           </div>
 
@@ -124,16 +143,20 @@ const Index = () => {
         <div className="container mx-auto">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-5xl md:text-7xl font-bold mb-6 animate-fade-in-up">
-              Transform Your <span className="text-gradient">Fitness Journey</span>
+              Transform Your{" "}
+              <span className="text-gradient">Fitness Journey</span>
             </h2>
             <p className="text-xl text-muted-foreground mb-8 animate-fade-in delay-100">
-              Personalized diet plans, expert consultations, and progress tracking to help you achieve your fitness goals
+              Personalized diet plans, expert consultations, and progress
+              tracking to help you achieve your fitness goals
             </p>
             <Button
               size="lg"
               className="gradient-orange text-white hover:opacity-90 transition-smooth animate-scale-in text-lg px-8 py-6"
               onClick={() => {
-                document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
+                document
+                  .getElementById("contact")
+                  ?.scrollIntoView({ behavior: "smooth" });
               }}
             >
               Book Appointment
@@ -155,27 +178,38 @@ const Index = () => {
               </div>
               <h4 className="text-2xl font-bold mb-4">Online Consultation</h4>
               <p className="text-muted-foreground">
-                Get personalized advice from expert nutritionists and fitness coaches from the comfort of your home
+                Get personalized advice from expert nutritionists and fitness
+                coaches from the comfort of your home
               </p>
             </div>
 
-            <div className="bg-card p-8 rounded-lg border border-border hover:border-primary transition-smooth hover:scale-105 animate-slide-up" style={{ animationDelay: "0.1s" }}>
+            <div
+              className="bg-card p-8 rounded-lg border border-border hover:border-primary transition-smooth hover:scale-105 animate-slide-up"
+              style={{ animationDelay: "0.1s" }}
+            >
               <div className="bg-gradient-orange w-16 h-16 rounded-full flex items-center justify-center mb-6">
                 <Calendar className="h-8 w-8 text-white" />
               </div>
-              <h4 className="text-2xl font-bold mb-4">Personalized Diet Plan</h4>
+              <h4 className="text-2xl font-bold mb-4">
+                Personalized Diet Plan
+              </h4>
               <p className="text-muted-foreground">
-                Custom 3-week meal plans tailored to your goals, whether it's weight loss or muscle gain
+                Custom 3-week meal plans tailored to your goals, whether it's
+                weight loss or muscle gain
               </p>
             </div>
 
-            <div className="bg-card p-8 rounded-lg border border-border hover:border-primary transition-smooth hover:scale-105 animate-slide-up" style={{ animationDelay: "0.2s" }}>
+            <div
+              className="bg-card p-8 rounded-lg border border-border hover:border-primary transition-smooth hover:scale-105 animate-slide-up"
+              style={{ animationDelay: "0.2s" }}
+            >
               <div className="bg-gradient-orange w-16 h-16 rounded-full flex items-center justify-center mb-6">
                 <LineChart className="h-8 w-8 text-white" />
               </div>
               <h4 className="text-2xl font-bold mb-4">Progress Tracking</h4>
               <p className="text-muted-foreground">
-                Monitor your journey with detailed analytics and regular check-ins with your coach
+                Monitor your journey with detailed analytics and regular
+                check-ins with your coach
               </p>
             </div>
           </div>
@@ -189,10 +223,14 @@ const Index = () => {
             About <span className="text-gradient">Horizon Fit</span>
           </h3>
           <p className="text-lg text-muted-foreground mb-6 animate-fade-in">
-            At Horizon Fit, we believe that fitness is not just about physical transformation—it's about building a lifestyle that empowers you to dream big and go beyond your limits.
+            At Horizon Fit, we believe that fitness is not just about physical
+            transformation—it's about building a lifestyle that empowers you to
+            dream big and go beyond your limits.
           </p>
           <p className="text-lg text-muted-foreground animate-fade-in">
-            Our team of certified nutritionists and fitness experts work together to create personalized plans that fit your unique needs, goals, and lifestyle.
+            Our team of certified nutritionists and fitness experts work
+            together to create personalized plans that fit your unique needs,
+            goals, and lifestyle.
           </p>
         </div>
       </section>
@@ -203,56 +241,79 @@ const Index = () => {
           <h3 className="text-4xl font-bold text-center mb-12 animate-fade-in">
             Get <span className="text-gradient">Started Today</span>
           </h3>
-          <form onSubmit={handleSubmit} className="bg-card p-8 rounded-lg border border-border animate-scale-in">
+          <form
+            onSubmit={handleSubmit}
+            className="bg-card p-8 rounded-lg border border-border animate-scale-in"
+          >
             <div className="space-y-6">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium mb-2">
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium mb-2"
+                >
                   Name *
                 </label>
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   placeholder="Your full name"
                   required
                 />
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-2">
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium mb-2"
+                >
                   Email *
                 </label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   placeholder="your.email@example.com"
                   required
                 />
               </div>
 
               <div>
-                <label htmlFor="phone" className="block text-sm font-medium mb-2">
+                <label
+                  htmlFor="phone"
+                  className="block text-sm font-medium mb-2"
+                >
                   Phone Number
                 </label>
                 <Input
                   id="phone"
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
                   placeholder="Your phone number"
                 />
               </div>
 
               <div>
-                <label htmlFor="message" className="block text-sm font-medium mb-2">
+                <label
+                  htmlFor="message"
+                  className="block text-sm font-medium mb-2"
+                >
                   Message *
                 </label>
                 <Textarea
                   id="message"
                   value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, message: e.target.value })
+                  }
                   placeholder="Tell us about your fitness goals..."
                   rows={5}
                   required
@@ -275,10 +336,13 @@ const Index = () => {
       <footer className="bg-card border-t border-border py-12 px-4">
         <div className="container mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Activity className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold text-gradient">Horizon Fit</h1>
+            <img
+              src="/logo.png"
+              alt="Horizon Fit Logo"
+              className="h-14 w-auto md:h-16"
+            />
           </div>
-          <p className="text-sm text-muted-foreground mb-6">Live Fit, Dream Big, Go Beyond</p>
+
           <p className="text-sm text-muted-foreground">
             © 2024 Horizon Fit. All rights reserved.
           </p>
