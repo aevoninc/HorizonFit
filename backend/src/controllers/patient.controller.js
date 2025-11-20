@@ -1,9 +1,9 @@
 // controllers/patientController.js
 import asyncHandler from '../utils/asyncHandler.js';
-import PatientTrackingData from '../models/PatientTrackingData.js'; 
-import User from '../models/User.js'; 
-import PatientProgramTask from '../models/PatientProgramTask.js'; 
-import PatientTaskLog from '../models/PatientTaskLog.js';
+import PatientTrackingData from '../model/patientTrackingData.model.js'; 
+import User from '../model/user.model.js';  
+import PatientProgramTask from '../model/patientProgramTask.model.js'; 
+import PatientTaskLog from '../model/patientTaskLog.model.js';
 import consultationBookingModel from '../model/consultationBooking.model.js';
 
 
@@ -284,21 +284,30 @@ const requestConsultation = asyncHandler(async (req, res) => {
 });
 
 
-const getPatientBooking = asyncHandler(async (req,res)=>{
-    const patientId = req.params;
-    const bookings = consultationBookingModel.findById(patientId);
-    if(!bookings){
-        res.status(404).json({
-            message : "No Booking Founded"
+// @desc    Patient retrieves all their consultation bookings
+// @route   GET /api/patient/consultations
+// @access  Private/Patient
+const getPatientBookings = asyncHandler(async (req, res) => {
+    const patientId = req.user._id; 
+
+    const bookings = await ConsultationBooking.find({ patientId: patientId })
+        .populate('doctorId', 'firstName lastName') // Only fetch the doctor's name
+        .sort({ requestedDateTime: -1 }); // Sort by newest request first
+
+    // 3. RESPONSE: If no bookings are found, it returns an empty array, 
+    // so we just return the array with a success message.
+    if (!bookings || bookings.length === 0) {
+        return res.status(200).json({
+            message: "No consultation bookings found.",
+            bookings: []
         });
     }
-    // return bookings;
+
     res.status(200).json({
-        message : "Successfully Fetched Booking",
-        bookings:bookings
-    }
-    )
-})
+        message: "Successfully fetched patient bookings.",
+        bookings: bookings
+    });
+});
 
 
 export {
@@ -307,5 +316,5 @@ export {
     getPatientTasks,
     getPatientProgress,
     requestConsultation,
-    
+    getPatientBookings
 };

@@ -1,3 +1,5 @@
+// models/ConsultationBooking.js (UPDATED RECOMMENDED SCHEMA)
+
 import mongoose from 'mongoose';
 
 const BookingSchema = new mongoose.Schema({
@@ -6,15 +8,37 @@ const BookingSchema = new mongoose.Schema({
         ref: 'User', 
         required: true 
     },
-    // Doctor ID is implicit since there's only one, but good practice to include if needed
-    // doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
     
-    requestedDate: { type: Date, required: true }, // Date and Time selected by patient
-    patientQuery: { type: String, default: 'General Consultation' }, // Patient's written concern
+    // **ADD THIS:** Doctor ID is essential for filtering the Doctor's dashboard
+    doctorId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User', 
+        required: true 
+    }, 
+    
+    // Store the patient's preferred time range for the consultation
+    availableRangeStart: { type: Date, required: true }, 
+    availableRangeEnd: { type: Date, required: true },   
 
+    // **ADD THIS:** Store the final confirmed/rescheduled time
+    confirmedDateTime: { type: Date, default: null }, 
+    
+    patientQuery: { type: String, default: 'General Consultation' },
+
+    // Store reason for cancellation if applicable
+    cancellationReason: { type: String, default: null },
+
+    
+    // Use a single status field to track the progress
     status: { 
         type: String, 
-        enum: ['Awaiting Payment', 'Payment Successful', 'Confirmed', 'Cancelled'], 
+        enum: [
+            'Awaiting Payment', 
+            'Payment Successful', // Ready for Doctor Review
+            'Confirmed', 
+            'Rescheduled',        // Added for clarity on Doctor's update
+            'Cancelled'
+        ], 
         default: 'Awaiting Payment' 
     },
     
@@ -30,4 +54,4 @@ const BookingSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-module.exports = mongoose.model('ConsultationBooking', BookingSchema);
+export default mongoose.model('ConsultationBooking', BookingSchema);

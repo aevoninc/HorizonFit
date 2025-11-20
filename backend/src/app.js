@@ -16,9 +16,9 @@ app.use(express.static("public"));
 app.use(cookieParser());
 
 // Import Routes
-import authRoutes from './routes/Auth.route.js';   
-import doctorRoutes from './routes/Doctor.route.js';
-import patientRoutes from './routes/Patient.route.js'; 
+import authRoutes from './routes/auth.route.js';   
+import doctorRoutes from './routes/doctor.route.js';
+import patientRoutes from './routes/patient.route.js'; 
 
 // Define Routes
 app.use('/api/v1/auth', authRoutes);

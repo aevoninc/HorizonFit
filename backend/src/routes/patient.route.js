@@ -6,7 +6,7 @@ import {
 import { 
     logTrackingData, 
     logTaskCompletion 
-} from '../controllers/patientController.js';
+} from '../controllers/patient.controller.js';
 import express from 'express';
 export const router = express.Router();
 

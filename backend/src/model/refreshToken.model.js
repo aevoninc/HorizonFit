@@ -18,11 +18,6 @@ const refreshTokenSchema = new Schema({
         ref: 'User',
         required: true
     },
-    schoolId: {
-        type: Schema.Types.ObjectId,
-        ref: 'School',
-        required: true
-    },
     
     // 3. Security and Device Tracking
     userAgent: {
