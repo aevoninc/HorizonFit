@@ -25,9 +25,9 @@ const setTokens = async(res, userId, role) => {
     const refreshToken = generateRefreshToken(userId);
 
     // Define expiry times in milliseconds
-    const ACCESS_MINUTES = parseInt(process.env.JWT_ACCESS_SECRET_EXPIRY, 10) || 15;
+    const ACCESS_MINUTES = parseInt(process.env.JWT_ACCESS_SECRET_EXPIRY, 10) || 30;
     const REFRESH_DAYS = parseInt(process.env.JWT_REFRESH_SECRET_EXPIRY, 10) || 30;
-    const maxAgeAccess = ACCESS_MINUTES * 60 * 1000;      // 15 minutes
+    const maxAgeAccess = ACCESS_MINUTES * 60 * 60 * 1000;      // 15 minutes
     const maxAgeRefresh = REFRESH_DAYS * 24 * 60 * 60 * 1000; // 30 days
     // 2. SET ACCESS TOKEN COOKIE (Short-Lived)
     res.cookie('accessToken', accessToken, {

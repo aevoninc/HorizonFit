@@ -4,8 +4,11 @@ import PatientTrackingData from '../model/patientTrackingData.model.js';
 import User from '../model/user.model.js';  
 import PatientProgramTask from '../model/patientProgramTask.model.js'; 
 import PatientTaskLog from '../model/patientTaskLog.model.js';
-import consultationBookingModel from '../model/consultationBooking.model.js';
-
+import ConsultationBooking from '../model/consultationBooking.model.js';
+import { processPayment,processRefund,createRazorpayOrder,simulatePayment } from '../utils/payment.js';
+import { sendEmail,sendConsultationUpdateEmail} from '../utils/mailer.js';
+import crypto from 'crypto';
+import { DOCTOR_EMAIL, DOCTOR_NAME } from '../constants.js';
 
 // Function to calculate the current week number
 const calculateProgramWeek = (programStartDate, dateRecorded) => {
@@ -34,15 +37,15 @@ const calculateProgramWeek = (programStartDate, dateRecorded) => {
 // @access  Private/Patient
 const logTrackingData = asyncHandler(async (req, res) => {
     const patientId = req.user._id;
-    const { type, value, unit, dateRecorded, weekNumber } = req.body;
-
+    const { type, value, unit, recordDate } = req.body;
     // Optional: Basic validation to ensure all required data is present
     if (!type || value === undefined || !unit) {
         return res.status(400).json({ message: 'Missing required tracking data fields (type, value, unit).' });
     }
     
     // Fetch the patient's program start date to calculate the accurate weekNumber if not provided
-    const patient = await User.findById(patientId).select('programStartDate');
+    const patient = await User.findById(patientId).select('programStartDate isActive');
+    console.log(patient);
     if (!patient || !patient.isActive) {
          return res.status(401).json({ message: 'Account is inactive or not found.' });
     }
@@ -226,64 +229,104 @@ const getPatientProgress = asyncHandler(async (req, res) => {
 // @route   POST /api/patient/consultation-request
 // @access  Private/Patient
 const requestConsultation = asyncHandler(async (req, res) => {
-    
+
     const patientId = req.user._id;
+
     const { 
-        requestedDateTime, // The confirmed time from Calendly
-        paymentToken,      // Token received from the frontend after payment interaction
+        requestedDateTime,
+        paymentToken,              // razorpay_payment_id
+        orderId,                   // razorpay_order_id
+        razorpaySignature,         // signature
         patientQuery, 
-        feeAmount = 50     // Example: Fee is fixed
     } = req.body;
 
-    if (!requestedDateTime || !paymentToken) {
-        return res.status(400).json({ message: 'Confirmed date and payment token are required.' });
+    if (!requestedDateTime || !paymentToken || !orderId) {
+        return res.status(400).json({ 
+            message: "Date, Payment ID, and Order ID are required." 
+        });
     }
 
-    // 1. Fetch patient and doctor information
-    const patient = await User.findById(patientId).select('assignedDoctorId email');
-    const doctorId = patient?.assignedDoctorId;
+    // 1. Verify Razorpay signature security
+    const generated_signature = crypto
+        .createHmac("sha256", process.env.KEY_SECRET)
+        .update(orderId + "|" + paymentToken)
+        .digest("hex");
 
-    if (!doctorId) {
-        return res.status(404).json({ message: 'No assigned doctor found.' });
+    if (generated_signature !== razorpaySignature) {
+        return res.status(400).json({ message: "Payment verification failed!" });
     }
 
-    // 2. Process Payment
-    let transactionId = null;
-    let paymentStatus = 'Awaiting Payment';
-    
-    try {
-        // In a real app, this calls Stripe/PayPal/etc.
-        const paymentResult = await processPayment(feeAmount, paymentToken, patient.email);
-        
-        transactionId = paymentResult.id; 
-        paymentStatus = 'Payment Successful';
+    // 2. Capture payment (if needed)
+    const paymentResult = await processPayment(
+        paymentToken,
+        req.user.email
+    );
 
-    } catch (error) {
-        console.error('Payment Error:', error);
-        return res.status(402).json({ message: 'Payment failed. Please try again or check your card details.' });
+    if (paymentResult.status !== "Payment Successful") {
+        return res.status(400).json({ message: "Payment capture failed!" });
     }
-
-    // 3. Create the Booking Record
+    // 3. Create Booking
     const booking = await ConsultationBooking.create({
         patientId,
-        doctorId,
-        requestedDateTime: new Date(requestedDateTime),
-        confirmedDateTime: new Date(requestedDateTime), // Initially confirmed by patient/Calendly
-        patientQuery: patientQuery || 'General Consultation',
-        status: paymentStatus,
-        transactionId: transactionId 
+        requestedDateTime,
+        confirmedDateTime: requestedDateTime,
+        patientQuery: patientQuery || "General Consultation",
+        status: "Payment Successful",
+        transactionId: paymentResult.id,
+        orderId
     });
 
-    // get the doctor's email from the User model
-    // sendEmail(doctorEmail, 'New Confirmed Consultation', `Booking at ${booking.requestedDateTime.toLocaleString()}`);
+    await sendConsultationUpdateEmail(
+        DOCTOR_EMAIL,
+        'New Consultation Booking',
+        `A new consultation has been booked for ${requestedDateTime} by patient ID: ${patientId}. Please review the booking details in your dashboard.`
+    );
 
-    res.status(201).json({ 
-        message: 'Consultation successfully booked and payment processed.', 
-        booking 
+    await sendConsultationUpdateEmail(
+        req.user.email,
+        'Consultation Booking Confirmed',
+        `Your consultation has been successfully booked for ${requestedDateTime}. We look forward to assisting you!`
+    );
+
+    res.status(201).json({
+        message: "Consultation booked successfully!",
+        booking
     });
 });
 
+// @desc    Patient creates a Razorpay order for consultation payment
+// @route   POST /api/patient/create-order
+// @access  Private/Patient
+const createOrderId = asyncHandler(async (req, res) => {
 
+    try {
+        const order = await createRazorpayOrder();
+        res.status(201).json({
+            message: "Razorpay order created successfully.",
+            order
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+const createPaymentId = asyncHandler(async (req, res) => {
+    const { orderId } = req.body;
+
+    if (!orderId) {
+        return res.status(400).json({ message: "Order ID is required to create payment." });
+    }
+    // paymentId:"Rj8tAhMPBOqnIy"
+    try {
+        const paymentId = await simulatePayment(orderId, 100);
+        res.status(201).json({
+            message: "Razorpay paymentId created successfully.",
+            paymentId
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
 // @desc    Patient retrieves all their consultation bookings
 // @route   GET /api/patient/consultations
 // @access  Private/Patient
@@ -294,8 +337,7 @@ const getPatientBookings = asyncHandler(async (req, res) => {
         .populate('doctorId', 'firstName lastName') // Only fetch the doctor's name
         .sort({ requestedDateTime: -1 }); // Sort by newest request first
 
-    // 3. RESPONSE: If no bookings are found, it returns an empty array, 
-    // so we just return the array with a success message.
+
     if (!bookings || bookings.length === 0) {
         return res.status(200).json({
             message: "No consultation bookings found.",
@@ -309,6 +351,125 @@ const getPatientBookings = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Patient cancels a consultation booking and triggers a refund (if policy allows)
+// @route   PATCH /api/patient/consultation-cancel/:bookingId
+// @access  Private/Patient
+const cancelBooking = asyncHandler(async (req, res) => {
+    const patientId = req.user._id;
+    const { bookingId } = req.params;
+    
+    // 1. Fetch and validate the booking
+    const booking = await ConsultationBooking.findOne({
+        _id: bookingId,
+        patientId: patientId // Security check: Ensure patient owns this booking
+    });
+
+    if (!booking) {
+        return res.status(404).json({ message: 'Booking not found or you do not have permission to cancel it.' });
+    }
+
+    // 2. Status Check
+    if (booking.status === 'Cancelled' || booking.status === 'Completed') {
+        return res.status(400).json({ message: `Booking is already in status: ${booking.status}. No action taken.` });
+    }
+
+    // 3. Determine Refund Eligibility & Amount (Simplified)
+    const refundAmount = 50; 
+    let refundSuccess = false;
+    let refundError = null;
+    
+    // 4. Process Refund if transaction ID exists (i.e., payment was made)
+    if (booking.transactionId) {
+        try {
+            // Note: This must be done BEFORE saving the cancellation status
+            const refundResult = await processRefund(booking.transactionId, refundAmount);
+            if (refundResult.status === 'Refund Successful') {
+                refundSuccess = true;
+                booking.refundId = refundResult.id; 
+            }
+        } catch (error) {
+            // Log the refund error, but DO NOT abort the cancellation
+            console.error('Refund initiation failed:', error.message);
+            refundError = error.message;
+        }
+    } else {
+        // If no transaction ID, no payment was made, so no refund is needed.
+        refundSuccess = true; 
+    }
+
+    // 5. Update Booking Status (CRUCIAL: This runs regardless of refund error)
+    booking.status = 'Cancelled';
+    await booking.save();
+
+    // 6. Respond to Patient
+    let refundMessage = '';
+    if (booking.transactionId) {
+        if (refundSuccess) {
+            refundMessage = ` and a refund of $${refundAmount} has been initiated.`;
+        } else {
+            // Inform the patient that the refund failed and they need to contact support.
+            refundMessage = `. The cancellation was logged, but the automatic refund initiation failed due to a system error. Please contact support immediately regarding your payment.`;
+        }
+    } else {
+        refundMessage = '. No refund was necessary as payment was not completed.';
+    }
+
+    // 7. Notify Doctor of the Cancellation
+    // sendEmail(doctorEmail, 'Consultation Cancelled', `Booking for ${booking.requestedDateTime} was cancelled by the patient.`);
+
+
+    res.status(200).json({
+        message: `Consultation successfully cancelled${refundMessage}`,
+        booking: booking
+    });
+});
+
+// @desc Get logged-in patient's profile
+// @route   GET /api/patient/profile
+// @access  Private/Patient
+const getPatientProfile = asyncHandler(async (req, res) => {
+    // SECURITY: ID is pulled from the token
+    const patientId = req.user._id;
+
+    // Fetch the user, explicitly selecting fields the patient should see.
+    // NOTE: NEVER send sensitive fields like 'password' or 'role' unless necessary.
+    const user = await User.findById(patientId)
+        .select('-password -role -__v -resetPasswordToken -resetPasswordExpire')
+        .populate('assignedDoctorId', 'firstName lastName specialisation'); // Populate doctor info
+
+    if (!user) {
+        // This should theoretically not happen if auth middleware is correct
+        return res.status(404).json({ message: 'Patient profile not found.' });
+    }
+
+    res.status(200).json({
+        message: 'Profile fetched successfully.',
+        profile: user
+    });
+});
+
+// @desc    Patient updates their password
+// @route   POST /api/patient/update-password
+// @access  Private/Patient
+const updatePassword = asyncHandler(async (req, res) => {
+    const patientId = req.user._id;
+    const { currentPassword, newPassword } = req.body;
+    if(!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current and new passwords are required.' });
+    }
+    const user = await User.findById(patientId).select('+password');
+    if(!user) {
+        return res.status(404).json({ message: 'User not found.' });
+    }
+    const isMatch = await user.comparePassword(currentPassword);
+    if(!isMatch) {
+        return res.status(401).json({ message: 'Current password is incorrect.' });
+    }
+    user.password = newPassword;
+    await user.save();
+    res.status(200).json({ message: 'Password updated successfully.' });
+}
+)
 
 export {
     logTrackingData,
@@ -316,5 +477,10 @@ export {
     getPatientTasks,
     getPatientProgress,
     requestConsultation,
-    getPatientBookings
+    getPatientBookings,
+    cancelBooking,
+    getPatientProfile,
+    updatePassword,
+    createOrderId,
+    createPaymentId
 };

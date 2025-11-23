@@ -1,5 +1,4 @@
 // models/ConsultationBooking.js (UPDATED RECOMMENDED SCHEMA)
-
 import mongoose from 'mongoose';
 
 const BookingSchema = new mongoose.Schema({
@@ -9,16 +8,15 @@ const BookingSchema = new mongoose.Schema({
         required: true 
     },
     
-    // **ADD THIS:** Doctor ID is essential for filtering the Doctor's dashboard
+    // Doctor ID is essential for filtering the Doctor's dashboard
     doctorId: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User', 
         required: true 
     }, 
-    
-    // Store the patient's preferred time range for the consultation
-    availableRangeStart: { type: Date, required: true }, 
-    availableRangeEnd: { type: Date, required: true },   
+
+    // Store the requested date and time for the consultation
+    requestedDateTime: { type: Date, required: true }, 
 
     // **ADD THIS:** Store the final confirmed/rescheduled time
     confirmedDateTime: { type: Date, default: null }, 
@@ -49,6 +47,12 @@ const BookingSchema = new mongoose.Schema({
     transactionId: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Transaction',
+        default: null
+    },
+
+    // Reference to the Razorpay order ID
+    orderId: { 
+        type: String,
         default: null
     }
 

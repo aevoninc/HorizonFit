@@ -1,33 +1,85 @@
-// REAL PRODUCTION CODE (Using Stripe's official Node.js SDK)
+// payment.js — Razorpay 
+import Razorpay from "razorpay";
+import dotenv from "dotenv";
+dotenv.config();
 
-// const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+// Initialize Razorpay with secret keys
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
-const processPayment = async (amount, token, email) => { 
+
+// Create Razorpay Order
+const createRazorpayOrder = async () => {
+    const amount = 100; //100 ₹ - Rupees
     try {
-        const charge = await stripe.charges.create({ 
-            amount: amount * 100, // in cents
-            currency: 'usd',
-            source: token,        // The token received from the frontend
-            description: 'Consultation Fee',
-            receipt_email: email,
+        const order = await razorpay.orders.create({
+            amount: amount * 100,   // ₹ - paise
+            currency: "INR",
+            receipt: `rcpt_${Date.now()}`,
         });
 
-        const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        return order; 
+    } catch (error) {
+        throw new Error(`Order creation failed: ${error.message}`);
+    }
+};
 
-        // Check Stripe's response status
-        if (charge.status === 'succeeded') {
-            return { 
-                id: charge.id || transactionId, // This is the real transaction ID
-                status: 'Payment Successful' 
+const simulatePayment = async (orderId, amount) => {
+    const payment = await razorpay.payments.create({
+        amount: amount * 100,  // in paise
+        currency: "INR",
+        receipt: orderId,
+        payment_capture: 1      // auto capture
+    });
+
+    return payment; // this returns a payment_id you can use in Postman
+}
+// processPayment() 
+const processPayment = async (razorpayPaymentId, email) => {
+    const amount = 100; //100 ₹ - Rupees
+    try {
+        // Razorpay verifies card/UPI on frontend
+        const captureResponse = await razorpay.payments.capture(
+            razorpayPaymentId,
+            amount * 100 // convert ₹ → paise
+        );
+
+        const transactionId = captureResponse.id || `txn_${Date.now()}`;
+
+        if (captureResponse.status === "captured") {
+            return {
+                id: transactionId,
+                status: "Payment Successful",
             };
         } else {
-            // Throw an error if Stripe indicates a failure
-            throw new Error(charge.failure_message || 'Stripe processing failed.');
+            throw new Error(captureResponse.error_description || "Payment failed.");
         }
     } catch (error) {
-        // Any network error or Stripe error is caught here
         throw new Error(`Payment processing failed: ${error.message}`);
     }
 };
 
-export { processPayment };
+
+// processRefund()
+const processRefund = async (transactionId, amount) => {
+    try {
+        const refund = await razorpay.payments.refund(transactionId, {
+            amount: amount * 100, // ₹ → paise
+        });
+
+        if (refund.status === "processed") {
+            return {
+                id: refund.id,
+                status: "Refund Successful",
+            };
+        } else {
+            throw new Error(refund.reason || "Refund failed.");
+        }
+    } catch (error) {
+        throw new Error(`Refund failed: ${error.message}`);
+    }
+};
+
+export { processPayment, processRefund,createRazorpayOrder,simulatePayment };
