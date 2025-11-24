@@ -26,16 +26,6 @@ const createRazorpayOrder = async () => {
     }
 };
 
-const simulatePayment = async (orderId, amount) => {
-    const payment = await razorpay.payments.create({
-        amount: amount * 100,  // in paise
-        currency: "INR",
-        receipt: orderId,
-        payment_capture: 1      // auto capture
-    });
-
-    return payment; // this returns a payment_id you can use in Postman
-}
 // processPayment() 
 const processPayment = async (razorpayPaymentId, email) => {
     const amount = 100; //100 ₹ - Rupees
@@ -82,4 +72,4 @@ const processRefund = async (transactionId, amount) => {
     }
 };
 
-export { processPayment, processRefund,createRazorpayOrder,simulatePayment };
+export { processPayment, processRefund,createRazorpayOrder };

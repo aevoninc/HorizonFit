@@ -5,8 +5,8 @@ import User from '../model/user.model.js';
 import PatientProgramTask from '../model/patientProgramTask.model.js'; 
 import PatientTaskLog from '../model/patientTaskLog.model.js';
 import ConsultationBooking from '../model/consultationBooking.model.js';
-import { processPayment,processRefund,createRazorpayOrder,simulatePayment } from '../utils/payment.js';
-import { sendEmail,sendConsultationUpdateEmail} from '../utils/mailer.js';
+import { processPayment,processRefund,createRazorpayOrder } from '../utils/payment.js';
+import { sendEmail,sendConsultationUpdateEmail,sendPasswordResetEmail} from '../utils/mailer.js';
 import crypto from 'crypto';
 import { DOCTOR_EMAIL, DOCTOR_NAME } from '../constants.js';
 
@@ -310,23 +310,6 @@ const createOrderId = asyncHandler(async (req, res) => {
     }
 });
 
-const createPaymentId = asyncHandler(async (req, res) => {
-    const { orderId } = req.body;
-
-    if (!orderId) {
-        return res.status(400).json({ message: "Order ID is required to create payment." });
-    }
-    // paymentId:"Rj8tAhMPBOqnIy"
-    try {
-        const paymentId = await simulatePayment(orderId, 100);
-        res.status(201).json({
-            message: "Razorpay paymentId created successfully.",
-            paymentId
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
 // @desc    Patient retrieves all their consultation bookings
 // @route   GET /api/patient/consultations
 // @access  Private/Patient
@@ -374,14 +357,14 @@ const cancelBooking = asyncHandler(async (req, res) => {
     }
 
     // 3. Determine Refund Eligibility & Amount (Simplified)
-    const refundAmount = 50; 
+    const refundAmount = 100; 
     let refundSuccess = false;
     let refundError = null;
     
     // 4. Process Refund if transaction ID exists (i.e., payment was made)
     if (booking.transactionId) {
         try {
-            // Note: This must be done BEFORE saving the cancellation status
+            // This must be done BEFORE saving the cancellation status
             const refundResult = await processRefund(booking.transactionId, refundAmount);
             if (refundResult.status === 'Refund Successful') {
                 refundSuccess = true;
@@ -416,7 +399,17 @@ const cancelBooking = asyncHandler(async (req, res) => {
 
     // 7. Notify Doctor of the Cancellation
     // sendEmail(doctorEmail, 'Consultation Cancelled', `Booking for ${booking.requestedDateTime} was cancelled by the patient.`);
+    await sendConsultationUpdateEmail(
+        DOCTOR_EMAIL,
+        'Consultation Cancelled',
+        `The consultation booking for ${booking.requestedDateTime} has been cancelled by the patient. Please review your schedule accordingly.`
+    );
 
+    await sendConsultationUpdateEmail(
+        req.user.email,
+        'Consultation Cancellation Confirmed',
+        `Your consultation booking for ${booking.requestedDateTime} has been successfully cancelled.${refundMessage}`
+    );
 
     res.status(200).json({
         message: `Consultation successfully cancelled${refundMessage}`,
@@ -467,6 +460,11 @@ const updatePassword = asyncHandler(async (req, res) => {
     }
     user.password = newPassword;
     await user.save();
+    await sendPasswordResetEmail(
+        user.email,
+        user.firstName,
+        null // No reset link needed for password update
+    );
     res.status(200).json({ message: 'Password updated successfully.' });
 }
 )
@@ -481,6 +479,5 @@ export {
     cancelBooking,
     getPatientProfile,
     updatePassword,
-    createOrderId,
-    createPaymentId
+    createOrderId
 };

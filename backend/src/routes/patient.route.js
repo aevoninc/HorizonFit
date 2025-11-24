@@ -13,8 +13,7 @@ import {
     cancelBooking,
     getPatientProfile,
     updatePassword,
-    createOrderId,
-    createPaymentId
+    createOrderId
 } from '../controllers/patient.controller.js';
 import express from 'express';
 export const router = express.Router();
@@ -51,6 +50,4 @@ router.post('/update-password', protect, isPatient, updatePassword);
 // Create Razorpay Order ID
 router.post('/create-order', protect, isPatient, createOrderId);
 
-// Create Razorpay Payment ID
-router.post('/create-payment', protect, isPatient, createPaymentId);
 export default router;
