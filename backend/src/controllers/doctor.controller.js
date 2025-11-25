@@ -72,7 +72,12 @@ const getPatientList = asyncHandler(async (req, res) => {
   const patients = await User.find({ role: "Patient" }).select(
     "email assignedCategory programStartDate createdAt"
   );
-  res.status(200).json(patients);
+  res.status(200).json({
+  success: true,
+  count: patients.length,
+  patients,
+});
+
 });
 
 // @desc    Doctor allocates tasks and program metrics to a specific patient

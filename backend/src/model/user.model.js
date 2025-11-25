@@ -5,11 +5,6 @@ import bcrypt from "bcrypt"
 const UserSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    mobileNumber: {
-        type: String,
-        required: true,
-        trim: true
-    },
     password: { type: String, required: true },
     role: { 
         type: String, 
@@ -30,14 +25,24 @@ const UserSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Middleware to hash password before saving (pre-save hook)
+// UserSchema.pre('save', async function (next) {
+//     if (!this.isModified('password')) {
+//         next();
+//     }
+//     // Hash the password
+//     const salt = await bcrypt.genSalt(10);
+//     this.password = await bcrypt.hash(this.password, salt);
+// });
 UserSchema.pre('save', async function (next) {
     if (!this.isModified('password')) {
-        next();
+        return next();   // IMPORTANT: return
     }
-    // Hash the password
+
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
+    next();
 });
+
 
 // Method to compare entered password with hashed password
 UserSchema.methods.matchPassword = async function (enteredPassword) {
