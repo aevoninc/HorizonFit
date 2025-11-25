@@ -342,6 +342,25 @@ const deactivatePatient = asyncHandler(async (req, res) => {
     });
 });
 
+
+const getDeactivatedPatients = asyncHandler(async (req, res) => {
+    const deactivatedPatients = await User.find({ 
+        role: 'Patient', 
+        isActive: false 
+    }).select('name email deactivationDate assignedCategory');
+    if (deactivatedPatients.length === 0) {
+        return res.status(200).json({ message: 'No deactivated patients found.', patients: [] });
+    }
+    res.status(200).json(deactivatedPatients);
+});
+
+const getNullConsultancyRequest = asyncHandler(async (req, res) => {
+    const bookings = await ConsultationBooking.find({ patientId: null });
+    if (bookings.length === 0) {
+        return res.status(200).json({ message: 'No bookings found with null patientId.', bookings: [] });
+    res.status(200).json(bookings);
+});
+
 export { 
   createPatient, 
   getPatientList, 
@@ -352,5 +371,7 @@ export {
   getConsultationRequests,
   updateConsultationStatus,
   getCompletedPatients,
-  deactivatePatient
+  deactivatePatient,
+  getDeactivatedPatients,
+  getNullConsultancyRequest
 };

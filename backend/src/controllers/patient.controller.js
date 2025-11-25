@@ -285,6 +285,7 @@ const requestConsultation = asyncHandler(async (req, res) => {
     }
     // 3. Create Booking
     const booking = await ConsultationBooking.create({
+        patientId,
         patientEmail: req.user.email,
         mobileNumber: req.user.mobileNumber,
         requestedDateTime,
