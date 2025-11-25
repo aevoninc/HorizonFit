@@ -358,8 +358,9 @@ const getNullConsultancyRequest = asyncHandler(async (req, res) => {
     const bookings = await ConsultationBooking.find({ patientId: null });
     if (bookings.length === 0) {
         return res.status(200).json({ message: 'No bookings found with null patientId.', bookings: [] });
+    }
     res.status(200).json(bookings);
-});
+  });
 
 export { 
   createPatient, 

@@ -8,7 +8,9 @@ import {
     getConsultationRequests,
     updateConsultationStatus,
     deactivatePatient,
-    getCompletedPatients
+    getCompletedPatients,
+      getDeactivatedPatients,
+      getNullConsultancyRequest
 } from "../controllers/doctor.controller.js"
 import { protect, isDoctor } from '../middleware/auth.middleware.js';
 import express from "express"
@@ -47,5 +49,10 @@ router.patch("/deactivate-patient/:patientId", deactivatePatient);
 // Get Completed Patients (who have finished their 15-week program)
 router.get("/completed-patients", getCompletedPatients);
 
+// Get Deactivated Patients
+router.get("/deactivated-patients", getDeactivatedPatients);
+
+// Get Bookings with null patientId
+router.get("/null-consultancy-requests", getNullConsultancyRequest);
 
 export default router;
