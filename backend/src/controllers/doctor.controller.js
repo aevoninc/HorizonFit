@@ -5,15 +5,25 @@ import PatientProgramTask from "../model/patientProgramTask.model.js";
 import PatientTrackingData from "../model/patientTrackingData.model.js";
 import PatientTaskLog from "../model/patientTaskLog.model.js";
 import ConsultationBooking from "../model/consultationBooking.model.js";
+import {
+    DOCTOR_EMAIL,
+    DOCTOR_NAME,
+    ADMIN_MAIL,
+} from "../constants.js";
+import {
+    sendConsultationUpdateEmail,
+    sendPatientWelcomeEmail,
+    sendTaskAssignmentEmail
+} from '../utils/mailer.js';
 
 // @desc    Create a new Patient (Manual process done by Doctor/Admin)
 // @route   POST /api/doctor/create-patient
 // @access  Private (Requires Doctor role via middleware)
 const createPatient = asyncHandler(async (req, res) => {
 
-  const { name,email, password, assignedCategory, programStartDate} = req.body;
+  const { name,email,mobileNumber,password, assignedCategory, programStartDate} = req.body;
 
-  if (!name || !email || !password || !assignedCategory) {
+  if (!name || !email || !mobileNumber || !password || !assignedCategory) {
     return res
       .status(400)
       .json({
@@ -32,12 +42,18 @@ const createPatient = asyncHandler(async (req, res) => {
     name,
     email,
     password,
+    mobileNumber,
     role: "Patient",
     assignedCategory,
     programStartDate: programStartDate || new Date(),
   });
 
   if (patient) {
+    await sendPatientWelcomeEmail(
+      email,
+      name,
+      DOCTOR_NAME
+    );
     res
       .status(201)
       .json({
@@ -100,6 +116,15 @@ const allocateTasks = asyncHandler(async (req, res) => {
   // 5. Insert all tasks into the database
   const newTasks = await PatientProgramTask.insertMany(tasksToInsert);
 
+  await sendTaskAssignmentEmail(
+    patient.email,
+    patient.name,
+    DOCTOR_NAME,
+    `New Program Tasks Assigned`,
+    null,
+    `You have been assigned ${newTasks.length} new tasks as part of your health program. Please log in to your dashboard to view and start completing them.`
+  );
+  
   res.status(201).json({
     message: `${newTasks.length} tasks allocated to patient ${patientId} successfully.`,
     allocatedTasks: newTasks.map((t) => ({

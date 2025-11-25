@@ -5,10 +5,27 @@ import User from '../model/user.model.js';
 import PatientProgramTask from '../model/patientProgramTask.model.js'; 
 import PatientTaskLog from '../model/patientTaskLog.model.js';
 import ConsultationBooking from '../model/consultationBooking.model.js';
-import { processPayment,processRefund,createRazorpayOrder } from '../utils/payment.js';
-import { sendEmail,sendConsultationUpdateEmail,sendPasswordResetEmail} from '../utils/mailer.js';
+import programBookingModel from '../model/programBooking.model.js';
+import {
+    processPayment,
+    processRefund,
+    createRazorpayOrder
+} from '../utils/payment.js';
+import {
+    sendConsultationUpdateEmail, 
+    sendPasswordResetEmail,
+    sendPatientWelcomeEmail,
+    sendTaskAssignmentEmail,
+    sendProgramBookingEmail 
+} from '../utils/mailer.js';
 import crypto from 'crypto';
-import { DOCTOR_EMAIL, DOCTOR_NAME } from '../constants.js';
+import {
+    DOCTOR_EMAIL,
+    DOCTOR_NAME,
+    ADMIN_MAIL,
+    CONSULTANCY_BOOKING_PRICE,
+    PROGRAM_BOOKING_PRICE
+} from '../constants.js';
 
 // Function to calculate the current week number
 const calculateProgramWeek = (programStartDate, dateRecorded) => {
@@ -259,7 +276,8 @@ const requestConsultation = asyncHandler(async (req, res) => {
     // 2. Capture payment (if needed)
     const paymentResult = await processPayment(
         paymentToken,
-        req.user.email
+        req.user.email,
+        CONSULTANCY_BOOKING_PRICE
     );
 
     if (paymentResult.status !== "Payment Successful") {
@@ -267,14 +285,15 @@ const requestConsultation = asyncHandler(async (req, res) => {
     }
     // 3. Create Booking
     const booking = await ConsultationBooking.create({
-        patientId,
+        patientEmail: req.user.email,
+        mobileNumber: req.user.mobileNumber,
         requestedDateTime,
-        confirmedDateTime: requestedDateTime,
-        patientQuery: patientQuery || "General Consultation",
+        patientQuery,
         status: "Payment Successful",
         transactionId: paymentResult.id,
-        orderId
-    });
+        orderId,
+        paymentSignature: razorpaySignature,
+    })
 
     await sendConsultationUpdateEmail(
         DOCTOR_EMAIL,
@@ -468,6 +487,7 @@ const updatePassword = asyncHandler(async (req, res) => {
     res.status(200).json({ message: 'Password updated successfully.' });
 }
 )
+
 
 export {
     logTrackingData,

@@ -27,8 +27,7 @@ const createRazorpayOrder = async () => {
 };
 
 // processPayment() 
-const processPayment = async (razorpayPaymentId, email) => {
-    const amount = 100; //100 ₹ - Rupees
+const processPayment = async (razorpayPaymentId, email,amount) => {
     try {
         // Razorpay verifies card/UPI on frontend
         const captureResponse = await razorpay.payments.capture(

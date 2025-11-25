@@ -1,32 +1,18 @@
-// models/ConsultationBooking.js (UPDATED RECOMMENDED SCHEMA)
 import mongoose from 'mongoose';
 
-const BookingSchema = new mongoose.Schema({
-    patientId: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User', 
-        default: null
-    },
-    
-    patientEmail: {
-        type: String,
-        required: true, 
-        trim: true
-    },
-    mobileNumber: {
+const programBookingSchema = new mongoose.Schema({
+
+    email: {
         type: String,
         required: true,
         trim: true
     },
 
-    // Store the requested date and time for the consultation
-    requestedDateTime: { type: Date, required: true }, 
-
-    // **ADD THIS:** Store the final confirmed/rescheduled time
-    confirmedDateTime: { type: Date, default: null }, 
-    
-    patientQuery: { type: String, default: 'General Consultation' },
-
+    mobileNumber: {
+        type: String,
+        required: true,
+        trim: true
+    },
     // Store reason for cancellation if applicable
     cancellationReason: { type: String, default: null },
 
@@ -44,8 +30,6 @@ const BookingSchema = new mongoose.Schema({
         default: 'Awaiting Payment' 
     },
     
-    // Once confirmed, the Zoom link is stored here
-    zoomLink: { type: String, default: null },
 
     // Reference to the payment transaction
     transactionId: { 
@@ -58,10 +42,9 @@ const BookingSchema = new mongoose.Schema({
     orderId: { 
         type: String,
         default: null
-    }
+    },
 
     // Reference to the Razorpay Refund ID (Crucial for reconciliation and tracking refund status)
-    ,
     refundId: { 
         type: String,
         default: null
@@ -74,4 +57,4 @@ const BookingSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-export default mongoose.model('ConsultationBooking', BookingSchema);
+export default mongoose.model("ProgramBooking",programBookingSchema);

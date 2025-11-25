@@ -1,19 +1,21 @@
-// NOTE: In a real Node.js environment, you would run 'npm install nodemailer' 
-// and uncomment the import below.
-import nodemailer from 'nodemailer'; // **CORRECTION: Use the real import**
-// Import the template generation functions from the template service
+import nodemailer from 'nodemailer';
 import dotenv from "dotenv";
 
 dotenv.config();
-import { consultationUpdateTemplate, passwordResetTemplate } from './emailTemplateService.js'; 
 
-// **REMOVED: The mockNodemailer object is removed to use the real setup.**
+import { 
+    consultationUpdateTemplate,
+    passwordResetTemplate,
+    patientWelcomeTemplate,
+    taskAssignmentTemplate,
+    programBookingTemplate
+} from './emailTemplateService.js'; 
+
 
 // =================================================================
 // 1. TRANSPORTER SETUP (Uses SendGrid via SMTP Configuration)
 // =================================================================
 
-// **CORRECTION: This is now the active transporter setup for SendGrid.**
 
 const transporter = nodemailer.createTransport({
     host: "smtp-relay.brevo.com",
@@ -37,6 +39,7 @@ const transporter = nodemailer.createTransport({
  * @param {string} html - The HTML body.
  * @returns {Promise<void>}
  */
+
 const sendEmail = async (recipient, subject, text, html) => {
     const mailOptions = {
         from: process.env.EMAIL_FROM || 'Health App <no-reply@aevon.in>',
@@ -46,13 +49,8 @@ const sendEmail = async (recipient, subject, text, html) => {
         html: html,
     };
     try {
-        console.log("BREVO USER:", process.env.BREVO_SMTP_USER);
-        console.log("BREVO KEY:", process.env.BREVO_SMTP_KEY ? "LOADED" : "NOT LOADED");
-        console.log("EMAIL_FROM:", process.env.EMAIL_FROM);
-        await transporter.sendMail(mailOptions);
-        console.log("Email transporter configured with Brevo SMTP.",transporter.options.auth); 
-        console.log(`[EMAIL] Successfully triggered mail for ${recipient}.`);
-        
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`[EMAIL] Sent to ${recipient}: ${info.messageId}`);
     } catch (error) {
         console.log("Error details:", error);
         console.error(`[EMAIL] FAILED to send email to ${recipient}: ${error.message}`);
@@ -69,8 +67,6 @@ const sendEmail = async (recipient, subject, text, html) => {
  */
 const sendConsultationUpdateEmail = async (recipient, personName, otherPartyName, status, dateTime) => {
     
-    // **CORRECTION: Fixed missing 'subject' variable and simplified logic**
-    // The previous logic depended on a missing 'isPatient' flag, so we'll use a generic subject.
     const subject = `${status} Consultation with ${otherPartyName}`;
     
     const htmlBody = consultationUpdateTemplate(personName, otherPartyName, status, dateTime);
@@ -90,9 +86,62 @@ const sendPasswordResetEmail = async (recipient, userName, resetLink) => {
     await sendEmail(recipient, subject, textBody, htmlBody);
 };
 
+/**
+ * Sends a welcome email to a new patient.
+ */
+const sendPatientWelcomeEmail = async (recipient, patientName, assignedDoctorName) => {
+    const subject = 'Welcome to Aevon Health - Your Health Journey Starts Now!';
+    const htmlBody = patientWelcomeTemplate(patientName, assignedDoctorName);
+    const textBody = `Welcome ${patientName}! Your account is created, and your specialist is ${assignedDoctorName}. Log in to get started.`;
+
+    await sendEmail(recipient, subject, textBody, htmlBody);
+};
+
+/**
+ * Sends a notification to the patient (or doctor) about a newly assigned task.
+ */
+const sendTaskAssignmentEmail = async (recipient, personName, otherPartyName, taskName, dueDate, taskDescription) => {
+    const isDoctor = personName.startsWith('Dr.');
+    let subject;
+    
+    if (isDoctor) {
+        subject = `Task Confirmation: ${taskName} assigned to Patient ${otherPartyName}`;
+    } else {
+        subject = `ACTION REQUIRED: New Care Task Assigned - ${taskName}`;
+    }
+
+    const htmlBody = taskAssignmentTemplate(personName, otherPartyName, taskName, dueDate, taskDescription);
+    const textBody = `Hello ${personName}, a new task "${taskName}" with a due date of ${dueDate} has been assigned. Please check your dashboard for details.`;
+
+    await sendEmail(recipient, subject, textBody, htmlBody);
+};
+
+/**
+ * Sends confirmation to both the patient and the doctor for the 15-Week Program booking.
+ */
+const sendProgramBookingEmail = async (recipient, personName, otherPartyName, startDate, paymentId) => {
+    const programName = '15-Week Wellness Program';
+    const isDoctor = personName.startsWith('Dr.');
+    let subject;
+
+    if (isDoctor) {
+        subject = `NEW ENROLLMENT: ${programName} - Patient ${otherPartyName}`;
+    } else {
+        subject = `CONFIRMATION: Your ${programName} Enrollment is Complete!`;
+    }
+
+    const htmlBody = programBookingTemplate(personName, otherPartyName, startDate, paymentId);
+    const textBody = `Hello ${personName}, your enrollment in the ${programName} is confirmed (Start Date: ${startDate}). Please check your dashboard.`;
+
+    await sendEmail(recipient, subject, textBody, htmlBody);
+};
+
 
 export { 
     sendEmail, 
     sendConsultationUpdateEmail, 
     sendPasswordResetEmail,
+    sendPatientWelcomeEmail,
+    sendTaskAssignmentEmail,
+    sendProgramBookingEmail 
 };

@@ -1,7 +1,7 @@
 // NOTE: We use template literals (backticks) to build the HTML and inject dynamic data.
 
 // =================================================================
-// 1. CONSULTATION UPDATE TEMPLATE
+// 0. BASE TEMPLATE (Provided by user - Used for consistent styling)
 // =================================================================
 
 /**
@@ -74,7 +74,6 @@ const renderBaseTemplate = (title, content, link, buttonText) => {
         margin-bottom: 15px;
     `;
     
-    // Replace the placeholder status classes with the inline styles above
     const contentWithStyles = content
         .replace('class="status-confirmed"', `style="${statusConfirmedStyle}"`)
         .replace('class="status-cancelled"', `style="${statusCancelledStyle}"`)
@@ -113,14 +112,15 @@ const renderBaseTemplate = (title, content, link, buttonText) => {
 };
 
 
+// =================================================================
+// 1. CONSULTATION UPDATE TEMPLATE (User's Existing Function)
+// =================================================================
+
 const consultationUpdateTemplate = (recipientName, otherPartyName, status, dateTime) => {
     let title = '';
     let message = '';
-    let statusClass = ''; // Used as a placeholder to be replaced by renderBaseTemplate
+    let statusClass = ''; 
 
-    // Use proper checking: if the other party is the doctor, the recipient is the patient.
-    // The previous heuristic 'isDoctor' was checking the recipient, which is fine, 
-    // but we need to ensure the logic flows correctly for the dynamic content.
     const isDoctor = recipientName.startsWith('Dr.'); 
     const link = 'https://dashboard.aevon.in/my-appointments'; // Example dashboard link
 
@@ -193,15 +193,9 @@ const consultationUpdateTemplate = (recipientName, otherPartyName, status, dateT
 
 
 // =================================================================
-// 2. PASSWORD RESET TEMPLATE
+// 2. PASSWORD RESET TEMPLATE (User's Existing Function)
 // =================================================================
 
-/**
- * Generates the content for a password reset request.
- * @param {string} userName - The name of the user.
- * @param {string} resetLink - The secure link to reset the password.
- * @returns {string} The complete HTML email body.
- */
 const passwordResetTemplate = (userName, resetLink) => {
     const title = 'Password Reset Request';
     const content = `
@@ -213,12 +207,129 @@ const passwordResetTemplate = (userName, resetLink) => {
         <p>If you did not request a password reset, please ignore this email. Your password will remain unchanged.</p>
     `;
 
-    // Use the base template to wrap the content and include the action button
     return renderBaseTemplate(title, content, resetLink, 'Reset My Password');
 };
 
+// =================================================================
+// 3. NEW: PATIENT WELCOME TEMPLATE
+// =================================================================
+
+const patientWelcomeTemplate = (patientName, assignedDoctorName) => {
+    const title = 'Welcome to Aevon Health App!';
+    const link = 'https://dashboard.aevon.in/onboarding'; // Link to patient dashboard/onboarding
+    
+    const content = `
+        <p>Dear ${patientName},</p>
+        <div class="status-confirmed">
+            <h3>Welcome Aboard!</h3>
+        </div>
+        <p>Your account with Aevon Health has been successfully created. We are delighted to have you join our care platform.</p>
+        
+        <p>Your primary care specialist has been assigned:</p>
+        <h4 style="color: #007bff; margin: 10px 0;">${assignedDoctorName}</h4>
+        
+        <p>Please click the button below to complete your profile setup and access your personalized health program.</p>
+        <p>We are here to support your journey to better health.</p>
+    `;
+
+    return renderBaseTemplate(title, content, link, 'Go to My Dashboard');
+};
+
+
+
+const taskAssignmentTemplate = (recipientName, otherPartyName, taskName, dueDate, taskDescription) => {
+    const link = 'https://dashboard.aevon.in/tasks'; // Link to tasks page
+    const isDoctor = recipientName.startsWith('Dr.');
+    const title = isDoctor ? 'Patient Task Assigned' : 'New Task Assigned to You';
+    
+    let message = '';
+
+    if (isDoctor) {
+        // Recipient is the Doctor
+        message = `
+            <p>Dear ${recipientName},</p>
+            <p>You have successfully assigned a new task to your patient, **${otherPartyName}**.</p>
+            <div class="status-box">
+                <p style="margin: 5px 0;"><strong>Task:</strong> ${taskName}</p>
+                <p style="margin: 5px 0;"><strong>Due Date:</strong> ${dueDate}</p>
+            </div>
+            <p>Please monitor their progress in the patient's record on your dashboard.</p>
+            <p><strong>Description:</strong> ${taskDescription}</p>
+        `;
+    } else {
+        // Recipient is the Patient
+        message = `
+            <p>Dear ${recipientName},</p>
+            <p>**${otherPartyName}** has assigned a new task to your personalized health program.</p>
+            <div class="status-box">
+                <p style="margin: 5px 0; font-size: 1.1em;"><strong>NEW TASK:</strong> ${taskName}</p>
+                <p style="margin: 5px 0;"><strong>Due Date:</strong> ${dueDate}</p>
+            </div>
+            <p>Please complete this task by the due date to ensure continuous progress in your care plan.</p>
+            <p><strong>Details:</strong> ${taskDescription}</p>
+        `;
+    }
+
+    const content = `
+        <p>Hello ${recipientName},</p>
+        ${message}
+        <p>Thank you for participating in your care program.</p>
+    `;
+
+    return renderBaseTemplate(title, content, link, 'View All Tasks');
+};
+
+
+const programBookingTemplate = (recipientName, otherPartyName, startDate, paymentId) => {
+    const programName = '15-Week Wellness Program';
+    const link = 'https://dashboard.aevon.in/program-details';
+    const isDoctor = recipientName.startsWith('Dr.');
+    
+    let title = isDoctor ? `New Patient Enrolled in ${programName}` : `Your ${programName} is Confirmed!`;
+    let message = '';
+
+    if (isDoctor) {
+        // Recipient is the Doctor (Notifying them of a new patient)
+        message = `
+            <p>Dear ${recipientName},</p>
+            <p>A new patient, **${otherPartyName}**, has successfully enrolled and paid for the **${programName}**.</p>
+            <div class="status-box">
+                <p style="margin: 5px 0;"><strong>Patient Name:</strong> ${otherPartyName}</p>
+                <p style="margin: 5px 0;"><strong>Program Start Date:</strong> ${startDate}</p>
+            </div>
+            <p>Please check your program queue to begin setting up their initial plan and consultation schedule.</p>
+        `;
+    } else {
+        // Recipient is the Patient (Confirming their payment and enrollment)
+        message = `
+            <p>Dear ${recipientName},</p>
+            <p>Congratulations! Your enrollment in the **${programName}** is now **CONFIRMED**.</p>
+            <div class="status-confirmed">
+                <h3 style="margin: 0; padding: 0;">Payment Successful</h3>
+            </div>
+            <p>Here are your program details:</p>
+            <ul style="list-style: none; padding-left: 0;">
+                <li style="margin-bottom: 5px;"><strong>Your Specialist:</strong> ${otherPartyName}</li>
+                <li style="margin-bottom: 5px;"><strong>Program Start Date:</strong> ${startDate}</li>
+                <li style="margin-bottom: 5px;"><strong>Payment ID:</strong> ${paymentId}</li>
+            </ul>
+            <p>Click below to access your program dashboard and view your first steps.</p>
+        `;
+    }
+    
+    const content = `
+        <p>Hello ${recipientName},</p>
+        ${message}
+        <p>Thank you for choosing Aevon Health App.</p>
+    `;
+
+    return renderBaseTemplate(title, content, link, isDoctor ? 'View Patient Records' : 'Start My Program');
+};
 
 export {
     consultationUpdateTemplate,
-    passwordResetTemplate
+    passwordResetTemplate,
+    patientWelcomeTemplate,
+    taskAssignmentTemplate,
+    programBookingTemplate
 };
