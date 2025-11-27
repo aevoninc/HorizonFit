@@ -5,6 +5,7 @@ import PatientProgramTask from "../model/patientProgramTask.model.js";
 import PatientTrackingData from "../model/patientTrackingData.model.js";
 import PatientTaskLog from "../model/patientTaskLog.model.js";
 import ConsultationBooking from "../model/consultationBooking.model.js";
+import Weight_Loss from "../utils/weightLossProgram.js";
 import {
     DOCTOR_EMAIL,
     DOCTOR_NAME,
@@ -16,53 +17,74 @@ import {
     sendTaskAssignmentEmail
 } from '../utils/mailer.js';
 
+
 // @desc    Create a new Patient (Manual process done by Doctor/Admin)
 // @route   POST /api/doctor/create-patient
 // @access  Private (Requires Doctor role via middleware)
 const createPatient = asyncHandler(async (req, res) => {
 
-  const { name,email,mobileNumber,password, assignedCategory, programStartDate} = req.body;
+ const { name, email, mobileNumber, password, assignedCategory, programStartDate,   assignFixedMatrix } = req.body;
 
-  if (!name || !email || !mobileNumber || !password || !assignedCategory) {
-    return res
-      .status(400)
-      .json({
-        message: "Please provide name,email,mobile number, password, and assigned category.",
-      });
-  }
+ if (!name || !email || !mobileNumber || !password || !assignedCategory) {
+  return res
+   .status(400)
+   .json({
+    message: "Please provide name, email, mobile number, password, and assigned category.",
+   });
+ }
 
-  const userExists = await User.findOne({ email });
-  if (userExists) {
-    return res
-      .status(400)
-      .json({ message: `User already exists with this email: ${email}` });
-  }
+ const userExists = await User.findOne({ email });
+ if (userExists) {
+  return res
+   .status(400)
+   .json({ message: `User already exists with this email: ${email}` });
+ }
 
-  const patient = await User.create({
-    name,
-    email,
-    password,
-    mobileNumber,
-    role: "Patient",
-    assignedCategory,
-    programStartDate: programStartDate || new Date(),
-  });
+ const patient = await User.create({
+  name,
+  email,
+  password,
+  mobileNumber,
+  role: "Patient",
+  assignedCategory,
+  programStartDate: programStartDate || new Date(),
+ });
 
-  if (patient) {
-    await sendPatientWelcomeEmail(
-      email,
-      name,
-      DOCTOR_NAME
-    );
-    res
-      .status(201)
-      .json({
-        message: "Patient created successfully.",
-        patient: { _id: patient._id, email: patient.email },
-      });
-  } else {
-    res.status(400).json({ message: "Invalid patient data received." });
-  }
+ if(!patient || !patient.assignedCategory){
+  return res.status(400).json({ message: "Invalid patient data received." });
+ }
+ if (patient.assignedCategory === "Weight Loss" && assignFixedMatrix) {
+        // --- START: AUTOMATIC TASK ASSIGNMENT LOGIC ---
+        const patientId = patient._id;
+        const dateAssigned = new Date();
+
+        // 1. Prepare the fixed tasks for bulk insertion by adding the patientId and current status
+        const tasksToInsert = Weight_Loss.map((task) => ({
+            ...task,
+            patientId: patientId, // CRITICAL: Link to the new patient
+            status: "Pending",     // Default status
+            dateAssigned: dateAssigned, // Set assignment date
+        }));
+
+        // 2. Insert all tasks into the PatientProgramTask collection
+        const newTasks = await PatientProgramTask.insertMany(tasksToInsert);
+        // --- END: AUTOMATIC TASK ASSIGNMENT LOGIC ---
+
+  await sendPatientWelcomeEmail(
+   email,
+   name,
+   DOCTOR_NAME
+  );
+    
+  res
+   .status(201)
+   .json({
+    message: `Patient created successfully and ${newTasks.length} fixed program tasks assigned.`, // <-- Updated message
+    patient: { _id: patient._id, email: patient.email },
+   });
+ } else {
+  res.status(400).json({ message: "Invalid patient data received." });
+ }
 });
 
 // @desc    Get list of all Patients (for Doctor's dashboard view)
@@ -103,11 +125,8 @@ const allocateTasks = asyncHandler(async (req, res) => {
       .json({ message: "No tasks provided for allocation." });
   }
 
-  // 3. Optional: Clear any existing tasks for this patient before starting a new program
-  // This prevents tasks from overlapping from old program allocations.
-  // await PatientProgramTask.deleteMany({ patientId });
-
   // 4. Prepare the tasks for bulk insertion
+
   const tasksToInsert = tasks.map((task) => ({
     patientId,
     description: task.description,
@@ -293,7 +312,6 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
     });
 });
 
-
 // @desc    Get list of Patients whose 15-week program is completed
 // @route   GET /api/doctor/patients/completed
 // @access  Private/Doctor
@@ -317,7 +335,6 @@ const getCompletedPatients = asyncHandler(async (req, res) => {
 
     res.status(200).json(completedPatients);
 });
-
 
 // @desc    Doctor deactivates a patient account (for audit/program end)
 // @route   PATCH /api/doctor/patient/:patientId/deactivate
@@ -395,6 +412,7 @@ const deletePatient = asyncHandler(async (req, res) => {
         patient: { _id: patient._id, email: patient.email }
     });
 });
+
 
 export { 
   createPatient, 
