@@ -9,8 +9,9 @@ import {
     updateConsultationStatus,
     deactivatePatient,
     getCompletedPatients,
-      getDeactivatedPatients,
-      getNullConsultancyRequest
+    getDeactivatedPatients,
+    getNewConsultancyRequest,
+    deletePatient
 } from "../controllers/doctor.controller.js"
 import { protect, isDoctor } from '../middleware/auth.middleware.js';
 import express from "express"
@@ -52,7 +53,10 @@ router.get("/completed-patients", getCompletedPatients);
 // Get Deactivated Patients
 router.get("/deactivated-patients", getDeactivatedPatients);
 
-// Get Bookings with null patientId
-router.get("/null-consultancy-requests", getNullConsultancyRequest);
+// Get Bookings with getNewConsultancyRequest patientId
+router.get("/get-new-consultancy-request", getNewConsultancyRequest);
+
+//delete all the record of the patient
+router.delete("delete-patient",deletePatient);
 
 export default router;

@@ -13,28 +13,40 @@ const programBookingSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    // Store reason for cancellation if applicable
-    cancellationReason: { type: String, default: null },
 
-    
-    // Use a single status field to track the progress
+    // --- Program Details ---
+
+    programCategory: {
+        type: String,
+        required: true, // Must be provided during booking
+        trim: true
+    },
+
+    programPrice: {
+        type: Number,
+        required: true, // Crucial for auditing and reconciliation
+    },
+
+    // --- Status and Cancellation ---
     status: { 
         type: String, 
         enum: [
             'Awaiting Payment', 
-            'Payment Successful', // Ready for Doctor Review
+            'Payment Successful',
             'Confirmed', 
-            'Rescheduled',        // Added for clarity on Doctor's update
+            'Rescheduled', 
             'Cancelled'
         ], 
         default: 'Awaiting Payment' 
     },
     
+    cancellationReason: { type: String, default: null },
 
-    // Reference to the payment transaction
-    transactionId: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Transaction',
+    // --- Payment Details (External IDs) ---
+
+    // Renamed from transactionId and changed to String to store external payment ID (e.g., Razorpay Payment ID)
+    externalTransactionId: { 
+        type: String,
         default: null
     },
 
@@ -44,7 +56,7 @@ const programBookingSchema = new mongoose.Schema({
         default: null
     },
 
-    // Reference to the Razorpay Refund ID (Crucial for reconciliation and tracking refund status)
+    // Reference to the Razorpay Refund ID
     refundId: { 
         type: String,
         default: null

@@ -65,12 +65,12 @@ const sendEmail = async (recipient, subject, text, html) => {
 /**
  * Sends a consultation update email (Confirmed, Rescheduled, Cancelled).
  */
-const sendConsultationUpdateEmail = async (recipient, personName, otherPartyName, status, dateTime) => {
+const sendConsultationUpdateEmail = async (recipient, personName, doctor, status, dateTime) => {
     
-    const subject = `${status} Consultation with ${otherPartyName}`;
+    const subject = `${status} Consultation with ${doctor}`;
     
-    const htmlBody = consultationUpdateTemplate(personName, otherPartyName, status, dateTime);
-    const textBody = `Hello ${personName}, your consultation status with ${otherPartyName} is ${status} for ${dateTime}. Please check your dashboard.`;
+    const htmlBody = consultationUpdateTemplate(personName, doctor, status, dateTime);
+    const textBody = `Hello ${personName}, your consultation status with ${doctor} is ${status} for ${dateTime}. Please check your dashboard.`;
 
     await sendEmail(recipient, subject, textBody, htmlBody);
 };

@@ -13,7 +13,8 @@ import {
     cancelBooking,
     getPatientProfile,
     updatePassword,
-    createOrderId
+    createOrderId,
+    getZoneTasks
 } from '../controllers/patient.controller.js';
 import express from 'express';
 export const router = express.Router();
@@ -49,5 +50,7 @@ router.post('/update-password', protect, isPatient, updatePassword);
 
 // Create Razorpay Order ID
 router.post('/create-order', protect, isPatient, createOrderId);
+
+router.get('/get-zone-task:zoneId', getZoneTasks)
 
 export default router;

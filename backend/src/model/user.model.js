@@ -27,6 +27,9 @@ const UserSchema = new mongoose.Schema({
     },
     assignedCategory: { type: String, default: null }, // e.g., 'Weight Loss'
     programStartDate: { type: Date, default: null },
+    programBookingId:{
+      type: String, default: null 
+    }
 }, { timestamps: true });
 
 // Middleware to hash password before saving (pre-save hook)

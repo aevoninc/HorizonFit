@@ -215,8 +215,8 @@ const passwordResetTemplate = (userName, resetLink) => {
 // =================================================================
 
 const patientWelcomeTemplate = (patientName, assignedDoctorName) => {
-    const title = 'Welcome to Aevon Health App!';
-    const link = 'https://dashboard.aevon.in/onboarding'; // Link to patient dashboard/onboarding
+    const title = 'Welcome to HorizonFit!';
+    const link = 'https://horizonfit.in/#'; // Link to patient dashboard/onboarding
     
     const content = `
         <p>Dear ${patientName},</p>
@@ -238,7 +238,7 @@ const patientWelcomeTemplate = (patientName, assignedDoctorName) => {
 
 
 const taskAssignmentTemplate = (recipientName, otherPartyName, taskName, dueDate, taskDescription) => {
-    const link = 'https://dashboard.aevon.in/tasks'; // Link to tasks page
+    const link = 'https://horizonfit.in/#'; // Link to tasks page
     const isDoctor = recipientName.startsWith('Dr.');
     const title = isDoctor ? 'Patient Task Assigned' : 'New Task Assigned to You';
     
@@ -282,7 +282,7 @@ const taskAssignmentTemplate = (recipientName, otherPartyName, taskName, dueDate
 
 const programBookingTemplate = (recipientName, otherPartyName, startDate, paymentId) => {
     const programName = '15-Week Wellness Program';
-    const link = 'https://dashboard.aevon.in/program-details';
+    const link = 'https://horizonfit.in/#';
     const isDoctor = recipientName.startsWith('Dr.');
     
     let title = isDoctor ? `New Patient Enrolled in ${programName}` : `Your ${programName} is Confirmed!`;

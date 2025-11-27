@@ -27,7 +27,7 @@ const createPatient = asyncHandler(async (req, res) => {
     return res
       .status(400)
       .json({
-        message: "Please provide name,email, password, and assigned category.",
+        message: "Please provide name,email,mobile number, password, and assigned category.",
       });
   }
 
@@ -106,9 +106,11 @@ const allocateTasks = asyncHandler(async (req, res) => {
   const tasksToInsert = tasks.map((task) => ({
     patientId,
     description: task.description,
+    zone: task.zone,
     programWeek: task.programWeek,
     frequency: task.frequency, // Now accepts 'Daily', 'Weekly', 'SpecificDays', 'OneTime'
     daysApplicable: task.daysApplicable || [], // <-- NEW: Store the days
+    timeOfDay: task.timeOfDay,
     metricRequired: task.metricRequired || null,
     status: "Pending",
   }));
@@ -240,59 +242,52 @@ const getConsultationRequests = asyncHandler(async (req, res) => {
 // @access  Private/Doctor
 const updateConsultationStatus = asyncHandler(async (req, res) => {
     const { bookingId } = req.params;
-    const doctorId = req.user._id;
     const { 
-        bookingStatus, // Expected: 'Confirmed', 'Rescheduled', 'Cancelled'
+        status, // Expected: 'Confirmed', 'Rescheduled', 'Cancelled'
         confirmedDateTime // Only required if status is 'Confirmed' or 'Rescheduled'
     } = req.body;
 
-    if (!['Confirmed', 'Rescheduled', 'Cancelled'].includes(bookingStatus)) {
+    if (!['Confirmed', 'Rescheduled', 'Cancelled'].includes(status)) {
         return res.status(400).json({ message: 'Invalid booking status provided.' });
     }
 
-    const updateData = { bookingStatus };
-    let emailSubject = '';
-    let emailBody = '';
+    const updateData = { status };
 
     // Handle Time Update if confirming or rescheduling
-    if (bookingStatus === 'Confirmed' || bookingStatus === 'Rescheduled') {
+    if (status === 'Confirmed' || status === 'Rescheduled') {
         if (!confirmedDateTime) {
             return res.status(400).json({ message: 'Confirmed date and time is required for confirmation/rescheduling.' });
         }
         updateData.confirmedDateTime = new Date(confirmedDateTime);
-        
-        emailSubject = bookingStatus === 'Confirmed' ? 'Consultation CONFIRMED' : 'Consultation RESCHEDULED';
-        emailBody = `Your consultation is ${bookingStatus.toLowerCase()} for: ${new Date(confirmedDateTime).toLocaleString()}. Please log in to view details.`;
-    } else if (bookingStatus === 'Cancelled') {
-        emailSubject = 'Consultation CANCELLED';
-        emailBody = 'Your consultation has been cancelled. Please check your payment status (refunds processed if applicable).';
     }
 
-    // 1. Update the booking record, ensuring the doctor owns it
-    const updatedBooking = await ConsultationBooking.findOneAndUpdate(
-        { _id: bookingId, doctorId },
-        { $set: updateData },
-        { new: true }
-    ).populate('patientId', 'email'); // Get patient email for notification
 
     if (!updatedBooking) {
         return res.status(404).json({ message: 'Booking not found or not assigned to you.' });
     }
+    // 3. Update the booking in the database
+    const updatedBooking = await ConsultationBooking.findOneAndUpdate(
+        { _id: bookingId },
+        { $set: updateData },
+        { new: true }
+    );
+    // 2. Send Email Notification to the Patient  
+    const user = User.findById(updatedBooking.patientId).select('email name');
+    await sendConsultationUpdateEmail(
+        user.email,
+        user.name,
+        DOCTOR_NAME,
+        status,
+        updatedBooking.confirmedDateTime || updatedBooking.requestedDateTime
+    );
 
-    // 2. Send Email Notification to the Patient
-    if (updatedBooking.patientId.email) {
-        // NOTE: Error handling for email sending should be done inside sendEmail utility
-        sendEmail(updatedBooking.patientId.email, emailSubject, emailBody);
-    }
 
     res.status(200).json({ 
-        message: `Booking status updated to ${bookingStatus} and patient notified.`, 
+        message: `Booking status updated to ${status} and patient notified.`, 
         booking: updatedBooking 
     });
 });
 
-
-// controllers/doctorController.js (New function)
 
 // @desc    Get list of Patients whose 15-week program is completed
 // @route   GET /api/doctor/patients/completed
@@ -318,7 +313,6 @@ const getCompletedPatients = asyncHandler(async (req, res) => {
     res.status(200).json(completedPatients);
 });
 
-// controllers/doctorController.js (Optional Addition)
 
 // @desc    Doctor deactivates a patient account (for audit/program end)
 // @route   PATCH /api/doctor/patient/:patientId/deactivate
@@ -342,7 +336,9 @@ const deactivatePatient = asyncHandler(async (req, res) => {
     });
 });
 
-
+// @desc    Get list of Deactivated Patients
+// @route   GET /api/doctor/patients/deactivated
+// @access  Private/Doctor
 const getDeactivatedPatients = asyncHandler(async (req, res) => {
     const deactivatedPatients = await User.find({ 
         role: 'Patient', 
@@ -354,13 +350,46 @@ const getDeactivatedPatients = asyncHandler(async (req, res) => {
     res.status(200).json(deactivatedPatients);
 });
 
-const getNullConsultancyRequest = asyncHandler(async (req, res) => {
+// @desc    Get Bookings with null patientId
+// @route   GET /api/doctor/get-new-consultancy-request
+// @access  Private/Doctor
+const getNewConsultancyRequest = asyncHandler(async (req, res) => {
     const bookings = await ConsultationBooking.find({ patientId: null });
     if (bookings.length === 0) {
         return res.status(200).json({ message: 'No bookings found with null patientId.', bookings: [] });
     }
     res.status(200).json(bookings);
   });
+
+
+const deletePatient = asyncHandler(async (req, res) => {
+    const { patientId } = req.params;
+
+    const patientLog = await PatientTaskLog.findByIdAndDelete(
+      patientId
+    )
+    const patientTask = await patientProgramTaskModel.findByIdAndDelete(
+      patientId
+    )
+    const patientTrackingData = await patientTrackingDataModel.findByIdAndDelete(
+      patientId
+    )
+    const refreshToken = await refreshTokenModel.findByIdAndDelete(
+      patientId
+    )
+
+    const patient = await User.findOneAndDelete(
+        { _id: patientId, role: 'Patient' }
+    );
+
+    if (!patient) {
+        return res.status(404).json({ message: 'Patient not found.' });
+    }
+    res.status(200).json({ 
+        message: 'Patient account successfully deleted.', 
+        patient: { _id: patient._id, email: patient.email }
+    });
+});
 
 export { 
   createPatient, 
@@ -374,5 +403,6 @@ export {
   getCompletedPatients,
   deactivatePatient,
   getDeactivatedPatients,
-  getNullConsultancyRequest
+  getNewConsultancyRequest,
+  deletePatient
 };

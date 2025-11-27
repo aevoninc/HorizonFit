@@ -44,8 +44,6 @@ const BookingSchema = new mongoose.Schema({
         default: 'Awaiting Payment' 
     },
     
-    // Once confirmed, the Zoom link is stored here
-    zoomLink: { type: String, default: null },
 
     // Reference to the payment transaction
     transactionId: { 

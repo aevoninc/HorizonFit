@@ -27,6 +27,41 @@ import {
     PROGRAM_BOOKING_PRICE
 } from '../constants.js';
 
+const checkZoneCompletion = async (patientId, zone) => {
+    // 1. Find all unique tasks that belong to the previous zone (N-1)
+    const requiredTasks = await PatientProgramTask.find({
+        patientId: patientId,
+        zone: zone
+    }).select('_id').lean();
+
+    // If there are no required tasks in the zone, we assume the zone is completed (this shouldn't happen in a well-defined program)
+    if (requiredTasks.length === 0) {
+        return true; 
+    }
+
+    const requiredTaskIds = requiredTasks.map(task => task._id);
+
+    // 2. Count how many of these tasks have been logged as completed by the patient
+    // Note: Since PatientTaskLog schema is simple, we just count unique task IDs logged.
+    const loggedCompletions = await PatientTaskLog.find({
+        patientId: patientId,
+        taskId: { $in: requiredTaskIds }
+    })
+    // We only care about unique tasks logged, so we count the number of distinct task IDs
+    .distinct('taskId');
+    
+    // Check if the number of distinct tasks logged equals the total number of required tasks
+    return loggedCompletions.length === requiredTaskIds.length;
+};
+const findCurrentHighestCompletedZone = async (patientId) => {
+    // Start checking from Zone 5 backwards to find the highest completed one.
+    for (let zone = 5; zone >= 1; zone--) {
+        if (await checkZoneCompletion(patientId, zone)) {
+            return zone;
+        }
+    }
+    return 0; // If Zone 1 is not completed, return 0
+};
 // Function to calculate the current week number
 const calculateProgramWeek = (programStartDate, dateRecorded) => {
     const start = new Date(programStartDate);
@@ -377,7 +412,7 @@ const cancelBooking = asyncHandler(async (req, res) => {
     }
 
     // 3. Determine Refund Eligibility & Amount (Simplified)
-    const refundAmount = 100; 
+    const refundAmount = CONSULTANCY_BOOKING_PRICE ; 
     let refundSuccess = false;
     let refundError = null;
     
@@ -447,8 +482,7 @@ const getPatientProfile = asyncHandler(async (req, res) => {
     // Fetch the user, explicitly selecting fields the patient should see.
     // NOTE: NEVER send sensitive fields like 'password' or 'role' unless necessary.
     const user = await User.findById(patientId)
-        .select('-password -role -__v -resetPasswordToken -resetPasswordExpire')
-        .populate('assignedDoctorId', 'firstName lastName specialisation'); // Populate doctor info
+        .select('-password -role ') 
 
     if (!user) {
         // This should theoretically not happen if auth middleware is correct
@@ -489,6 +523,80 @@ const updatePassword = asyncHandler(async (req, res) => {
 }
 )
 
+// @desc    Get tasks for a specific zone, enforcing sequential completion (Zone 1 to 5)
+// @route   GET /api/patient/tasks/zone/:zoneNumber
+// @access  Private/Patient
+// @desc    Get tasks for a specific zone, enforcing sequential and forward progression
+// @route   GET /api/patient/tasks/zone/:zoneNumber
+// @access  Private/Patient
+const getZoneTasks = asyncHandler(async (req, res) => {
+    const patientId = req.user._id;
+    const requestedZone = parseInt(req.params.zoneNumber, 10);
+    const MAX_ZONES = 5;
+
+    // 1. Basic validation
+    if (isNaN(requestedZone) || requestedZone < 1 || requestedZone > MAX_ZONES) {
+        return res.status(400).json({
+            message: "Invalid zone number. Must be between 1 and 5."
+        });
+    }
+
+    // 2. Determine the next required zone based on current completion
+    const highestCompletedZone = await findCurrentHighestCompletedZone(patientId);
+    
+    // The next required zone is one level above the highest completed zone.
+    const nextRequiredZone = highestCompletedZone + 1;
+    
+    // If the highest completed zone is 5, the program is done.
+    if (highestCompletedZone === MAX_ZONES) {
+            return res.status(200).json({
+                message: "Program is fully completed! Zone access is restricted to the final report.",
+                programStatus: "Completed"
+            });
+    }
+    
+    // 3. FORWARD PROGRESSION CHECK (The new requirement)
+    // Patient can only access the next required zone.
+    if (requestedZone !== nextRequiredZone) {
+        let accessMessage;
+        let statusCode = 403; // Forbidden
+
+        if (requestedZone < nextRequiredZone) {
+            // Case A: Trying to fetch a zone that is already completed (e.g., requesting Zone 1 when Zone 2 is available)
+            accessMessage = `Zone ${requestedZone} is already completed. Please proceed to Zone ${nextRequiredZone}.`;
+        } else {
+            // Case B: Trying to jump ahead (e.g., requesting Zone 3 when Zone 2 is required)
+            // Note: This check implicitly covers the 'previous zone not complete' check.
+            accessMessage = `Access denied. You must complete Zone ${nextRequiredZone - 1} before accessing Zone ${requestedZone}.`;
+        }
+        
+        return res.status(statusCode).json({
+            message: accessMessage,
+            nextRequiredZone: nextRequiredZone
+        });
+    }
+
+
+    // 4. Fetch tasks for the requested zone (which is now guaranteed to be the nextRequiredZone)
+    const zoneTasks = await PatientProgramTask.find({
+        zone: requestedZone,
+        patientId: patientId
+    }).lean(); 
+
+    // 5. Check for tasks
+    if (!zoneTasks || zoneTasks.length === 0) {
+        return res.status(404).json({ 
+            message: `No tasks found for Zone ${requestedZone} for this patient. Please contact your doctor.`
+        });
+    }
+
+    // 6. Send success response
+    res.status(200).json({
+        task: zoneTasks,
+        message: `Tasks for current required Zone ${requestedZone} fetched successfully`,
+        currentZone: requestedZone
+    });
+});
 
 export {
     logTrackingData,
@@ -500,5 +608,6 @@ export {
     cancelBooking,
     getPatientProfile,
     updatePassword,
-    createOrderId
+    createOrderId,
+    getZoneTasks
 };
