@@ -23,7 +23,9 @@ const UserSchema = new mongoose.Schema({
     assignedCategory: { type: String, default: null }, // e.g., 'Weight Loss'
     programStartDate: { type: Date, default: null },
     programBookingId:{
-      type: String, default: null 
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ProgramBooking',
+      default: null 
     }
 }, { timestamps: true });
 

@@ -47,8 +47,7 @@ const BookingSchema = new mongoose.Schema({
 
     // Reference to the payment transaction
     transactionId: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Transaction',
+        type: String,
         default: null
     },
 
