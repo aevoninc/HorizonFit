@@ -21,25 +21,47 @@ const Dashboard = () => {
   const [dietType, setDietType] = useState<"loss" | "gain">("loss");
   const [selectedDay, setSelectedDay] = useState(1);
 
-  useEffect(() => {
-    const session = localStorage.getItem("userSession");
-    if (!session) {
-      navigate("/login");
-      return;
-    }
-    const parsedSession = JSON.parse(session);
-    if (parsedSession.type !== "user") {
-      navigate("/login");
-      return;
-    }
-    setUserEmail(parsedSession.email);
+  // useEffect(() => {
+  //   const session = localStorage.getItem("userSession");
+  //   if (!session) {
+  //     navigate("/login");
+  //     return;
+  //   }
+  //   const parsedSession = JSON.parse(session);
+  //   if (parsedSession.type !== "user") {
+  //     navigate("/login");
+  //     return;
+  //   }
+  //   setUserEmail(parsedSession.email);
 
-    // Load saved diet type
-    const savedDietType = localStorage.getItem("dietType");
-    if (savedDietType) {
-      setDietType(savedDietType as "loss" | "gain");
-    }
-  }, [navigate]);
+  //   // Load saved diet type
+  //   const savedDietType = localStorage.getItem("dietType");
+  //   if (savedDietType) {
+  //     setDietType(savedDietType as "loss" | "gain");
+  //   }
+  // }, [navigate]);
+  useEffect(() => {
+  const session = localStorage.getItem("userSession");
+  if (!session) {
+    navigate("/login");
+    return;
+  }
+
+  const parsedSession = JSON.parse(session);
+
+  // FIXED: patient, not user
+  if (parsedSession.type !== "patient") {
+    navigate("/login");
+    return;
+  }
+
+  setUserEmail(parsedSession.email);
+
+  const savedDietType = localStorage.getItem("dietType");
+  if (savedDietType) {
+    setDietType(savedDietType as "loss" | "gain");
+  }
+}, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem("userSession");
@@ -115,8 +137,7 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Activity className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-bold text-gradient">Horizon Fit</h1>
+          <img src="/logo.png" className="h-14" />
             </div>
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground">{userEmail}</span>

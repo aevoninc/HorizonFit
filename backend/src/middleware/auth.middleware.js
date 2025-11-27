@@ -3,54 +3,47 @@ import jwt from 'jsonwebtoken';
 import asyncHandler from '../utils/asyncHandler.js';
 import User from '../model/user.model.js';
 
-// 1. JWT Verification Middleware
+// 1. Protect Middleware
 const protect = asyncHandler(async (req, res, next) => {
-    // We are checking the short-lived Access Token cookie
-    let token = req.cookies.accessToken; 
+    let token = null;
 
-    if (token) {
-        try {
-            // Verify and decode the token using the secret key
-            const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-            
-            // Find user by ID (excluding password) and ATTACH the user object to the request
-            // This makes the user's role and ID available to the next middleware/controller
-            req.user = await User.findById(decoded.userId).select('-password'); 
-            
-            next();
-        } catch (error) {
-            console.error(error);
-            // If verification fails (e.g., token expired or modified)
-            res.status(401).json({ message: 'Not authorized, Access Token failed or expired.' });
-        }
-    } else {
-        // No token cookie found
-        res.status(401).json({ message: 'Not authorized, no Access Token.' });
+    // Cookie token
+    if (req.cookies.accessToken) {
+        token = req.cookies.accessToken;
+    }
+
+    // Authorization header token
+    else if (req.headers.authorization?.startsWith("Bearer ")) {
+        token = req.headers.authorization.split(" ")[1];
+    }
+
+    if (!token) {
+        return res.status(401).json({ message: 'Not authorized, no token found' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+        req.user = await User.findById(decoded.userId).select("-password");
+        next();
+    } catch (error) {
+        res.status(401).json({ message: 'Not authorized, token invalid/expired' });
     }
 });
 
-// 2. Role Verification Middleware
+// 2. Doctor Access
 const isDoctor = (req, res, next) => {
-    // This function runs AFTER 'protect' has successfully attached req.user
-    
-    // Check if the user object exists AND if the role field matches 'Doctor'
-    if (req.user && req.user.role === 'Doctor') {
-        next(); // Proceed to the controller function
-    } else {
-        // Logged in, but the role is 'Patient' or something else
-        res.status(403).json({ message: 'Access Denied: Requires Doctor access.' });
+    if (req.user && req.user.role.toLowerCase() === "doctor") {
+        return next();
     }
+    return res.status(403).json({ message: 'Access Denied: Requires Doctor access.' });
 };
 
+// 3. Patient Access
 const isPatient = (req, res, next) => {
-    // This function runs AFTER 'protect' has successfully attached req.user
-    // Check if the user object exists AND if the role field matches 'Patient'
-    if (req.user && req.user.role === 'Patient') {
-        next(); // Proceed to the controller function
-    } else {
-        // Logged in, but the role is 'Doctor' or something else
-        res.status(403).json({ message: 'Access Denied: Requires Patient access.' });
+    if (req.user && req.user.role.toLowerCase() === "patient") {
+        return next();
     }
+    return res.status(403).json({ message: 'Access Denied: Requires Patient access.' });
 };
 
-export { protect, isDoctor,isPatient };
+export { protect, isDoctor, isPatient };

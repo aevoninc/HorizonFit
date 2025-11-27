@@ -11,58 +11,195 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Activity } from "lucide-react";
+import api from "@/api/axios";
 
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+
   const [userEmail, setUserEmail] = useState("");
   const [userPassword, setUserPassword] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
+  console.log("API URL:", api.defaults.baseURL);
 
-  const handleUserLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userEmail || !userPassword) {
+  // ---------------------- USER (Patient) Login ----------------------
+  // const handleUserLogin = async (e) => {
+  //   e.preventDefault();
+
+  //   try {
+  //     const res = await api.post("/auth/login", {
+  //       email: userEmail,
+  //       password: userPassword,
+  //     });
+
+  //     if (res.data?.role !== "Patient") {
+  //       toast({
+  //         title: "Access Denied",
+  //         description: "This account is not a Patient account.",
+  //         variant: "destructive",
+  //       });
+  //       return;
+  //     }
+
+  //     // 🔥 Save access token + session
+  //     localStorage.setItem("accessToken", res.data.accessToken);
+  //     localStorage.setItem(
+  //       "userSession",
+  //       JSON.stringify({
+  //         email: res.data.email,
+  //         type: "patient",
+  //       })
+  //     );
+
+  //     api.defaults.headers.common["Authorization"] =
+  //       "Bearer " + res.data.accessToken;
+
+  //     navigate("/dashboard");
+  //     setTimeout(() => {
+  //       toast({
+  //         title: "Welcome!",
+  //         description: "Patient login successful",
+  //       });
+  //     }, 100);
+  //   } catch (error) {
+  //     toast({
+  //       title: "Login Failed",
+  //       description: error?.response?.data?.message || "Something went wrong",
+  //       variant: "destructive",
+  //     });
+  //   }
+  // };
+  const handleUserLogin = async (e) => {
+  e.preventDefault();
+
+  try {
+    const res = await api.post("/auth/login", {
+      email: userEmail,
+      password: userPassword,
+    });
+
+    console.log("USER LOGIN RESPONSE:", res.data);
+
+    // Check for correct role
+    if (res.data?.role !== "Patient") {
       toast({
-        title: "Error",
-        description: "Please fill in all fields",
+        title: "Access Denied",
+        description: "This account is not a Patient account.",
         variant: "destructive",
       });
       return;
     }
-    // Store user session
+
+    if (!res.data.accessToken) {
+      console.log("❌ No accessToken received");
+      toast({
+        title: "Token Missing",
+        description: "Backend did not return an access token.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Save session
+    localStorage.setItem("accessToken", res.data.accessToken);
     localStorage.setItem(
       "userSession",
-      JSON.stringify({ email: userEmail, type: "user" })
+      JSON.stringify({
+        email: res.data.email,
+        type: "patient",
+      })
     );
-    toast({
-      title: "Welcome!",
-      description: "Login successful",
-    });
+
+    api.defaults.headers.common["Authorization"] =
+      "Bearer " + res.data.accessToken;
+
+    console.log("➡ Redirecting to patient dashboard...");
     navigate("/dashboard");
-  };
 
-  const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!adminEmail || !adminPassword) {
+    setTimeout(() => {
       toast({
-        title: "Error",
-        description: "Please fill in all fields",
+        title: "Welcome!",
+        description: "Patient login successful.",
+      });
+    }, 150);
+
+  } catch (error) {
+    console.log("USER LOGIN ERROR:", error);
+
+    toast({
+      title: "Login Failed",
+      description: error?.response?.data?.message || "Something went wrong",
+      variant: "destructive",
+    });
+  }
+};
+
+  
+
+
+  // ---------------------- ADMIN (Doctor) Login ----------------------
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+
+    try {
+      const res = await api.post("/auth/login", {
+        email: adminEmail,
+        password: adminPassword,
+      });
+
+      console.log("LOGIN SUCCESS RESPONSE:", res.data);
+
+      if (res.data?.role !== "Doctor") {
+        toast({
+          title: "Access Denied",
+          description: "This is not a Doctor/Admin account.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!res.data.accessToken) {
+        console.log("❌ No accessToken received from backend");
+        toast({
+          title: "Token Missing",
+          description: "Backend did not return an access token.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 🔥 Save access token + session
+      localStorage.setItem("accessToken", res.data.accessToken);
+      localStorage.setItem(
+        "userSession",
+        JSON.stringify({
+          email: res.data.email,
+          type: "admin",
+        })
+      );
+
+      api.defaults.headers.common["Authorization"] =
+        "Bearer " + res.data.accessToken;
+
+      console.log("Navigating to /admin ...");
+      navigate("/admin");
+
+      setTimeout(() => {
+        toast({
+          title: "Welcome Doctor!",
+          description: "Admin login successful",
+        });
+      }, 150);
+    } catch (error) {
+      console.log("LOGIN ERROR:", error);
+
+      toast({
+        title: "Login Failed",
+        description: error?.response?.data?.message || "Something went wrong",
         variant: "destructive",
       });
-      return;
     }
-    // Store admin session
-    localStorage.setItem(
-      "userSession",
-      JSON.stringify({ email: adminEmail, type: "admin" })
-    );
-    toast({
-      title: "Welcome Doctor!",
-      description: "Admin login successful",
-    });
-    navigate("/admin");
   };
 
   return (
@@ -84,6 +221,7 @@ const Login = () => {
             <TabsTrigger value="admin">Admin Login</TabsTrigger>
           </TabsList>
 
+          {/* ---------------- USER LOGIN ---------------- */}
           <TabsContent value="user" className="animate-fade-in">
             <Card>
               <CardHeader>
@@ -95,14 +233,10 @@ const Login = () => {
               <CardContent>
                 <form onSubmit={handleUserLogin} className="space-y-4">
                   <div>
-                    <label
-                      htmlFor="user-email"
-                      className="block text-sm font-medium mb-2"
-                    >
+                    <label className="block text-sm font-medium mb-2">
                       Email
                     </label>
                     <Input
-                      id="user-email"
                       type="email"
                       value={userEmail}
                       onChange={(e) => setUserEmail(e.target.value)}
@@ -111,14 +245,10 @@ const Login = () => {
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="user-password"
-                      className="block text-sm font-medium mb-2"
-                    >
+                    <label className="block text-sm font-medium mb-2">
                       Password
                     </label>
                     <Input
-                      id="user-password"
                       type="password"
                       value={userPassword}
                       onChange={(e) => setUserPassword(e.target.value)}
@@ -128,7 +258,7 @@ const Login = () => {
                   </div>
                   <Button
                     type="submit"
-                    className="w-full gradient-orange text-white hover:opacity-90 transition-smooth"
+                    className="w-full gradient-orange text-white"
                   >
                     Sign In
                   </Button>
@@ -137,6 +267,7 @@ const Login = () => {
             </Card>
           </TabsContent>
 
+          {/* ---------------- ADMIN LOGIN ---------------- */}
           <TabsContent value="admin" className="animate-fade-in">
             <Card>
               <CardHeader>
@@ -148,14 +279,10 @@ const Login = () => {
               <CardContent>
                 <form onSubmit={handleAdminLogin} className="space-y-4">
                   <div>
-                    <label
-                      htmlFor="admin-email"
-                      className="block text-sm font-medium mb-2"
-                    >
+                    <label className="block text-sm font-medium mb-2">
                       Email
                     </label>
                     <Input
-                      id="admin-email"
                       type="email"
                       value={adminEmail}
                       onChange={(e) => setAdminEmail(e.target.value)}
@@ -164,14 +291,10 @@ const Login = () => {
                     />
                   </div>
                   <div>
-                    <label
-                      htmlFor="admin-password"
-                      className="block text-sm font-medium mb-2"
-                    >
+                    <label className="block text-sm font-medium mb-2">
                       Password
                     </label>
                     <Input
-                      id="admin-password"
                       type="password"
                       value={adminPassword}
                       onChange={(e) => setAdminPassword(e.target.value)}
@@ -181,7 +304,7 @@ const Login = () => {
                   </div>
                   <Button
                     type="submit"
-                    className="w-full gradient-orange text-white hover:opacity-90 transition-smooth"
+                    className="w-full gradient-orange text-white"
                   >
                     Admin Sign In
                   </Button>
