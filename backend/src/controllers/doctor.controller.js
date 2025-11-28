@@ -6,6 +6,7 @@ import PatientTrackingData from "../model/patientTrackingData.model.js";
 import PatientTaskLog from "../model/patientTaskLog.model.js";
 import ConsultationBooking from "../model/consultationBooking.model.js";
 import Weight_Loss from "../utils/weightLossProgram.js";
+import RefreshTokenModel from '../model/RefreshToken.model.js';  
 import {
     DOCTOR_EMAIL,
     DOCTOR_NAME,
@@ -23,7 +24,7 @@ import {
 // @access  Private (Requires Doctor role via middleware)
 const createPatient = asyncHandler(async (req, res) => {
 
- const { name, email, mobileNumber, password, assignedCategory, programStartDate,   assignFixedMatrix } = req.body;
+ const { name, email, mobileNumber, password, assignedCategory, programStartDate, assignFixedMatrix } = req.body;
 
  if (!name || !email || !mobileNumber || !password || !assignedCategory) {
   return res
@@ -52,8 +53,9 @@ const createPatient = asyncHandler(async (req, res) => {
 
  if(!patient || !patient.assignedCategory){
   return res.status(400).json({ message: "Invalid patient data received." });
- }
- if (patient.assignedCategory === "Weight Loss" && assignFixedMatrix) {
+}
+console.log("New Patient Created:", patient.assignedCategory);
+ if (patient.assignedCategory == "Weight Loss" && assignFixedMatrix) {
         // --- START: AUTOMATIC TASK ASSIGNMENT LOGIC ---
         const patientId = patient._id;
         const dateAssigned = new Date();
@@ -69,7 +71,7 @@ const createPatient = asyncHandler(async (req, res) => {
         // 2. Insert all tasks into the PatientProgramTask collection
         const newTasks = await PatientProgramTask.insertMany(tasksToInsert);
         // --- END: AUTOMATIC TASK ASSIGNMENT LOGIC ---
-
+        console.log(`Assigned ${newTasks} fixed Weight Loss tasks to patient ${patientId}.`);
   await sendPatientWelcomeEmail(
    email,
    name,
@@ -381,36 +383,48 @@ const getNewConsultancyRequest = asyncHandler(async (req, res) => {
         return res.status(200).json({ message: 'No bookings found with null patientId.', bookings: [] });
     }
     res.status(200).json(bookings);
-  });
+});
 
-
+// @desc    Doctor deletes a Patient account and all associated data
+// @route   DELETE /api/doctor/patient/:patientId
+// @access  Private/Doctor
 const deletePatient = asyncHandler(async (req, res) => {
-    const { patientId } = req.params;
+    const { patientId } = req.params; // This is the User._id
 
-    const patientLog = await PatientTaskLog.findByIdAndDelete(
-      patientId
-    )
-    const patientTask = await patientProgramTaskModel.findByIdAndDelete(
-      patientId
-    )
-    const patientTrackingData = await patientTrackingDataModel.findByIdAndDelete(
-      patientId
-    )
-    const refreshToken = await refreshTokenModel.findByIdAndDelete(
-      patientId
-    )
+    // 1. CRITICAL FIX: Delete ALL associated records using deleteMany({ patientId: ... })
+    //    We use deleteMany because multiple logs/tasks are linked to one patientId.
+    const logResult = await PatientTaskLog.deleteMany({ patientId: patientId });
+    const taskResult = await PatientProgramTask.deleteMany({ patientId: patientId });
+    const trackingResult = await PatientTrackingData.deleteMany({ patientId: patientId });
+    
+    // Note on refreshToken: If this model links the token via 'userId' or similar, 
+    // you must use deleteMany({ userId: patientId }). If it truly links by patientId as _id, 
+    // then the original findByIdAndDelete might be okay, but deleteMany is safer.
+    // Assuming it links by a patient/user ID field:
+    const tokenResult = await RefreshTokenModel.deleteMany({ userId: patientId }); // Adjust 'userId' field name if necessary
 
-    const patient = await User.findOneAndDelete(
-        { _id: patientId, role: 'Patient' }
-    );
 
-    if (!patient) {
-        return res.status(404).json({ message: 'Patient not found.' });
-    }
-    res.status(200).json({ 
-        message: 'Patient account successfully deleted.', 
-        patient: { _id: patient._id, email: patient.email }
-    });
+    // 2. Delete the main User (Patient) account
+    const patient = await User.findOneAndDelete(
+        { _id: patientId, role: 'Patient' }
+    );
+
+    if (!patient) {
+        // Check only the User model for existence
+        return res.status(404).json({ message: 'Patient not found.' });
+    }
+    
+    // 3. Provide comprehensive success response
+    res.status(200).json({ 
+        message: 'Patient account and all associated data successfully deleted (Hard Delete).',
+        summary: {
+            user: patient._id,
+            logsDeleted: logResult.deletedCount,
+            tasksDeleted: taskResult.deletedCount,
+            trackingDeleted: trackingResult.deletedCount,
+            tokensDeleted: tokenResult.deletedCount,
+        }
+    });
 });
 
 

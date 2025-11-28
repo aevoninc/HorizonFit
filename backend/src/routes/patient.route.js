@@ -51,6 +51,6 @@ router.post('/update-password', protect, isPatient, updatePassword);
 // Create Razorpay Order ID
 router.post('/create-order', protect, isPatient, createOrderId);
 
-router.get('/get-zone-task:zoneId', getZoneTasks)
+router.get('/get-zone-task/:zoneNumber', getZoneTasks)
 
 export default router;

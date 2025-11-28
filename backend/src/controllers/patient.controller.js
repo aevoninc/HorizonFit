@@ -531,7 +531,9 @@ const updatePassword = asyncHandler(async (req, res) => {
 // @access  Private/Patient
 const getZoneTasks = asyncHandler(async (req, res) => {
     const patientId = req.user._id;
+    console.log("Patient ID:", patientId);
     const requestedZone = parseInt(req.params.zoneNumber, 10);
+    console.log("Requested Zone:", requestedZone);
     const MAX_ZONES = 5;
 
     // 1. Basic validation
@@ -567,7 +569,7 @@ const getZoneTasks = asyncHandler(async (req, res) => {
         } else {
             // Case B: Trying to jump ahead (e.g., requesting Zone 3 when Zone 2 is required)
             // Note: This check implicitly covers the 'previous zone not complete' check.
-            accessMessage = `Access denied. You must complete Zone ${nextRequiredZone - 1} before accessing Zone ${requestedZone}.`;
+            accessMessage = `Access denied. You must complete Zone ${nextRequiredZone} before accessing Zone ${requestedZone}.`;
         }
         
         return res.status(statusCode).json({

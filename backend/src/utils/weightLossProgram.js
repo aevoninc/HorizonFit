@@ -7,7 +7,7 @@ const Weight_Loss = [
     zone: 1, // Hydration/Diet
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    timeOfDay: "All Day",
+    timeOfDay: "Morning",
     metricRequired: "Weight Loss",
   },
   {
@@ -37,7 +37,7 @@ const Weight_Loss = [
     zone: 2, // Hydration/Diet (Slight increase in difficulty)
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    timeOfDay: "All Day",
+    timeOfDay: "Morning",
     metricRequired: "Weight Loss",
   },
   {
@@ -67,7 +67,7 @@ const Weight_Loss = [
     zone: 3, // Hydration/Diet (Difficulty increases)
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    timeOfDay: "All Day",
+    timeOfDay: "Morning",
     metricRequired: "Weight Loss",
   },
   {
@@ -99,7 +99,7 @@ const Weight_Loss = [
     zone: 4,
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    timeOfDay: "All Day",
+    timeOfDay: "Morning",
     metricRequired: "Weight Loss",
   },
   {

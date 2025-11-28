@@ -20,7 +20,11 @@ const UserSchema = new mongoose.Schema({
         type: Date, 
         default: null // Should be null while the user is active
     },
-    assignedCategory: { enum: ['Weight Gain', 'Weight Loss', null] }, // e.g., 'Weight Loss'
+    assignedCategory: { 
+      type : String,
+      enum: ['Weight Gain', 'Weight Loss', null],
+      default: null
+    }, // e.g., 'Weight Loss'
     programStartDate: { type: Date, default: null },
     programBookingId:{
       type: mongoose.Schema.Types.ObjectId,

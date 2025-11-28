@@ -57,6 +57,6 @@ router.get("/deactivated-patients", getDeactivatedPatients);
 router.get("/get-new-consultancy-request", getNewConsultancyRequest);
 
 //delete all the record of the patient
-router.delete("delete-patient",deletePatient);
+router.delete("/delete-patient/:patientId",deletePatient);
 
 export default router;
