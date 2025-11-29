@@ -6,7 +6,43 @@ const Weight_Loss = [
     programWeek: 1,
     zone: 1, // Hydration/Diet
     frequency: "Daily",
-    daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    daysApplicable: ["Mon", "Tue", "Wed"],
+    timeOfDay: "Morning",
+    metricRequired: "Weight Loss",
+  },
+    {
+    description: "Drink 2L of water daily. Log breakfast and dinner.",
+    programWeek: 1,
+    zone: 1, // Hydration/Diet
+    frequency: "Daily",
+    daysApplicable: ["Mon", "Tue", "Wed"],
+    timeOfDay: "Evening",
+    metricRequired: "Weight Loss",
+  },
+      {
+    description: "Drink 2L of water daily. Log breakfast and dinner.",
+    programWeek: 1,
+    zone: 1, // Hydration/Diet
+    frequency: "Daily",
+    daysApplicable: ["Mon", "Tue", "Wed"],
+    timeOfDay: "Afternoon",
+    metricRequired: "Weight Loss",
+  },
+      {
+    description: "Drink 2L of water daily. Log breakfast and dinner.",
+    programWeek: 1,
+    zone: 1, // Hydration/Diet
+    frequency: "Daily",
+    daysApplicable: ["Mon", "Tue", "Wed"],
+    timeOfDay: "Night",
+    metricRequired: "Weight Loss",
+  },
+    {
+    description: "Drink 3L of water daily. Log breakfast and dinner.",
+    programWeek: 1,
+    zone: 1, // Hydration/Diet
+    frequency: "Daily",
+    daysApplicable: ["Thu", "Fri", "Sat", "Sun"],
     timeOfDay: "Morning",
     metricRequired: "Weight Loss",
   },
