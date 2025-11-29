@@ -40,6 +40,7 @@ const Dashboard = () => {
   //     setDietType(savedDietType as "loss" | "gain");
   //   }
   // }, [navigate]);
+  
   useEffect(() => {
   const session = localStorage.getItem("userSession");
   if (!session) {
