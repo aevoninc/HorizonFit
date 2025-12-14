@@ -71,72 +71,70 @@ const Login = () => {
   //   }
   // };
   const handleUserLogin = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    const res = await api.post("/auth/login", {
-      email: userEmail,
-      password: userPassword,
-    });
+    try {
+      const res = await api.post("/auth/login", {
+        email: userEmail,
+        password: userPassword,
+      });
 
-    console.log("USER LOGIN RESPONSE:", res.data);
+      console.log("USER LOGIN RESPONSE:", res.data);
 
-    // Check for correct role
-    if (res.data?.role !== "Patient") {
+      // Check for correct role
+      if (res.data?.role !== "Patient") {
+        toast({
+          title: "Access Denied",
+          description: "This account is not a Patient account.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!res.data.accessToken) {
+        console.log("❌ No accessToken received");
+        toast({
+          title: "Token Missing",
+          description: "Backend did not return an access token.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Save session
+      localStorage.setItem("accessToken", res.data.accessToken);
+      localStorage.setItem(
+        "userSession",
+        JSON.stringify({
+          email: res.data.email,
+          type: "patient",
+        })
+      );
+
+      console.log("➡ Redirecting to patient dashboard...");
+      localStorage.setItem("userId", res.data._id); // <-- REQUIRED
+      localStorage.setItem("role", res.data.role); // OPTIONAL but useful
+      api.defaults.headers.common["Authorization"] =
+        "Bearer " + res.data.accessToken;
+
+      navigate("/dashboard");
+
+      setTimeout(() => {
+        toast({
+          title: "Welcome!",
+          description: "Patient login successful.",
+        });
+      }, 150);
+    } catch (error) {
+      console.log("USER LOGIN ERROR:", error);
+
       toast({
-        title: "Access Denied",
-        description: "This account is not a Patient account.",
+        title: "Login Failed",
+        description: error?.response?.data?.message || "Something went wrong",
         variant: "destructive",
       });
-      return;
     }
-
-    if (!res.data.accessToken) {
-      console.log("❌ No accessToken received");
-      toast({
-        title: "Token Missing",
-        description: "Backend did not return an access token.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Save session
-    localStorage.setItem("accessToken", res.data.accessToken);
-    localStorage.setItem(
-      "userSession",
-      JSON.stringify({
-        email: res.data.email,
-        type: "patient",
-      })
-    );
-
-    api.defaults.headers.common["Authorization"] =
-      "Bearer " + res.data.accessToken;
-
-    console.log("➡ Redirecting to patient dashboard...");
-    navigate("/dashboard");
-
-    setTimeout(() => {
-      toast({
-        title: "Welcome!",
-        description: "Patient login successful.",
-      });
-    }, 150);
-
-  } catch (error) {
-    console.log("USER LOGIN ERROR:", error);
-
-    toast({
-      title: "Login Failed",
-      description: error?.response?.data?.message || "Something went wrong",
-      variant: "destructive",
-    });
-  }
-};
-
-  
-
+  };
 
   // ---------------------- ADMIN (Doctor) Login ----------------------
   const handleAdminLogin = async (e) => {
@@ -179,10 +177,12 @@ const Login = () => {
         })
       );
 
+      console.log("Navigating to /admin ...");
+      localStorage.setItem("userId", res.data._id); // <-- REQUIRED
+      localStorage.setItem("role", res.data.role); // OPTIONAL
       api.defaults.headers.common["Authorization"] =
         "Bearer " + res.data.accessToken;
 
-      console.log("Navigating to /admin ...");
       navigate("/admin");
 
       setTimeout(() => {

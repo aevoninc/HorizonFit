@@ -5,6 +5,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+   withCredentials: true,
 });
 
 // Attach token automatically
@@ -44,3 +45,5 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+
