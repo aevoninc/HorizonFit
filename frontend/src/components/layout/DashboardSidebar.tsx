@@ -9,7 +9,7 @@ import {
   LogOut,
   CheckCircle,
   UserPlus,
-  FileText,
+  UserX,
   Activity,
   BookOpen,
 } from 'lucide-react';
@@ -25,9 +25,9 @@ interface NavItem {
 const doctorNavItems: NavItem[] = [
   { label: 'Manage Patients', path: '/doctor/patients', icon: Users },
   { label: 'Consultations', path: '/doctor/consultations', icon: Calendar },
-  { label: 'Completed', path: '/doctor/completed', icon: CheckCircle },
+  { label: 'Completed Patients', path: '/doctor/completed-patients', icon: CheckCircle },
+  { label: 'Deactivated Patients', path: '/doctor/deactivated-patients', icon: UserX },
   { label: 'New Requests', path: '/doctor/new-requests', icon: UserPlus },
-  { label: 'Deactivated', path: '/doctor/deactivated', icon: FileText },
 ];
 
 const patientNavItems: NavItem[] = [
