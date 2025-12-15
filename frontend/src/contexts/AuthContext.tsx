@@ -26,16 +26,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   // Check for existing session on mount
-  useEffect(() => {
-    const storedRole = sessionStorage.getItem('userRole') as UserRole;
-    const storedUser = sessionStorage.getItem('user');
-    
-    if (storedRole && storedUser) {
-      setRole(storedRole);
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
-  }, []);
+useEffect(() => {
+  const storedRole = sessionStorage.getItem('userRole') as UserRole;
+  const storedUser = sessionStorage.getItem('user');
+  
+  // Only proceed if we have a role AND a non-empty, non-null user string
+  if (storedRole && storedUser) {
+   try {
+    setRole(storedRole);
+    setUser(JSON.parse(storedUser));
+   } catch (e) {
+    // If parsing fails (e.g., SyntaxError), clear the corrupted data
+    console.error("Corrupted session data cleared:", e);
+    sessionStorage.removeItem('userRole');
+    sessionStorage.removeItem('user');
+   }
+  }
+  setIsLoading(false);
+ }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     try {

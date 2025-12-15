@@ -65,6 +65,49 @@ api.interceptors.response.use(
   }
 );
 
+// Types
+export interface Patient {
+  id: string;
+  name: string;
+  email: string;
+  zone: number;
+  progress: number;
+  status: 'active' | 'completed' | 'deactivated';
+  enrolledDate?: string;
+  completedDate?: string;
+  deactivatedDate?: string;
+  deactivationReason?: string;
+}
+
+export interface Task {
+  id: string;
+  name: string;
+  zoneId: number;
+  weekNumber: number;
+  dayOfWeek: string[];
+  frequency: 'daily' | 'weekly' | 'biweekly';
+  status: 'pending' | 'in-progress' | 'completed';
+}
+
+export interface Consultation {
+  id: string;
+  patientId?: string;
+  patientName: string;
+  patientEmail: string;
+  date: string;
+  time: string;
+  type: string;
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  notes?: string;
+}
+
+export interface PatientProgress {
+  patient: Patient;
+  tasks: Task[];
+  weeklyProgress: { week: string; completion: number }[];
+  zoneProgress: { zone: string; tasks: number; completed: number }[];
+}
+
 // Auth API
 export const authApi = {
   login: (email: string, password: string) =>
@@ -85,16 +128,29 @@ export const publicApi = {
 
 // Doctor API
 export const doctorApi = {
-  getPatients: () => api.get('/doctor/patients'),
+  // Patient Management
+  getPatients: () => api.get<Patient[]>('/doctor/patients'),
   createPatient: (data: { email: string; name: string; assignFixedMatrix: boolean }) =>
-    api.post('/doctor/create-patient', data),
-  getPatientProgress: (id: string) => api.get(`/doctor/patient-progress/${id}`),
-  updateTask: (id: string, data: Record<string, unknown>) =>
-    api.patch(`/doctor/update-task/${id}`, data),
-  deleteTask: (id: string) => api.delete(`/doctor/delete-task/${id}`),
-  getConsultations: () => api.get('/doctor/consultation-requests'),
-  updateConsultationStatus: (id: string, status: string) =>
-    api.patch(`/doctor/update-consultation-status/${id}`, { status }),
+    api.post<Patient>('/doctor/create-patient', data),
+  getPatientProgress: (patientId: string) => api.get<PatientProgress>(`/doctor/patient-progress/${patientId}`),
+  deactivatePatient: (patientId: string, reason?: string) =>
+    api.patch(`/doctor/deactivate-patient/${patientId}`, { reason }),
+  deletePatient: (patientId: string) => api.delete(`/doctor/delete-patient/${patientId}`),
+  getCompletedPatients: () => api.get<Patient[]>('/doctor/completed-patients'),
+  getDeactivatedPatients: () => api.get<Patient[]>('/doctor/deactivated-patients'),
+
+  // Task Management
+  allocateTasks: (patientId: string, tasks: Omit<Task, 'id' | 'status'>[]) =>
+    api.post(`/doctor/allocate-tasks/${patientId}`, { tasks }),
+  updateTask: (taskId: string, data: Partial<Task>) =>
+    api.patch(`/doctor/update-task/${taskId}`, data),
+  deleteTask: (taskId: string) => api.delete(`/doctor/delete-task/${taskId}`),
+
+  // Consultation Management
+  getConsultations: () => api.get<Consultation[]>('/doctor/consultation-requests'),
+  updateConsultationStatus: (bookingId: string, status: Consultation['status'], notes?: string) =>
+    api.patch(`/doctor/update-consultation-status/${bookingId}`, { status, notes }),
+  getNewConsultancyRequest: () => api.get<Consultation[]>('/doctor/get-new-consultancy-request'),
 };
 
 // Patient API

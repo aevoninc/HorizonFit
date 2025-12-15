@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, User, CheckCircle, XCircle, Search, Filter, Eye } from 'lucide-react';
+import { Calendar, Clock, User, CheckCircle, XCircle, Search, Filter, Eye, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,29 +17,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { doctorApi, Consultation } from '@/lib/api';
 
 type ConsultationStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
-
-interface Consultation {
-  id: string;
-  patientName: string;
-  patientEmail: string;
-  date: string;
-  time: string;
-  type: string;
-  status: ConsultationStatus;
-  notes?: string;
-}
-
-const mockConsultations: Consultation[] = [
-  { id: '1', patientName: 'John Smith', patientEmail: 'john@example.com', date: '2024-12-16', time: '10:00 AM', type: 'Initial Assessment', status: 'pending', notes: 'First-time consultation' },
-  { id: '2', patientName: 'Sarah Johnson', patientEmail: 'sarah@example.com', date: '2024-12-16', time: '2:00 PM', type: 'Progress Review', status: 'confirmed' },
-  { id: '3', patientName: 'Mike Williams', patientEmail: 'mike@example.com', date: '2024-12-17', time: '11:30 AM', type: 'Follow-up', status: 'pending' },
-  { id: '4', patientName: 'Emily Davis', patientEmail: 'emily@example.com', date: '2024-12-15', time: '3:00 PM', type: 'Initial Assessment', status: 'completed' },
-  { id: '5', patientName: 'Chris Brown', patientEmail: 'chris@example.com', date: '2024-12-14', time: '9:00 AM', type: 'Follow-up', status: 'cancelled' },
-];
 
 const statusColors: Record<ConsultationStatus, string> = {
   pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
@@ -52,27 +36,76 @@ export const DoctorConsultationsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null);
   const [newStatus, setNewStatus] = useState<ConsultationStatus | ''>('');
+  const [notes, setNotes] = useState('');
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const filteredConsultations = mockConsultations.filter(
+  useEffect(() => {
+    fetchConsultations();
+  }, []);
+
+  const fetchConsultations = async () => {
+    try {
+      setIsLoading(true);
+      const response = await doctorApi.getConsultations();
+      setConsultations(response.data);
+    } catch (error) {
+      console.error('Failed to fetch consultations:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load consultations. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredConsultations = consultations.filter(
     (consultation) =>
       consultation.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       consultation.type.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleUpdateStatus = () => {
+  const handleUpdateStatus = async () => {
     if (!selectedConsultation || !newStatus) return;
 
-    toast({
-      title: 'Status Updated',
-      description: `Consultation status changed to ${newStatus}.`,
-    });
-    setSelectedConsultation(null);
-    setNewStatus('');
+    try {
+      setIsSubmitting(true);
+      await doctorApi.updateConsultationStatus(selectedConsultation.id, newStatus, notes.trim() || undefined);
+      
+      setConsultations((prev) =>
+        prev.map((c) =>
+          c.id === selectedConsultation.id ? { ...c, status: newStatus, notes: notes.trim() || c.notes } : c
+        )
+      );
+
+      toast({
+        title: 'Status Updated',
+        description: `Consultation status changed to ${newStatus}.`,
+      });
+      
+      setSelectedConsultation(null);
+      setNewStatus('');
+      setNotes('');
+    } catch (error: any) {
+      console.error('Failed to update status:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to update status. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const pendingCount = mockConsultations.filter((c) => c.status === 'pending').length;
-  const confirmedCount = mockConsultations.filter((c) => c.status === 'confirmed').length;
+  const pendingCount = consultations.filter((c) => c.status === 'pending').length;
+  const confirmedCount = consultations.filter((c) => c.status === 'confirmed').length;
+  const completedCount = consultations.filter((c) => c.status === 'completed').length;
+  const cancelledCount = consultations.filter((c) => c.status === 'cancelled').length;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
@@ -117,9 +150,7 @@ export const DoctorConsultationsPage: React.FC = () => {
                 <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {mockConsultations.filter((c) => c.status === 'completed').length}
-                </p>
+                <p className="text-2xl font-bold text-foreground">{completedCount}</p>
                 <p className="text-sm text-muted-foreground">Completed</p>
               </div>
             </div>
@@ -132,9 +163,7 @@ export const DoctorConsultationsPage: React.FC = () => {
                 <XCircle className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {mockConsultations.filter((c) => c.status === 'cancelled').length}
-                </p>
+                <p className="text-2xl font-bold text-foreground">{cancelledCount}</p>
                 <p className="text-sm text-muted-foreground">Cancelled</p>
               </div>
             </div>
@@ -159,60 +188,77 @@ export const DoctorConsultationsPage: React.FC = () => {
         </Button>
       </div>
 
-      {/* Consultations List */}
-      <div className="space-y-4">
-        {filteredConsultations.map((consultation, index) => (
-          <motion.div
-            key={consultation.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-          >
-            <Card className="card-elevated">
-              <CardContent className="p-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary/10">
-                      <User className="h-6 w-6 text-secondary" />
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-secondary" />
+        </div>
+      ) : (
+        <>
+          {/* Consultations List */}
+          <div className="space-y-4">
+            {filteredConsultations.map((consultation, index) => (
+              <motion.div
+                key={consultation.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Card className="card-elevated">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary/10">
+                          <User className="h-6 w-6 text-secondary" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground">{consultation.patientName}</h3>
+                          <p className="text-sm text-muted-foreground">{consultation.patientEmail}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Calendar className="h-4 w-4" />
+                          {consultation.date}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="h-4 w-4" />
+                          {consultation.time}
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {consultation.type}
+                        </Badge>
+                        <Badge className={statusColors[consultation.status]}>
+                          {consultation.status}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedConsultation(consultation);
+                            setNewStatus(consultation.status);
+                            setNotes(consultation.notes || '');
+                          }}
+                        >
+                          <Eye className="mr-1 h-4 w-4" />
+                          Manage
+                        </Button>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground">{consultation.patientName}</h3>
-                      <p className="text-sm text-muted-foreground">{consultation.patientEmail}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      {consultation.date}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      {consultation.time}
-                    </div>
-                    <Badge variant="outline" className="text-xs">
-                      {consultation.type}
-                    </Badge>
-                    <Badge className={statusColors[consultation.status]}>
-                      {consultation.status}
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedConsultation(consultation);
-                        setNewStatus(consultation.status);
-                      }}
-                    >
-                      <Eye className="mr-1 h-4 w-4" />
-                      Manage
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+
+            {filteredConsultations.length === 0 && (
+              <div className="py-12 text-center">
+                <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                <p className="text-lg text-muted-foreground">No consultations found</p>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Update Status Modal */}
       <Dialog open={!!selectedConsultation} onOpenChange={() => setSelectedConsultation(null)}>
@@ -230,7 +276,7 @@ export const DoctorConsultationsPage: React.FC = () => {
                 <p className="text-sm text-muted-foreground">{selectedConsultation.type}</p>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Status</label>
+                <Label>Status</Label>
                 <Select value={newStatus} onValueChange={(value) => setNewStatus(value as ConsultationStatus)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -243,11 +289,26 @@ export const DoctorConsultationsPage: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label>Notes (optional)</Label>
+                <Textarea
+                  placeholder="Add notes about this consultation..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  maxLength={500}
+                />
+              </div>
               <div className="flex gap-3">
                 <Button variant="outline" className="flex-1" onClick={() => setSelectedConsultation(null)}>
                   Cancel
                 </Button>
-                <Button variant="teal" className="flex-1" onClick={handleUpdateStatus}>
+                <Button 
+                  variant="teal" 
+                  className="flex-1" 
+                  onClick={handleUpdateStatus}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Update Status
                 </Button>
               </div>

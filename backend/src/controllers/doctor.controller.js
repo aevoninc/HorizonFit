@@ -94,7 +94,7 @@ console.log("New Patient Created:", patient.assignedCategory);
 // @access  Private/Doctor
 const getPatientList = asyncHandler(async (req, res) => {
   const patients = await User.find({ role: "Patient" }).select(
-    "email assignedCategory programStartDate createdAt"
+    "-deactivationDate -password -createdAt -updatedAt"
   );
   res.status(200).json({
   success: true,
@@ -169,7 +169,7 @@ const allocateTasks = asyncHandler(async (req, res) => {
 const getPatientProgress = asyncHandler(async (req, res) => {
   const { patientId } = req.params;
 
-  const patient = await User.findById(patientId).select("email role");
+  const patient = await User.findById(patientId).select("-createdAt -updatedAt -password");
   if (!patient || patient.role !== "Patient") {
     return res.status(404).json({ message: "Patient not found." });
   }
@@ -188,10 +188,7 @@ const getPatientProgress = asyncHandler(async (req, res) => {
     });
 
   res.status(200).json({
-    patient: {
-      _id: patient._id,
-      email: patient.email,
-    },
+    patient: patient,
     trackingData: progressData,
     programTasks: programTasks,
     bookings: bookings,

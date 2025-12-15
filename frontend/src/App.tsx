@@ -57,10 +57,10 @@ const App = () => (
               <Route index element={<Navigate to="/doctor/patients" replace />} />
               <Route path="patients" element={<DoctorPatientsPage />} />
               <Route path="patients/:id" element={<PatientDetailPage />} />
-              <Route path="consultations" element={<DoctorConsultationsPage />} />
+              {/* <Route path="consultations" element={<DoctorConsultationsPage />} />
               <Route path="completed-patients" element={<DoctorCompletedPatientsPage />} />
               <Route path="deactivated-patients" element={<DoctorDeactivatedPatientsPage />} />
-              <Route path="new-requests" element={<DoctorConsultationsPage />} />
+              <Route path="new-requests" element={<DoctorConsultationsPage />} /> */}
             </Route>
 
             {/* Patient Routes */}
