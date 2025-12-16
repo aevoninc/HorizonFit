@@ -74,10 +74,10 @@ const App = () => (
             >
               <Route index element={<Navigate to="/patient/tasks" replace />} />
               <Route path="tasks" element={<PatientTasksPage />} />
-              <Route path="progress" element={<PatientProgressPage />} />
-              <Route path="log-data" element={<PatientLogDataPage />} />
-              <Route path="bookings" element={<PatientBookingsPage />} />
-              <Route path="profile" element={<PatientProfilePage />} />
+              {/* <Route path="progress" element={<PatientProgressPage />} /> */}
+              {/* <Route path="log-data" element={<PatientLogDataPage />} /> */}
+              {/* <Route path="bookings" element={<PatientBookingsPage />} /> */}
+              {/* <Route path="profile" element={<PatientProfilePage />} /> */}
             </Route>
 
             {/* Catch-all */}

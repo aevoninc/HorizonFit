@@ -87,12 +87,20 @@ const sendPasswordResetEmail = async (recipient, userName, resetLink) => {
 };
 
 /**
- * Sends a welcome email to a new patient.
+/**
+ * Sends a welcome email to a new patient including login credentials.
  */
-const sendPatientWelcomeEmail = async (recipient, patientName, assignedDoctorName) => {
-    const subject = 'Welcome to Aevon Health - Your Health Journey Starts Now!';
-    const htmlBody = patientWelcomeTemplate(patientName, assignedDoctorName);
-    const textBody = `Welcome ${patientName}! Your account is created, and your specialist is ${assignedDoctorName}. Log in to get started.`;
+const sendPatientWelcomeEmail = async (recipient, patientName, assignedDoctorName, password) => {
+    const subject = 'Your Aevon Health Account Credentials';
+    
+    // We pass recipient as the 'email' field to the template
+    const htmlBody = patientWelcomeTemplate(patientName, assignedDoctorName, recipient, password);
+    
+    const textBody = `Welcome ${patientName}! 
+    Your account is created. 
+    Login Email: ${recipient}
+    Temporary Password: ${password}
+    Your specialist is ${assignedDoctorName}. Log in at https://horizonfit.in to get started.`;
 
     await sendEmail(recipient, subject, textBody, htmlBody);
 };
@@ -100,8 +108,9 @@ const sendPatientWelcomeEmail = async (recipient, patientName, assignedDoctorNam
 /**
  * Sends a notification to the patient (or doctor) about a newly assigned task.
  */
-const sendTaskAssignmentEmail = async (recipient, personName, otherPartyName, taskName, dueDate, taskDescription) => {
-    const isDoctor = personName.startsWith('Dr.');
+const sendTaskAssignmentEmail = async (recipient, personName,password,otherPartyName, taskName, dueDate, taskDescription) => {
+    const nameToTest = personName || ""; 
+    const isDoctor = nameToTest.startsWith('Dr.');
     let subject;
     
     if (isDoctor) {

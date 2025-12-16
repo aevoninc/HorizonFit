@@ -124,58 +124,62 @@ const logTrackingData = asyncHandler(async (req, res) => {
 // @desc    Patient logs a specific program task as complete
 // @route   POST /api/patient/log-task/:taskId
 // @access  Private/Patient
+// backend/src/controllers/patient.controller.js
 const logTaskCompletion = asyncHandler(async (req, res) => {
     const patientId = req.user._id;
-    const { taskId } = req.params;
-    const { completionDate } = req.body; // Allows patient to backdate logs if necessary
+    const { taskIds, completionDate } = req.body; 
 
-    // 1. Find the Master Task to ensure it exists and belongs to the patient
-    const masterTask = await PatientProgramTask.findOne({ 
-        _id: taskId, 
-        patientId: patientId 
-    });
-
-    if (!masterTask) {
-        return res.status(404).json({ message: 'Assigned task not found or does not belong to this patient.' });
+    if (!taskIds || !Array.isArray(taskIds)) {
+        return res.status(400).json({ message: "No task IDs provided." });
     }
-    
-    // 2. Prevent duplicate logging for Daily/SpecificDays tasks on the same day
+
     const dateToLog = completionDate ? new Date(completionDate) : new Date();
-    dateToLog.setHours(0, 0, 0, 0); // Normalize to start of day for check
-
-    const existingLog = await PatientTaskLog.findOne({
-        taskId: taskId,
-        completionDate: {
-            $gte: dateToLog, // Start of the day
-            $lt: new Date(dateToLog.getTime() + 24 * 60 * 60 * 1000) // End of the day
-        }
-    });
-
-    if (existingLog && (masterTask.frequency === 'Daily' || masterTask.frequency === 'SpecificDays')) {
-        return res.status(409).json({ message: 'Task already logged as complete for this day.' });
-    }
-
-    // 3. Create the Compliance Log
-    const newLog = await PatientTaskLog.create({
-        patientId,
-        taskId,
-        completionDate: completionDate || new Date()
-    });
     
-    
-    // 4. Update the Master Task Status for ONE-TIME/WEEKLY tasks (as discussed before)
-    if (masterTask.frequency === 'Weekly' || masterTask.frequency === 'OneTime') {
+    // Define date boundaries for duplicate check
+    const startOfDay = new Date(dateToLog);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(dateToLog);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const results = [];
+
+    // Use Promise.all for faster execution
+    await Promise.all(taskIds.map(async (taskId) => {
+        const masterTask = await PatientProgramTask.findOne({ 
+            _id: taskId, 
+            patientId: patientId 
+        });
+
+        if (!masterTask) return;
+
+        const existingLog = await PatientTaskLog.findOne({
+            taskId: taskId,
+            completionDate: { $gte: startOfDay, $lte: endOfDay }
+        });
+
+        // 1. Always ensure the Master Task is marked 'Completed' 
+        // regardless of whether the log for "today" exists.
         if (masterTask.status !== 'Completed') {
             masterTask.status = 'Completed';
             masterTask.completionDate = new Date();
             await masterTask.save();
+            console.log(`Task ${taskId} status updated to Completed`);
         }
-    }
 
-    // Daily/SpecificDays tasks status remains pending until the end-of-week cron job runs
-    res.status(201).json({ 
-        message: `Task logged successfully. Good job on "${masterTask.description}"!`, 
-        log: newLog 
+        // 2. Create the log only if it's missing for today
+        if (!existingLog) {
+            await PatientTaskLog.create({
+                patientId,
+                taskId,
+                completionDate: dateToLog
+            });
+            results.push(taskId);
+        }
+    }));
+
+    res.status(200).json({ 
+        message: `Successfully processed ${taskIds.length} tasks.`,
+        loggedIds: results
     });
 });
 

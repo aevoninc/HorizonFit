@@ -25,7 +25,7 @@ router.use(protect, isPatient);
 router.post('/log-tracking-data', protect, isPatient, logTrackingData);
 
 // Patient logs task completion
-router.post('/logTaskCompletion/:taskId', protect, isPatient, logTaskCompletion);
+router.post('/logTaskCompletion', protect, isPatient, logTaskCompletion);
 
 // Get patient tasks
 router.get('/getPatientTasks', protect, isPatient, getPatientTasks);

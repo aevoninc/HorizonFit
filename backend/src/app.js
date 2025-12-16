@@ -10,7 +10,7 @@ app.use(
     origin: "http://localhost:8080", // your frontend URL
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", 'PATCH' ,"DELETE", "OPTIONS"],
   })
 );
 

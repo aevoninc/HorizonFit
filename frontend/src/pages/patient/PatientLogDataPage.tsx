@@ -1,61 +1,131 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Scale, Ruler, Heart, Activity, Save, TrendingUp } from 'lucide-react';
+import { Scale, Droplets, Heart, Activity, Save, TrendingUp, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { patientApi, TrackingEntry, PatientProgress } from '@/lib/api';
 
-interface TrackingEntry {
-  date: string;
-  weight: string;
-  bodyFat: string;
-  heartRate: string;
-  notes: string;
-}
-
-const recentEntries: TrackingEntry[] = [
-  { date: '2024-12-13', weight: '75.5', bodyFat: '18.2', heartRate: '68', notes: 'Feeling great after morning run' },
-  { date: '2024-12-12', weight: '75.8', bodyFat: '18.4', heartRate: '72', notes: 'Rest day' },
-  { date: '2024-12-11', weight: '76.0', bodyFat: '18.5', heartRate: '70', notes: 'Intense HIIT session' },
+const metricTypes = [
+  { value: 'weight', label: 'Weight', unit: 'kg', icon: Scale },
+  { value: 'blood_sugar', label: 'Blood Sugar', unit: 'mg/dL', icon: Droplets },
+  { value: 'heart_rate', label: 'Heart Rate', unit: 'bpm', icon: Heart },
+  { value: 'blood_pressure_systolic', label: 'Blood Pressure (Systolic)', unit: 'mmHg', icon: Activity },
+  { value: 'blood_pressure_diastolic', label: 'Blood Pressure (Diastolic)', unit: 'mmHg', icon: Activity },
+  { value: 'body_fat', label: 'Body Fat', unit: '%', icon: Scale },
 ];
 
 export const PatientLogDataPage: React.FC = () => {
   const { toast } = useToast();
+  const [recentEntries, setRecentEntries] = useState<TrackingEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    weight: '',
-    bodyFat: '',
-    heartRate: '',
+    metricType: 'weight',
+    value: '',
     notes: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const selectedMetric = metricTypes.find((m) => m.value === formData.metricType);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await patientApi.getProgress();
+        const data = response.data as PatientProgress;
+        if (data.trackingData) {
+          setRecentEntries(data.trackingData.slice(-10).reverse());
+        }
+      } catch (error) {
+        // Silently fail - show empty state
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.weight) {
+    if (!formData.value) {
       toast({
         title: 'Validation Error',
-        description: 'Please enter at least your weight.',
+        description: 'Please enter a value.',
         variant: 'destructive',
       });
       return;
     }
 
-    toast({
-      title: 'Data Logged',
-      description: 'Your tracking data has been saved successfully.',
-    });
-    setFormData({ weight: '', bodyFat: '', heartRate: '', notes: '' });
+    const value = parseFloat(formData.value);
+    if (isNaN(value)) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid number.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      await patientApi.logTrackingData({
+        metricType: formData.metricType,
+        value,
+        unit: selectedMetric?.unit || '',
+        notes: formData.notes || undefined,
+      });
+
+      // Add to local state
+      const newEntry: TrackingEntry = {
+        date: new Date().toISOString(),
+        metricType: formData.metricType,
+        value,
+        unit: selectedMetric?.unit || '',
+        notes: formData.notes,
+      };
+      setRecentEntries((prev) => [newEntry, ...prev.slice(0, 9)]);
+
+      toast({
+        title: 'Data Logged',
+        description: 'Your tracking data has been saved successfully.',
+      });
+
+      setFormData({ ...formData, value: '', notes: '' });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to log data. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const getMetricIcon = (metricType: string) => {
+    const metric = metricTypes.find((m) => m.value === metricType);
+    const IconComponent = metric?.icon || Activity;
+    return <IconComponent className="h-4 w-4" />;
+  };
+
+  const getMetricLabel = (metricType: string) => {
+    const metric = metricTypes.find((m) => m.value === metricType);
+    return metric?.label || metricType;
   };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Log Data</h1>
-        <p className="mt-1 text-muted-foreground">Track your measurements and progress</p>
+        <h1 className="text-3xl font-bold text-foreground">Log Health Data</h1>
+        <p className="mt-1 text-muted-foreground">Track your measurements and health metrics</p>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
@@ -69,65 +139,66 @@ export const PatientLogDataPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="weight" className="flex items-center gap-2">
-                    <Scale className="h-4 w-4 text-muted-foreground" />
-                    Weight (kg)
-                  </Label>
-                  <Input
-                    id="weight"
-                    type="number"
-                    step="0.1"
-                    placeholder="75.5"
-                    value={formData.weight}
-                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bodyFat" className="flex items-center gap-2">
-                    <Ruler className="h-4 w-4 text-muted-foreground" />
-                    Body Fat (%)
-                  </Label>
-                  <Input
-                    id="bodyFat"
-                    type="number"
-                    step="0.1"
-                    placeholder="18.5"
-                    value={formData.bodyFat}
-                    onChange={(e) => setFormData({ ...formData, bodyFat: e.target.value })}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="metricType">Metric Type</Label>
+                <Select
+                  value={formData.metricType}
+                  onValueChange={(value) => setFormData({ ...formData, metricType: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select metric type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {metricTypes.map((metric) => (
+                      <SelectItem key={metric.value} value={metric.value}>
+                        <div className="flex items-center gap-2">
+                          <metric.icon className="h-4 w-4" />
+                          {metric.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="heartRate" className="flex items-center gap-2">
-                  <Heart className="h-4 w-4 text-muted-foreground" />
-                  Resting Heart Rate (bpm)
+                <Label htmlFor="value" className="flex items-center gap-2">
+                  {selectedMetric && <selectedMetric.icon className="h-4 w-4 text-muted-foreground" />}
+                  Value ({selectedMetric?.unit || ''})
                 </Label>
                 <Input
-                  id="heartRate"
+                  id="value"
                   type="number"
-                  placeholder="68"
-                  value={formData.heartRate}
-                  onChange={(e) => setFormData({ ...formData, heartRate: e.target.value })}
+                  step="0.1"
+                  placeholder={`Enter ${selectedMetric?.label.toLowerCase() || 'value'}`}
+                  value={formData.value}
+                  onChange={(e) => setFormData({ ...formData, value: e.target.value })}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
+                <Label htmlFor="notes">Notes (Optional)</Label>
                 <Textarea
                   id="notes"
-                  placeholder="How are you feeling today?"
+                  placeholder="Any additional notes about this reading..."
                   rows={4}
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 />
               </div>
 
-              <Button type="submit" variant="teal" size="lg" className="w-full">
-                <Save className="mr-2 h-4 w-4" />
-                Log Data
+              <Button type="submit" variant="teal" size="lg" className="w-full" disabled={submitting}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Log Data
+                  </>
+                )}
               </Button>
             </form>
           </CardContent>
@@ -136,40 +207,58 @@ export const PatientLogDataPage: React.FC = () => {
         {/* Recent Entries */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-foreground">Recent Entries</h2>
-          {recentEntries.map((entry, index) => (
-            <motion.div
-              key={entry.date}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <Card className="card-elevated">
-                <CardContent className="p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="font-semibold text-foreground">{entry.date}</span>
-                    <TrendingUp className="h-4 w-4 text-secondary" />
-                  </div>
-                  <div className="mb-3 grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Weight</p>
-                      <p className="font-semibold text-foreground">{entry.weight} kg</p>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-secondary" />
+            </div>
+          ) : recentEntries.length > 0 ? (
+            recentEntries.map((entry, index) => (
+              <motion.div
+                key={`${entry.date}-${entry.metricType}-${index}`}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Card className="card-elevated">
+                  <CardContent className="p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {getMetricIcon(entry.metricType)}
+                        <span className="font-semibold text-foreground">
+                          {getMetricLabel(entry.metricType)}
+                        </span>
+                      </div>
+                      <TrendingUp className="h-4 w-4 text-secondary" />
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Body Fat</p>
-                      <p className="font-semibold text-foreground">{entry.bodyFat}%</p>
+                    <div className="mb-2 flex items-baseline gap-2">
+                      <span className="text-2xl font-bold text-primary">{entry.value}</span>
+                      <span className="text-sm text-muted-foreground">{entry.unit}</span>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Heart Rate</p>
-                      <p className="font-semibold text-foreground">{entry.heartRate} bpm</p>
-                    </div>
-                  </div>
-                  {entry.notes && (
-                    <p className="text-sm text-muted-foreground italic">"{entry.notes}"</p>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(entry.date).toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                    {entry.notes && (
+                      <p className="mt-2 text-sm text-muted-foreground italic">"{entry.notes}"</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))
+          ) : (
+            <Card className="card-elevated">
+              <CardContent className="py-12 text-center">
+                <Activity className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                <p className="text-lg font-medium text-foreground">No entries yet</p>
+                <p className="text-sm text-muted-foreground">Start logging your health metrics</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </motion.div>

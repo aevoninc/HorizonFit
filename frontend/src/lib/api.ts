@@ -1,3 +1,4 @@
+// const API_BASE_URL = 'http://localhost:3000/api/v1';
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = 'http://localhost:3000/api/v1';
@@ -48,7 +49,6 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError as Error);
-        // Logout and redirect
         try {
           await api.post('/auth/logout');
         } catch {
@@ -82,11 +82,25 @@ export interface Patient {
 export interface Task {
   id: string;
   name: string;
+  description?: string;
   zoneId: number;
   weekNumber: number;
   dayOfWeek: string[];
   frequency: 'daily' | 'weekly' | 'biweekly';
   status: 'pending' | 'in-progress' | 'completed';
+  isCompleted?: boolean;
+}
+
+export interface ZoneTask {
+  zoneId: number;
+  weeks: {
+    weekNumber: number;
+    days: {
+      day: string;
+      dayIndex: number;
+      tasks: Task[];
+    }[];
+  }[];
 }
 
 export interface Consultation {
@@ -101,11 +115,51 @@ export interface Consultation {
   notes?: string;
 }
 
+export interface PatientBooking {
+  id: string;
+  type: string;
+  requestedDateTime: string;
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'refunded';
+  doctorName?: string;
+  refundId?: string;
+  patientQuery?: string;
+}
+
 export interface PatientProgress {
   patient: Patient;
   tasks: Task[];
+  masterTasks: { total: number; completed: number };
+  trackingData: TrackingEntry[];
   weeklyProgress: { week: string; completion: number }[];
   zoneProgress: { zone: string; tasks: number; completed: number }[];
+  currentZone: number;
+  allZonesComplete: boolean;
+}
+
+export interface TrackingEntry {
+  id?: string;
+  date: string;
+  metricType: string;
+  value: number;
+  unit: string;
+  notes?: string;
+}
+
+export interface PatientProfile {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  enrolledDate: string;
+  currentZone: number;
+  totalTasks: number;
+  completedTasks: number;
+}
+
+export interface RazorpayOrder {
+  orderId: string;
+  amount: number;
+  currency: string;
 }
 
 // Auth API
@@ -119,16 +173,31 @@ export const authApi = {
 // Public API
 export const publicApi = {
   createOrderId: (type: 'consultation' | 'program', data: Record<string, unknown>) =>
-    api.post<{ orderId: string }>('/public/create-order-id', { type, ...data }),
-  bookConsultation: (data: Record<string, unknown>) =>
-    api.post('/public/new-request-consultation', data),
-  bookProgram: (data: Record<string, unknown>) =>
-    api.post('/public/program-booking', data),
+    api.post<RazorpayOrder>('/public/create-order-id', { type, ...data }),
+  bookConsultation: (data: {
+    name: string;
+    email: string;
+    mobileNumber: string;
+    requestedDateTime: string;
+    patientQuery?: string;
+    paymentToken: string;
+    orderId: string;
+    razorpaySignature: string;
+  }) => api.post('/public/new-request-consultation', data),
+  bookProgram: (data: {
+    name: string;
+    email: string;
+    mobileNumber: string;
+    password: string;
+    assignedCategory?: string;
+    paymentToken: string;
+    orderId: string;
+    razorpaySignature: string;
+  }) => api.post('/public/program-booking', data),
 };
 
 // Doctor API
 export const doctorApi = {
-  // Patient Management
   getPatients: () => api.get<Patient[]>('/doctor/patients'),
   createPatient: (data: { email: string; name: string; assignFixedMatrix: boolean }) =>
     api.post<Patient>('/doctor/create-patient', data),
@@ -138,15 +207,11 @@ export const doctorApi = {
   deletePatient: (patientId: string) => api.delete(`/doctor/delete-patient/${patientId}`),
   getCompletedPatients: () => api.get<Patient[]>('/doctor/completed-patients'),
   getDeactivatedPatients: () => api.get<Patient[]>('/doctor/deactivated-patients'),
-
-  // Task Management
   allocateTasks: (patientId: string, tasks: Omit<Task, 'id' | 'status'>[]) =>
     api.post(`/doctor/allocate-tasks/${patientId}`, { tasks }),
   updateTask: (taskId: string, data: Partial<Task>) =>
     api.patch(`/doctor/update-task/${taskId}`, data),
   deleteTask: (taskId: string) => api.delete(`/doctor/delete-task/${taskId}`),
-
-  // Consultation Management
   getConsultations: () => api.get<Consultation[]>('/doctor/consultation-requests'),
   updateConsultationStatus: (bookingId: string, status: Consultation['status'], notes?: string) =>
     api.patch(`/doctor/update-consultation-status/${bookingId}`, { status, notes }),
@@ -155,13 +220,32 @@ export const doctorApi = {
 
 // Patient API
 export const patientApi = {
-  getZoneTasks: (zoneNumber: number) => api.get(`/patient/get-zone-task/${zoneNumber}`),
-  getProgress: () => api.get('/patient/getPatientProgress'),
-  logTrackingData: (data: Record<string, unknown>) =>
-    api.post('/patient/log-tracking-data', data),
-  getBookings: () => api.get('/patient/getPatientBookings'),
-  cancelBooking: (id: string) => api.post(`/patient/cancelBooking/${id}`),
-  getProfile: () => api.get('/patient/getPatientProfile'),
+  // Zone Tasks
+  getZoneTasks: (zoneNumber: number) => api.get<ZoneTask>(`/patients/get-zone-task/${zoneNumber}`),
+  logTaskCompletion: (data: { taskIds: string[], completionDate: string }) => 
+  api.post(`/patients/logTaskCompletion`, data),
+  
+  // Progress
+  getProgress: () => api.get<PatientProgress>('/patients/getPatientProgress'),
+  
+  // Health Tracking
+  logTrackingData: (data: { metricType: string; value: number; unit: string; notes?: string }) =>
+    api.post('/patients/log-tracking-data', data),
+  
+  // Bookings/Consultations
+  createOrder: () => api.post<RazorpayOrder>('/patients/create-order'),
+  requestConsultation: (data: {
+    requestedDateTime: string;
+    patientQuery?: string;
+    paymentToken: string;
+    orderId: string;
+    razorpaySignature: string;
+  }) => api.post('/patient/consultation-request', data),
+  getBookings: () => api.get<PatientBooking[]>('/patients/getPatientBookings'),
+  cancelBooking: (id: string) => api.post<{ refundId?: string }>(`/patient/cancelBooking/${id}`),
+  
+  // Profile
+  getProfile: () => api.get<PatientProfile>('/patients/getPatientProfile'),
   updatePassword: (data: { currentPassword: string; newPassword: string }) =>
-    api.post('/patient/update-password', data),
+    api.post('/patients/update-password', data),
 };

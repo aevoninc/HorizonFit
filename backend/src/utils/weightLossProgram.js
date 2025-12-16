@@ -69,7 +69,7 @@ const Weight_Loss = [
   // --- WEEK 2 ---
   {
     description: "Drink 2L of water daily. Log all three main meals.",
-    programWeek: 4,
+    programWeek: 1,
     zone: 2, // Hydration/Diet (Slight increase in difficulty)
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -78,7 +78,7 @@ const Weight_Loss = [
   },
   {
     description: "Brisk walk for 30 minutes. Focus on steady pace.",
-    programWeek: 5,
+    programWeek: 2,
     zone: 2, // Cardio
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -87,7 +87,7 @@ const Weight_Loss = [
   },
 {
     description: "Brisk walk for 30 minutes. Focus on steady pace.",
-    programWeek: 6,
+    programWeek: 3,
     zone: 2, // Cardio
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -99,7 +99,7 @@ const Weight_Loss = [
   // --- WEEK 3 ---
   {
     description: "Drink 2.5L of water daily. Log meals and one snack.",
-    programWeek: 7,
+    programWeek: 1,
     zone: 3, // Hydration/Diet (Difficulty increases)
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -108,7 +108,7 @@ const Weight_Loss = [
   },
   {
     description: "Brisk walk for 32 minutes.", // Duration increase
-    programWeek: 8,
+    programWeek: 2,
     zone: 3, // Cardio
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -117,7 +117,7 @@ const Weight_Loss = [
   },
     {
     description: "Brisk walk for 32 minutes.", // Duration increase
-    programWeek: 9,
+    programWeek: 3,
     zone: 3, // Cardio
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -131,7 +131,7 @@ const Weight_Loss = [
   // --- WEEK 15 (Example of a later week) ---
   {
     description: "Maintain 3L of water intake. Consolidate nutrition report.",
-    programWeek: 15,
+    programWeek: 1,
     zone: 4,
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -140,7 +140,7 @@ const Weight_Loss = [
   },
   {
     description: "Cardio: Run for 40 minutes or complete a 5k distance.",
-    programWeek: 15,
+    programWeek: 2,
     zone: 4,
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -150,7 +150,7 @@ const Weight_Loss = [
   
     {
     description: "Cardio: Run for 40 minutes or complete a 5k distance.",
-    programWeek: 15,
+    programWeek: 3,
     zone: 4,
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -161,7 +161,7 @@ const Weight_Loss = [
   //zone 5
     {
     description: "High-Intensity Interval Training (HIIT) for 20 minutes.",
-    programWeek: 15,
+    programWeek: 1,
     zone: 5,
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -170,7 +170,7 @@ const Weight_Loss = [
     },
     {
     description: "High-Intensity Interval Training (HIIT) for 20 minutes.",
-    programWeek: 15,
+    programWeek: 2,
     zone: 5,
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -179,7 +179,7 @@ const Weight_Loss = [
     }
     ,{
     description: "High-Intensity Interval Training (HIIT) for 20 minutes.",
-    programWeek: 15,
+    programWeek: 3,
     zone: 5,
     frequency: "Daily",
     daysApplicable: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],

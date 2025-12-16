@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Calendar, Lock, Save, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Calendar, Lock, Save, Eye, EyeOff, Loader2, Phone } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { patientApi, PatientProfile } from '@/lib/api';
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(6, 'Password must be at least 6 characters'),
@@ -22,18 +23,11 @@ const passwordSchema = z.object({
 
 type PasswordFormData = z.infer<typeof passwordSchema>;
 
-const mockProfile = {
-  name: 'John Smith',
-  email: 'john@example.com',
-  enrolledDate: '2024-01-15',
-  currentZone: 3,
-  totalTasks: 50,
-  completedTasks: 42,
-};
-
 export const PatientProfilePage: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [profile, setProfile] = useState<PatientProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,20 +41,62 @@ export const PatientProfilePage: React.FC = () => {
     resolver: zodResolver(passwordSchema),
   });
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await patientApi.getProfile();
+        setProfile(response.data);
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load profile. Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [toast]);
+
   const onSubmit = async (data: PasswordFormData) => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    toast({
-      title: 'Password Updated',
-      description: 'Your password has been changed successfully.',
-    });
-    
-    reset();
-    setIsSubmitting(false);
+    try {
+      await patientApi.updatePassword({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+      });
+      
+      toast({
+        title: 'Password Updated',
+        description: 'Your password has been changed successfully.',
+      });
+      
+      reset();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update password. Please check your current password.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-secondary" />
+      </div>
+    );
+  }
+
+  const displayName = profile?.name || user?.name || 'Patient';
+  const displayEmail = profile?.email || user?.email || '';
+  const progressPercent = profile ? Math.round((profile.completedTasks / profile.totalTasks) * 100) : 0;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
@@ -83,11 +119,11 @@ export const PatientProfilePage: React.FC = () => {
             <div className="flex items-center gap-4">
               <div className="flex h-20 w-20 items-center justify-center rounded-full gradient-teal shadow-teal">
                 <span className="text-2xl font-bold text-secondary-foreground">
-                  {(user?.name || mockProfile.name).charAt(0)}
+                  {displayName.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div>
-                <h2 className="text-xl font-bold text-foreground">{user?.name || mockProfile.name}</h2>
+                <h2 className="text-xl font-bold text-foreground">{displayName}</h2>
                 <p className="text-muted-foreground">Patient</p>
               </div>
             </div>
@@ -97,33 +133,44 @@ export const PatientProfilePage: React.FC = () => {
                 <Mail className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium text-foreground">{user?.email || mockProfile.email}</p>
+                  <p className="font-medium text-foreground">{displayEmail}</p>
                 </div>
               </div>
+              {profile?.phone && (
+                <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-4">
+                  <Phone className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Phone</p>
+                    <p className="font-medium text-foreground">{profile.phone}</p>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-4">
                 <Calendar className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Enrolled Since</p>
-                  <p className="font-medium text-foreground">{mockProfile.enrolledDate}</p>
+                  <p className="font-medium text-foreground">{profile?.enrolledDate || 'N/A'}</p>
                 </div>
               </div>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 pt-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary">Zone {mockProfile.currentZone}</p>
-                <p className="text-sm text-muted-foreground">Current</p>
+            {profile && (
+              <div className="grid grid-cols-3 gap-4 pt-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-primary">Zone {profile.currentZone}</p>
+                  <p className="text-sm text-muted-foreground">Current</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-secondary">{profile.completedTasks}</p>
+                  <p className="text-sm text-muted-foreground">Completed</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-foreground">{progressPercent}%</p>
+                  <p className="text-sm text-muted-foreground">Progress</p>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-secondary">{mockProfile.completedTasks}</p>
-                <p className="text-sm text-muted-foreground">Completed</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-foreground">{Math.round((mockProfile.completedTasks / mockProfile.totalTasks) * 100)}%</p>
-                <p className="text-sm text-muted-foreground">Progress</p>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -195,8 +242,17 @@ export const PatientProfilePage: React.FC = () => {
               </div>
 
               <Button type="submit" variant="teal" size="lg" className="w-full" disabled={isSubmitting}>
-                <Save className="mr-2 h-4 w-4" />
-                {isSubmitting ? 'Updating...' : 'Update Password'}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Update Password
+                  </>
+                )}
               </Button>
             </form>
           </CardContent>

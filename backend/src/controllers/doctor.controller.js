@@ -33,60 +33,58 @@ const createPatient = asyncHandler(async (req, res) => {
     message: "Please provide name, email, mobile number, password, and assigned category.",
    });
  }
+    try {
+    
+     const userExists = await User.findOne({ email });
+     if (userExists) {
+      return res
+       .status(400)
+       .json({ message: `User already exists with this email: ${email}` });
+     }
+    
+     const patient = await User.create({
+      name,
+      email,
+      password,
+      mobileNumber,
+      role: "Patient",
+      assignedCategory,
+      programStartDate: programStartDate || new Date(),
+     });
+    
+     if(!patient || !patient.assignedCategory){
+      return res.status(400).json({ message: "Invalid patient data received." });
+    }
+let taskCount = 0;
 
- const userExists = await User.findOne({ email });
- if (userExists) {
-  return res
-   .status(400)
-   .json({ message: `User already exists with this email: ${email}` });
- }
-
- const patient = await User.create({
-  name,
-  email,
-  password,
-  mobileNumber,
-  role: "Patient",
-  assignedCategory,
-  programStartDate: programStartDate || new Date(),
- });
-
- if(!patient || !patient.assignedCategory){
-  return res.status(400).json({ message: "Invalid patient data received." });
-}
-console.log("New Patient Created:", patient.assignedCategory);
- if (patient.assignedCategory == "Weight Loss" && assignFixedMatrix) {
-        // --- START: AUTOMATIC TASK ASSIGNMENT LOGIC ---
-        const patientId = patient._id;
-        const dateAssigned = new Date();
-
-        // 1. Prepare the fixed tasks for bulk insertion by adding the patientId and current status
+    if (patient.assignedCategory == "Weight Loss" && assignFixedMatrix) {
         const tasksToInsert = Weight_Loss.map((task) => ({
             ...task,
-            patientId: patientId, // CRITICAL: Link to the new patient
-            status: "Pending",     // Default status
-            dateAssigned: dateAssigned, // Set assignment date
+            patientId: patient._id,
+            status: "Pending",
+            dateAssigned: new Date(),
         }));
 
-        // 2. Insert all tasks into the PatientProgramTask collection
         const newTasks = await PatientProgramTask.insertMany(tasksToInsert);
-        // --- END: AUTOMATIC TASK ASSIGNMENT LOGIC ---
-        console.log(`Assigned ${newTasks} fixed Weight Loss tasks to patient ${patientId}.`);
-  await sendPatientWelcomeEmail(
-   email,
-   name,
-   DOCTOR_NAME
-  );
-    
-  res
-   .status(201)
-   .json({
-    message: `Patient created successfully and ${newTasks.length} fixed program tasks assigned.`, // <-- Updated message
-    patient: { _id: patient._id, email: patient.email },
-   });
- } else {
-  res.status(400).json({ message: "Invalid patient data received." });
- }
+        taskCount = newTasks.length;
+    }
+
+    // Move the email and response OUTSIDE the if block so it always runs
+    await sendPatientWelcomeEmail(email, name, DOCTOR_NAME, password);
+
+    // ALWAYS return the patient object at the same level
+    return res.status(201).json({
+        success: true,
+        message: taskCount > 0 
+            ? `Patient created and ${taskCount} tasks assigned.` 
+            : "Patient created successfully.",
+        patient: patient // Keep this consistent!
+    });
+    }
+    catch (error) {
+      console.error("Error creating patient:", error);
+      res.status(500).json({ message: "Server error while creating patient." });
+    }
 });
 
 // @desc    Get list of all Patients (for Doctor's dashboard view)
@@ -109,39 +107,60 @@ const getPatientList = asyncHandler(async (req, res) => {
 // @access  Private/Doctor
 const allocateTasks = asyncHandler(async (req, res) => {
   const { patientId } = req.params;
-  // tasks: an array of objects describing the tasks (e.g., [{ description: "Walk 30 mins", weekNumber: 1 }])
   const { tasks } = req.body;
 
-  // 1. Validation: Check if the patient exists and is the correct role
-  const patient = await User.findById(patientId).select("role");
+  // 1. Validation: Check if the patient exists
+  const patient = await User.findById(patientId).select("-createdAt -updatedAt -password -programStartDate");
   if (!patient || patient.role !== "Patient") {
     return res
       .status(404)
       .json({ message: "Patient not found or is not a Patient account." });
   }
 
-  // 2. Validation: Ensure tasks array is provided and is not empty
+  // 2. Validation: Ensure tasks array is provided
   if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
     return res
       .status(400)
       .json({ message: "No tasks provided for allocation." });
   }
 
-  // 4. Prepare the tasks for bulk insertion
+  // 4. Prepare the tasks for bulk insertion (Splitting by Day)
+  const tasksToInsert = [];
 
-  const tasksToInsert = tasks.map((task) => ({
-    patientId,
-    description: task.description,
-    zone: task.zone,
-    programWeek: task.programWeek,
-    frequency: task.frequency, // Now accepts 'Daily', 'Weekly', 'SpecificDays', 'OneTime'
-    daysApplicable: task.daysApplicable || [], // <-- NEW: Store the days
-    timeOfDay: task.timeOfDay,
-    metricRequired: task.metricRequired || null,
-    status: "Pending",
-  }));
+  tasks.forEach((task) => {
+    // If daysApplicable is provided and has items, create a separate entry for each day
+    if (task.daysApplicable && Array.isArray(task.daysApplicable) && task.daysApplicable.length > 0) {
+      task.daysApplicable.forEach((day) => {
+        tasksToInsert.push({
+          patientId,
+          description: task.description,
+          zone: task.zone,
+          programWeek: task.programWeek,
+          frequency: task.frequency,
+          daysApplicable: [day], // Now stores only one day per document
+          timeOfDay: task.timeOfDay,
+          metricRequired: task.metricRequired || null,
+          status: "Pending",
+        });
+      });
+    } else {
+      // If no days are specified (e.g., 'OneTime' or 'Daily' without day array), 
+      // just push the task as a single entry
+      tasksToInsert.push({
+        patientId,
+        description: task.description,
+        zone: task.zone,
+        programWeek: task.programWeek,
+        frequency: task.frequency,
+        daysApplicable: task.daysApplicable || [],
+        timeOfDay: task.timeOfDay,
+        metricRequired: task.metricRequired || null,
+        status: "Pending",
+      });
+    }
+  });
 
-  // 5. Insert all tasks into the database
+  // 5. Insert all expanded tasks into the database
   const newTasks = await PatientProgramTask.insertMany(tasksToInsert);
 
   await sendTaskAssignmentEmail(
@@ -150,15 +169,16 @@ const allocateTasks = asyncHandler(async (req, res) => {
     DOCTOR_NAME,
     `New Program Tasks Assigned`,
     null,
-    `You have been assigned ${newTasks.length} new tasks as part of your health program. Please log in to your dashboard to view and start completing them.`
+    `You have been assigned ${newTasks.length} new individual task entries as part of your health program. Please log in to your dashboard to view and start completing them.`
   );
   
   res.status(201).json({
-    message: `${newTasks.length} tasks allocated to patient ${patientId} successfully.`,
+    message: `${newTasks.length} task entries allocated to patient ${patientId} successfully.`,
     allocatedTasks: newTasks.map((t) => ({
       _id: t._id,
       description: t.description,
-      weekNumber: t.weekNumber,
+      programWeek: t.programWeek, // Fixed name to match your schema (programWeek)
+      day: t.daysApplicable[0] || "N/A"
     })),
   });
 });
@@ -226,18 +246,22 @@ const updateTask = asyncHandler(async (req, res) => {
 // @access  Private/Doctor
 const deleteTask = asyncHandler(async (req, res) => {
     const { taskId } = req.params;
-
-    // 1. Delete the Master Task
-    const deletedTask = await PatientProgramTask.findByIdAndDelete(taskId);
-
-    if (!deletedTask) {
-        return res.status(404).json({ message: 'Master Task not found.' });
+    try {
+        // 1. Delete the Master Task
+        const deletedTask = await PatientProgramTask.findByIdAndDelete(taskId);
+    
+        if (!deletedTask) {
+            return res.status(404).json({ message: 'Master Task not found.' });
+        }
+    
+        // 2. Delete all associated Patient Task Logs (CRITICAL for data integrity)
+        await PatientTaskLog.deleteMany({ taskId });
+    
+        res.status(200).json({ message: 'Task and all associated compliance logs deleted successfully.' });
+    } catch (error) {
+        console.error("Error deleting task and associated logs:", error);
+        res.status(500).json({ message: error.message });
     }
-
-    // 2. Delete all associated Patient Task Logs (CRITICAL for data integrity)
-    await PatientTaskLog.deleteMany({ taskId });
-
-    res.status(200).json({ message: 'Task and all associated compliance logs deleted successfully.' });
 });
 
 

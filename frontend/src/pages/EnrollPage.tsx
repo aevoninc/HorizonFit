@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Flame, ArrowLeft, ArrowRight, Check, Loader2, Dumbbell, Target, Award } from 'lucide-react';
+import { Flame, ArrowLeft, ArrowRight, Check, Loader2, Dumbbell, Target, Award, ShieldCheck } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,11 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useRazorpay, RazorpayResponse } from '@/hooks/useRazorpay';
+import { publicApi } from '@/lib/api';
 
 const enrollSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Please enter a valid email'),
-  phone: z.string().min(10, 'Please enter a valid phone number'),
+  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  email: z.string().email('Please enter a valid email').max(255),
+  phone: z.string().min(10, 'Please enter a valid phone number').max(15),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -30,38 +32,130 @@ const programBenefits = [
   { icon: Award, text: 'Progress tracking & analytics' },
 ];
 
-const PROGRAM_PRICE = 299;
+const PROGRAM_PRICE = 2999;
 
 export const EnrollPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isLoaded, isLoading: paymentLoading, openPayment } = useRazorpay();
   const [step, setStep] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const {
     register,
     handleSubmit,
+    getValues,
+    trigger,
     formState: { errors },
   } = useForm<EnrollFormData>({
     resolver: zodResolver(enrollSchema),
   });
 
-  const onSubmit = async (data: EnrollFormData) => {
-    setIsLoading(true);
-    
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    
-    toast({
-      title: 'Enrollment Successful!',
-      description: 'Please log in to access your dashboard.',
-    });
-    
-    navigate('/auth');
+  const validateAndProceed = async () => {
+    const isValid = await trigger();
+    if (isValid) {
+      setStep(2);
+    }
   };
+
+  const handlePayment = async () => {
+    const data = getValues();
+    
+    if (!isLoaded) {
+      toast({
+        title: 'Payment Not Ready',
+        description: 'Payment system is loading. Please try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Step 1: Create Order ID
+      const orderResponse = await publicApi.createOrderId('program', {
+        amount: PROGRAM_PRICE,
+      });
+
+      const { orderId, amount } = orderResponse.data;
+
+      // Step 2: Open Razorpay
+      openPayment({
+        orderId,
+        amount,
+        description: '15-Week Fitness Program Enrollment',
+        prefill: {
+          name: data.name,
+          email: data.email,
+          contact: data.phone,
+        },
+        onSuccess: async (response: RazorpayResponse) => {
+          try {
+            // Step 3: Verify and enroll
+            await publicApi.bookProgram({
+              name: data.name,
+              email: data.email,
+              mobileNumber: data.phone,
+              password: data.password,
+              paymentToken: response.razorpay_payment_id,
+              orderId: response.razorpay_order_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+
+            toast({
+              title: 'Enrollment Successful!',
+              description: 'Your account has been created. Please log in to access your dashboard.',
+            });
+
+            navigate('/auth');
+          } catch (error) {
+            toast({
+              title: 'Enrollment Failed',
+              description: 'Payment succeeded but enrollment failed. Please contact support.',
+              variant: 'destructive',
+            });
+          } finally {
+            setIsProcessing(false);
+          }
+        },
+        onError: (error) => {
+          toast({
+            title: 'Payment Failed',
+            description: error.message || 'Payment could not be processed.',
+            variant: 'destructive',
+          });
+          setIsProcessing(false);
+        },
+        onDismiss: () => {
+          setIsProcessing(false);
+        },
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to initiate payment. Please try again.',
+        variant: 'destructive',
+      });
+      setIsProcessing(false);
+    }
+  };
+
+  const isLoading = isProcessing || paymentLoading;
 
   return (
     <div className="min-h-screen bg-muted/30">
+      {/* Processing Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="text-center">
+            <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
+            <p className="mt-4 text-lg font-medium text-foreground">Processing Payment...</p>
+            <p className="text-sm text-muted-foreground">Please do not close this window</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <nav className="border-b border-border bg-background">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
@@ -96,9 +190,8 @@ export const EnrollPage: React.FC = () => {
         <div className="mb-8 flex justify-center">
           <div className="flex items-center gap-4">
             {[1, 2].map((s, i) => (
-              <>
+              <div key={s} className="flex items-center gap-4">
                 <div
-                  key={s}
                   className={`flex h-10 w-10 items-center justify-center rounded-full ${
                     step >= s ? 'gradient-phoenix' : 'bg-muted'
                   }`}
@@ -110,7 +203,7 @@ export const EnrollPage: React.FC = () => {
                 {i < 1 && (
                   <div className={`h-1 w-16 rounded ${step >= 2 ? 'gradient-phoenix' : 'bg-muted'}`} />
                 )}
-              </>
+              </div>
             ))}
           </div>
         </div>
@@ -123,7 +216,7 @@ export const EnrollPage: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="text-center">
-                <span className="text-4xl font-bold text-gradient-phoenix">${PROGRAM_PRICE}</span>
+                <span className="text-4xl font-bold text-gradient-phoenix">₹{PROGRAM_PRICE}</span>
                 <p className="text-muted-foreground">One-time payment</p>
               </div>
 
@@ -165,7 +258,7 @@ export const EnrollPage: React.FC = () => {
               <CardTitle>{step === 1 ? 'Create Your Account' : 'Complete Payment'}</CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={handleSubmit(() => {})} className="space-y-6">
                 {step === 1 && (
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
@@ -184,7 +277,7 @@ export const EnrollPage: React.FC = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number</Label>
-                      <Input id="phone" placeholder="+1 (555) 000-0000" {...register('phone')} />
+                      <Input id="phone" placeholder="+91 98765 43210" {...register('phone')} />
                       {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
                     </div>
                     <div className="space-y-2">
@@ -197,7 +290,10 @@ export const EnrollPage: React.FC = () => {
                       <Input id="confirmPassword" type="password" placeholder="••••••••" {...register('confirmPassword')} />
                       {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>}
                     </div>
-                    <Button type="button" variant="phoenix" size="lg" className="w-full" onClick={() => setStep(2)}>
+                    <p className="text-xs text-muted-foreground">
+                      Your account will be created automatically after successful payment.
+                    </p>
+                    <Button type="button" variant="phoenix" size="lg" className="w-full" onClick={validateAndProceed}>
                       Continue to Payment
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
@@ -212,13 +308,13 @@ export const EnrollPage: React.FC = () => {
                   >
                     <div className="rounded-lg gradient-phoenix p-6 text-center text-primary-foreground">
                       <p className="text-lg font-medium">Total Amount</p>
-                      <p className="text-4xl font-bold">${PROGRAM_PRICE}</p>
+                      <p className="text-4xl font-bold">₹{PROGRAM_PRICE}</p>
                     </div>
 
                     <div className="space-y-3 rounded-lg bg-muted/50 p-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Check className="h-4 w-4 text-green-500" />
-                        Secure payment processing
+                        <ShieldCheck className="h-4 w-4 text-green-500" />
+                        Secure payment via Razorpay
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Check className="h-4 w-4 text-green-500" />
@@ -234,14 +330,20 @@ export const EnrollPage: React.FC = () => {
                       <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(1)}>
                         Back
                       </Button>
-                      <Button type="submit" variant="phoenix" className="flex-1" disabled={isLoading}>
+                      <Button
+                        type="button"
+                        variant="phoenix"
+                        className="flex-1"
+                        onClick={handlePayment}
+                        disabled={isLoading || !isLoaded}
+                      >
                         {isLoading ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             Processing...
                           </>
                         ) : (
-                          <>Complete Enrollment</>
+                          <>Pay ₹{PROGRAM_PRICE}</>
                         )}
                       </Button>
                     </div>

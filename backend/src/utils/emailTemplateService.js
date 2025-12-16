@@ -214,25 +214,33 @@ const passwordResetTemplate = (userName, resetLink) => {
 // 3. NEW: PATIENT WELCOME TEMPLATE
 // =================================================================
 
-const patientWelcomeTemplate = (patientName, assignedDoctorName) => {
+const patientWelcomeTemplate = (patientName, assignedDoctorName, email, password) => {
     const title = 'Welcome to HorizonFit!';
-    const link = 'https://horizonfit.in/#'; // Link to patient dashboard/onboarding
+    const link = 'https://horizonfit.in/#/login'; // Link specifically to login page
     
     const content = `
         <p>Dear ${patientName},</p>
         <div class="status-confirmed">
             <h3>Welcome Aboard!</h3>
         </div>
-        <p>Your account with Aevon Health has been successfully created. We are delighted to have you join our care platform.</p>
+        <p>Your account with Aevon Health has been successfully created.</p>
         
-        <p>Your primary care specialist has been assigned:</p>
-        <h4 style="color: #007bff; margin: 10px 0;">${assignedDoctorName}</h4>
+        <div style="background-color: #f8f9fa; border: 1px dashed #007bff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; font-weight: bold; color: #007bff;">Your Login Credentials:</p>
+            <p style="margin: 5px 0;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 5px 0;"><strong>Temporary Password:</strong> ${password}</p>
+        </div>
+
+        <p style="color: #dc3545; font-size: 0.9em; font-weight: bold;">
+            ⚠️ Security Note: Please change your password immediately after your first login for your privacy and security.
+        </p>
         
-        <p>Please click the button below to complete your profile setup and access your personalized health program.</p>
-        <p>We are here to support your journey to better health.</p>
+        <p>Your primary care specialist: <strong>${assignedDoctorName}</strong></p>
+        
+        <p>Click the button below to log in and access your personalized health program.</p>
     `;
 
-    return renderBaseTemplate(title, content, link, 'Go to My Dashboard');
+    return renderBaseTemplate(title, content, link, 'Login to My Account');
 };
 
 

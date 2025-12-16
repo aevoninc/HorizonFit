@@ -5,6 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -20,7 +27,15 @@ import { doctorApi, Patient } from '@/lib/api';
 export const DoctorPatientsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newPatient, setNewPatient] = useState({ name: '', email: '', assignFixedMatrix: false });
+  const [newPatient, setNewPatient] = useState({ 
+    name: '', 
+    email: '', 
+    mobileNumber: '', 
+    assignedCategory: '', // Now used for the dropdown
+    password: '', 
+    confirmPassword: '',
+    assignFixedMatrix: false 
+  });
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,24 +70,14 @@ const filteredPatients = (patients ?? []).filter(
     patient.email.toLowerCase().includes(searchQuery.toLowerCase())
 );
 
-  const handleAddPatient = async () => {
-    if (!newPatient.name.trim() || !newPatient.email.trim()) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please fill in all required fields.',
-        variant: 'destructive',
-      });
+const handleAddPatient = async () => {
+    // Basic Validations
+    if (!newPatient.name || !newPatient.email || !newPatient.assignedCategory || !newPatient.password) {
+      toast({ title: 'Validation Error', description: 'Please fill all required fields.', variant: 'destructive' });
       return;
     }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newPatient.email)) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please enter a valid email address.',
-        variant: 'destructive',
-      });
+    if (newPatient.password !== newPatient.confirmPassword) {
+      toast({ title: 'Password Mismatch', description: 'Passwords do not match.', variant: 'destructive' });
       return;
     }
 
@@ -81,21 +86,28 @@ const filteredPatients = (patients ?? []).filter(
       const response = await doctorApi.createPatient({
         name: newPatient.name.trim(),
         email: newPatient.email.trim(),
+        mobileNumber: newPatient.mobileNumber.trim(),
+        assignedCategory: newPatient.assignedCategory,
+        password: newPatient.password,
         assignFixedMatrix: newPatient.assignFixedMatrix,
       });
-      
-      setPatients((prev) => [...prev, response.data]);
-      toast({
-        title: 'Patient Added',
-        description: `${newPatient.name} has been added successfully.`,
-      });
-      setIsAddDialogOpen(false);
-      setNewPatient({ name: '', email: '', assignFixedMatrix: false });
+
+      // KEY FIX: Extract the patient object from the response
+      const createdPatient = response.data.patient;
+
+      if (createdPatient) {
+        setPatients((prev) => [...prev, createdPatient]);
+        toast({ title: 'Success', description: 'Patient created successfully.' });
+        setIsAddDialogOpen(false);
+        setNewPatient({ 
+          name: '', email: '', mobileNumber: '', assignedCategory: '', 
+          password: '', confirmPassword: '', assignFixedMatrix: false 
+        });
+      }
     } catch (error: any) {
-      console.error('Failed to add patient:', error);
       toast({
         title: 'Error',
-        description: error.response?.data?.message || 'Failed to add patient. Please try again.',
+        description: error.response?.data?.message || 'Failed to add patient.',
         variant: 'destructive',
       });
     } finally {
@@ -128,61 +140,121 @@ const filteredPatients = (patients ?? []).filter(
               Add Patient
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Add New Patient</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="patientName">Full Name <span className="text-destructive">*</span></Label>
-                <Input
-                  id="patientName"
-                  placeholder="Enter patient name"
-                  value={newPatient.name}
-                  onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
-                  maxLength={100}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="patientEmail">Email Address <span className="text-destructive">*</span></Label>
-                <Input
-                  id="patientEmail"
-                  type="email"
-                  placeholder="patient@example.com"
-                  value={newPatient.email}
-                  onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
-                  maxLength={255}
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="assignMatrix"
-                  checked={newPatient.assignFixedMatrix}
-                  onCheckedChange={(checked) =>
-                    setNewPatient({ ...newPatient, assignFixedMatrix: checked as boolean })
-                  }
-                />
-                <Label htmlFor="assignMatrix" className="text-sm">
-                  Assign fixed task matrix
-                </Label>
-              </div>
-              <Button 
-                variant="teal" 
-                className="w-full" 
-                onClick={handleAddPatient}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Adding...
-                  </>
-                ) : (
-                  'Add Patient'
-                )}
-              </Button>
-            </div>
-          </DialogContent>
+<DialogContent className="sm:max-w-2lg">
+  <DialogHeader>
+    <DialogTitle>Add New Patient</DialogTitle>
+  </DialogHeader>
+  <div className="space-y-4 pt-4">
+    {/* Full Name */}
+    <div className="space-y-2">
+      <Label htmlFor="patientName">Full Name <span className="text-destructive">*</span></Label>
+      <Input
+        id="patientName"
+        placeholder="Enter patient name"
+        value={newPatient.name}
+        onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
+      />
+    </div>
+
+    {/* Email */}
+    <div className="space-y-2">
+      <Label htmlFor="patientEmail">Email Address <span className="text-destructive">*</span></Label>
+      <Input
+        id="patientEmail"
+        type="email"
+        placeholder="patient@example.com"
+        value={newPatient.email}
+        onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
+      />
+    </div>
+
+    {/* Phone Number */}
+    <div className="space-y-2">
+      <Label htmlFor="patientNumber">Phone Number <span className="text-destructive">*</span></Label>
+      <Input
+        id="patientNumber"
+        type="tel"
+        placeholder="Enter phone number"
+        value={newPatient.mobileNumber}
+        onChange={(e) => setNewPatient({ ...newPatient, mobileNumber: e.target.value })}
+      />
+    </div>
+
+    {/* Assigned Category - Fixed Dropdown */}
+    <div className="space-y-2">
+      <Label>Assigned Category <span className="text-destructive">*</span></Label>
+      <Select 
+        value={newPatient.assignedCategory} 
+        onValueChange={(value) => setNewPatient({ ...newPatient, assignedCategory: value })}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Select a health program" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="Weight Loss">Weight Loss</SelectItem>
+          <SelectItem value="Diabetes Management">Diabetes Management</SelectItem>
+          <SelectItem value="General Wellness">General Wellness</SelectItem>
+          <SelectItem value="Cardiac Care">Cardiac Care</SelectItem>
+          <SelectItem value="Physiotherapy">Physiotherapy</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+
+    {/* Password */}
+    <div className="space-y-2">
+      <Label htmlFor="password">Login Password <span className="text-destructive">*</span></Label>
+      <Input
+        id="password"
+        type="password"
+        placeholder="Create password"
+        value={newPatient.password}
+        onChange={(e) => setNewPatient({ ...newPatient, password: e.target.value })}
+      />
+    </div>
+
+    {/* Confirm Password */}
+    <div className="space-y-2">
+  <Label htmlFor="confirmPassword">Confirm Password <span className="text-destructive">*</span></Label>
+  <Input
+    id="confirmPassword"
+    type="password"
+    placeholder="Repeat password"
+    value={newPatient.confirmPassword}
+    onChange={(e) => setNewPatient({ ...newPatient, confirmPassword: e.target.value })}
+  />
+  {/* Real-time visual feedback (Optional) */}
+  {newPatient.confirmPassword && newPatient.password !== newPatient.confirmPassword && (
+    <p className="text-xs text-destructive">Passwords do not match</p>
+  )}
+    </div>
+    {/* Matrix Checkbox */}
+    <div className="flex items-center space-x-2">
+      <Checkbox
+        id="assignMatrix"
+        checked={newPatient.assignFixedMatrix}
+        onCheckedChange={(checked) =>
+          setNewPatient({ ...newPatient, assignFixedMatrix: checked as boolean })
+        }
+      />
+      <Label htmlFor="assignMatrix" className="text-sm">
+        Assign fixed task matrix
+      </Label>
+    </div>
+
+<Button 
+  variant="teal" 
+  className="w-full" 
+  onClick={handleAddPatient}
+  disabled={
+    isSubmitting || 
+    !newPatient.password || 
+    newPatient.password !== newPatient.confirmPassword
+  }
+>
+  {isSubmitting ? 'Adding...' : 'Add Patient'}
+</Button>
+  </div>
+</DialogContent>
         </Dialog>
       </div>
 
