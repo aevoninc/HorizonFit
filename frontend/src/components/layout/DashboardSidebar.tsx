@@ -35,12 +35,20 @@ const patientNavItems: NavItem[] = [
   { label: 'Progress History', path: '/patient/progress', icon: BarChart3 },
   { label: 'Log Data', path: '/patient/log-data', icon: Activity },
   { label: 'My Bookings', path: '/patient/bookings', icon: BookOpen },
+  { label: 'Book Consultation', path: '/patient/new-consultation', icon: Calendar },
   { label: 'Profile', path: '/patient/profile', icon: User },
 ];
 
 export const DashboardSidebar: React.FC = () => {
-  const { role, logout, user } = useAuth();
+  const { role, logout, user, isAuthenticated, isLoading} = useAuth();
   const location = useLocation();
+  if (isLoading) {
+    return <div className="w-64 h-screen bg-teal-800 animate-pulse" />; // Optional: show a skeleton
+  }
+  console.log('DashboardSidebar - isAuthenticated:', isAuthenticated, 'role:', role, 'user:', user);
+if (!isAuthenticated || !role || !user) {
+    return null; 
+  }
   const navItems = role === 'Doctor' ? doctorNavItems : patientNavItems;
 
   const handleLogout = async () => {

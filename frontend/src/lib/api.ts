@@ -1,4 +1,4 @@
-// const API_BASE_URL = 'http://localhost:3000/api/v1';
+// const API_BASE_URL = ;
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = 'http://localhost:3000/api/v1';
@@ -86,8 +86,8 @@ export interface Task {
   zoneId: number;
   weekNumber: number;
   dayOfWeek: string[];
-  frequency: 'daily' | 'weekly' | 'biweekly';
-  status: 'pending' | 'in-progress' | 'completed';
+  frequency: 'Daily'| 'SpecificDays'| 'Weekly'| 'OneTime';
+  status: 'Pending' | 'In-Progress' | 'Completed';
   isCompleted?: boolean;
 }
 
@@ -111,7 +111,7 @@ export interface Consultation {
   date: string;
   time: string;
   type: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
   notes?: string;
 }
 
@@ -119,7 +119,7 @@ export interface PatientBooking {
   id: string;
   type: string;
   requestedDateTime: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'refunded';
+  status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled' | 'Refunded';
   doctorName?: string;
   refundId?: string;
   patientQuery?: string;
@@ -162,6 +162,19 @@ export interface RazorpayOrder {
   currency: string;
 }
 
+export type ProgramTier = 'normal' | 'premium';
+
+export interface ProgramBookingData {
+  name: string;
+  email: string;
+  mobileNumber: string;
+  password: string;
+  programType: ProgramTier;
+  paymentToken: string;
+  orderId: string;
+  razorpaySignature: string;
+}
+
 // Auth API
 export const authApi = {
   login: (email: string, password: string) =>
@@ -172,8 +185,8 @@ export const authApi = {
 
 // Public API
 export const publicApi = {
-  createOrderId: (type: 'consultation' | 'program', data: Record<string, unknown>) =>
-    api.post<RazorpayOrder>('/public/create-order-id', { type, ...data }),
+  createOrderId: (type: 'consultation' | 'program', programType?: ProgramTier) =>
+    api.post<RazorpayOrder>('/public/create-order-id', { type, programType }),
   bookConsultation: (data: {
     name: string;
     email: string;
@@ -184,16 +197,9 @@ export const publicApi = {
     orderId: string;
     razorpaySignature: string;
   }) => api.post('/public/new-request-consultation', data),
-  bookProgram: (data: {
-    name: string;
-    email: string;
-    mobileNumber: string;
-    password: string;
-    assignedCategory?: string;
-    paymentToken: string;
-    orderId: string;
-    razorpaySignature: string;
-  }) => api.post('/public/program-booking', data),
+  bookProgram: (data: ProgramBookingData) => api.post('/public/program-booking', data),
+  verifyPayment: (data: { orderId: string; paymentToken: string; razorpaySignature: string }) =>
+    api.post('/public/verify-payment', data),
 };
 
 // Doctor API
@@ -222,8 +228,7 @@ export const doctorApi = {
 export const patientApi = {
   // Zone Tasks
   getZoneTasks: (zoneNumber: number) => api.get<ZoneTask>(`/patients/get-zone-task/${zoneNumber}`),
-  logTaskCompletion: (data: { taskIds: string[], completionDate: string }) => 
-  api.post(`/patients/logTaskCompletion`, data),
+  logTaskCompletion: (taskId: string) => api.post(`/patients/logTaskCompletion/${taskId}`),
   
   // Progress
   getProgress: () => api.get<PatientProgress>('/patients/getPatientProgress'),
@@ -240,9 +245,9 @@ export const patientApi = {
     paymentToken: string;
     orderId: string;
     razorpaySignature: string;
-  }) => api.post('/patient/consultation-request', data),
+  }) => api.post('/patients/consultation-request', data),
   getBookings: () => api.get<PatientBooking[]>('/patients/getPatientBookings'),
-  cancelBooking: (id: string) => api.post<{ refundId?: string }>(`/patient/cancelBooking/${id}`),
+  cancelBooking: (id: string) => api.post<{ refundId?: string }>(`/patients/cancelBooking/${id}`),
   
   // Profile
   getProfile: () => api.get<PatientProfile>('/patients/getPatientProfile'),

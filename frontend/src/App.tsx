@@ -12,6 +12,7 @@ import { HomePage } from "./pages/HomePage";
 import { AuthPage } from "./pages/AuthPage";
 import { BookConsultationPage } from "./pages/BookConsultationPage";
 import { EnrollPage } from "./pages/EnrollPage";
+import { BookingSuccessPage } from "./pages/BookingSuccessPage";
 
 // Doctor Pages
 import { DoctorPatientsPage } from "./pages/doctor/DoctorPatientsPage";
@@ -26,6 +27,7 @@ import { PatientProgressPage } from "./pages/patient/PatientProgressPage";
 import { PatientLogDataPage } from "./pages/patient/PatientLogDataPage";
 import { PatientBookingsPage } from "./pages/patient/PatientBookingsPage";
 import { PatientProfilePage } from "./pages/patient/PatientProfilePage";
+import { PatientNewConsultationPage } from "./pages/patient/PatientNewConsultationPage";
 
 import NotFound from "./pages/NotFound";
 
@@ -44,6 +46,7 @@ const App = () => (
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/book-consultation" element={<BookConsultationPage />} />
             <Route path="/enroll" element={<EnrollPage />} />
+            <Route path="/booking-success" element={<BookingSuccessPage />} />
 
             {/* Doctor Routes */}
             <Route
@@ -57,10 +60,10 @@ const App = () => (
               <Route index element={<Navigate to="/doctor/patients" replace />} />
               <Route path="patients" element={<DoctorPatientsPage />} />
               <Route path="patients/:id" element={<PatientDetailPage />} />
-              {/* <Route path="consultations" element={<DoctorConsultationsPage />} />
+              <Route path="consultations" element={<DoctorConsultationsPage />} />
               <Route path="completed-patients" element={<DoctorCompletedPatientsPage />} />
               <Route path="deactivated-patients" element={<DoctorDeactivatedPatientsPage />} />
-              <Route path="new-requests" element={<DoctorConsultationsPage />} /> */}
+              <Route path="new-requests" element={<DoctorConsultationsPage />} />
             </Route>
 
             {/* Patient Routes */}
@@ -74,10 +77,11 @@ const App = () => (
             >
               <Route index element={<Navigate to="/patient/tasks" replace />} />
               <Route path="tasks" element={<PatientTasksPage />} />
-              {/* <Route path="progress" element={<PatientProgressPage />} /> */}
-              {/* <Route path="log-data" element={<PatientLogDataPage />} /> */}
-              {/* <Route path="bookings" element={<PatientBookingsPage />} /> */}
-              {/* <Route path="profile" element={<PatientProfilePage />} /> */}
+              <Route path="progress" element={<PatientProgressPage />} />
+              <Route path="log-data" element={<PatientLogDataPage />} />
+              <Route path="bookings" element={<PatientBookingsPage />} />
+              <Route path="new-consultation" element={<PatientNewConsultationPage />} />
+              <Route path="profile" element={<PatientProfilePage />} />
             </Route>
 
             {/* Catch-all */}

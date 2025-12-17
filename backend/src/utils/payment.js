@@ -11,15 +11,16 @@ const razorpay = new Razorpay({
 
 
 // Create Razorpay Order
-const createRazorpayOrder = async () => {
-    const amount = 100; //100 ₹ - Rupees
+const createRazorpayOrder = async (tier) => {
+    // Dynamic price logic
+    const amount = tier === 'premium' ? 25000 : 10000; 
+    
     try {
         const order = await razorpay.orders.create({
-            amount: amount * 100,   // ₹ - paise
+            amount: amount * 100, // Converts ₹10,000 to 1,000,000 paise
             currency: "INR",
             receipt: `rcpt_${Date.now()}`,
         });
-
         return order; 
     } catch (error) {
         throw new Error(`Order creation failed: ${error.message}`);

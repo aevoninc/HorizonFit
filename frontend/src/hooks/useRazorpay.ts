@@ -38,7 +38,7 @@ export interface RazorpayResponse {
   razorpay_signature: string;
 }
 
-const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder';
+const RAZORPAY_KEY = 'rzp_test_Rino5m0CIKz7uD';
 
 export const useRazorpay = () => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -96,7 +96,7 @@ export const useRazorpay = () => {
       try {
         const options: RazorpayOptions = {
           key: RAZORPAY_KEY,
-          amount: amount * 100, // Razorpay expects amount in paise
+          amount: amount, // Razorpay expects amount in paise
           currency,
           name,
           description,

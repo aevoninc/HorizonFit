@@ -23,11 +23,13 @@ app.use(cookieParser());
 import authRoutes from "./routes/auth.route.js";
 import doctorRoutes from "./routes/doctor.route.js";
 import patientRoutes from "./routes/patient.route.js";
+import bookingRoutes from "./routes/booking.route.js";  
 
 // Define Routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/doctor", doctorRoutes);
 app.use("/api/v1/patients", patientRoutes);
+app.use("/api/v1/public", bookingRoutes);
 app.get("/test", (req, res) => {
   res.send("API Working!");
 });
