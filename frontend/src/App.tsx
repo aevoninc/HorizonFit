@@ -20,6 +20,7 @@ import { PatientDetailPage } from "./pages/doctor/PatientDetailPage";
 import { DoctorConsultationsPage } from "./pages/doctor/DoctorConsultationsPage";
 import { DoctorCompletedPatientsPage } from "./pages/doctor/DoctorCompletedPatientsPage";
 import { DoctorDeactivatedPatientsPage } from "./pages/doctor/DoctorDeactivatedPatientsPage";
+import { ProgramTemplatesPage } from "./pages/doctor/ProgramTemplatesPage";
 
 // Patient Pages
 import { PatientTasksPage } from "./pages/patient/PatientTasksPage";
@@ -64,6 +65,7 @@ const App = () => (
               <Route path="completed-patients" element={<DoctorCompletedPatientsPage />} />
               <Route path="deactivated-patients" element={<DoctorDeactivatedPatientsPage />} />
               <Route path="new-requests" element={<DoctorConsultationsPage />} />
+              <Route path="templates" element={<ProgramTemplatesPage />} />
             </Route>
 
             {/* Patient Routes */}

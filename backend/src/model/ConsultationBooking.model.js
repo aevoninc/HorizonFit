@@ -39,7 +39,8 @@ const BookingSchema = new mongoose.Schema({
             'Payment Successful', // Ready for Doctor Review
             'Confirmed', 
             'Rescheduled',        // Added for clarity on Doctor's update
-            'Cancelled'
+            'Refunded',
+            'Cancelled',
         ], 
         default: 'Awaiting Payment' 
     },

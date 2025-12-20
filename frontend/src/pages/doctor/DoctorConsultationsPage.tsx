@@ -46,22 +46,37 @@ export const DoctorConsultationsPage: React.FC = () => {
     fetchConsultations();
   }, []);
 
-  const fetchConsultations = async () => {
-    try {
-      setIsLoading(true);
-      const response = await doctorApi.getConsultations();
+const fetchConsultations = async () => {
+  try {
+    setIsLoading(true);
+    const response = await doctorApi.getConsultations();
+    
+    // Log it to be sure: console.log("API Response:", response.data);
+    console.log("API Response:", response.data);
+    // FIX: Look for the 'bookings' property in the object
+    if (response.data && Array.isArray(response.data.bookings)) {
+      console.log(response.data)
+      setConsultations(response.data.bookings);
+    } else if (Array.isArray(response.data)) {
+      // Fallback in case the API structure changes to a direct array
       setConsultations(response.data);
-    } catch (error) {
-      console.error('Failed to fetch consultations:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load consultations. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
+    } else {
+      // If no bookings found or wrong format, set to empty array
+      setConsultations([]);
     }
-  };
+    
+  } catch (error) {
+    console.error('Failed to fetch consultations:', error);
+    setConsultations([]); // Keep it as an array to prevent crashes
+    toast({
+      title: 'Error',
+      description: 'Failed to load consultations.',
+      variant: 'destructive',
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const filteredConsultations = consultations.filter(
     (consultation) =>
@@ -74,7 +89,14 @@ export const DoctorConsultationsPage: React.FC = () => {
 
     try {
       setIsSubmitting(true);
-      await doctorApi.updateConsultationStatus(selectedConsultation.id, newStatus, notes.trim() || undefined);
+      const confirmedDateTime = selectedConsultation.requestedDateTime || new Date().toISOString();
+      console.log("Updating status with date:", confirmedDateTime);
+    await doctorApi.updateConsultationStatus(
+      selectedConsultation.id, 
+      newStatus, 
+      confirmedDateTime, // Add this third argument
+      notes.trim() || undefined
+    );
       
       setConsultations((prev) =>
         prev.map((c) =>
@@ -282,10 +304,10 @@ export const DoctorConsultationsPage: React.FC = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Confirmed">Confirmed</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { TrendingUp, Award, Target, Calendar, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { TrendingUp, Award, Target, Calendar, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   LineChart,
   Line,
@@ -15,26 +15,37 @@ import {
   Cell,
   AreaChart,
   Area,
-} from 'recharts';
-import { patientApi, PatientProgress, TrackingEntry } from '@/lib/api';
-import { useToast } from '@/hooks/use-toast';
-import { Progress } from '@/components/ui/progress';
+} from "recharts";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { patientApi, PatientProgress, TrackingEntry } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { Progress } from "@/components/ui/progress";
 
 export const PatientProgressPage: React.FC = () => {
   const { toast } = useToast();
-  const [progressData, setProgressData] = useState<PatientProgress | null>(null);
+  const [progressData, setProgressData] = useState<PatientProgress | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
+  const [selectedTrend, setSelectedTrend] = useState("Weight");
 
   useEffect(() => {
     const fetchProgress = async () => {
       try {
         const response = await patientApi.getProgress();
+        console.log("Fetched patient progress data:", response.data);
         setProgressData(response.data);
       } catch (error) {
         toast({
-          title: 'Error',
-          description: 'Failed to load progress data.',
-          variant: 'destructive',
+          title: "Error",
+          description: "Failed to load progress data.",
+          variant: "destructive",
         });
       } finally {
         setLoading(false);
@@ -52,41 +63,102 @@ export const PatientProgressPage: React.FC = () => {
     );
   }
 
-  const masterTasks = progressData?.masterTasks || { total: 50, completed: 42 };
-  const overallCompliance = masterTasks.total > 0 
-    ? Math.round((masterTasks.completed / masterTasks.total) * 100) 
-    : 0;
-
+  // 1. Get the actual arrays from your response
+  const masterTasksArray = progressData?.masterTasks || [];
+  const taskLogsArray = progressData?.taskLogs || [];
   const trackingData = progressData?.trackingData || [];
-  const weeklyProgress = progressData?.weeklyProgress || [];
-  const zoneProgress = progressData?.zoneProgress || [
-    { zone: 'Zone 1', tasks: 10, completed: 10 },
-    { zone: 'Zone 2', tasks: 10, completed: 7 },
-    { zone: 'Zone 3', tasks: 10, completed: 3 },
-    { zone: 'Zone 4', tasks: 10, completed: 0 },
-    { zone: 'Zone 5', tasks: 10, completed: 0 },
-  ];
 
+  // 1. Get unique weeks from the masterTasks (e.g., [1, 2, 3])
+  const availableWeeks = [
+    ...new Set(masterTasksArray.map((t) => t.programWeek)),
+  ].sort((a, b) => a - b);
+
+  // 2. Calculate completion percentage for each week
+  const weeklyProgress = availableWeeks.map((weekNum) => {
+    // Find all tasks assigned to this specific week
+    const tasksInThisWeek = masterTasksArray.filter(
+      (t) => t.programWeek === weekNum
+    );
+    const totalTasksInWeek = tasksInThisWeek.length;
+
+    // Find how many of those tasks have a matching entry in taskLogs
+    const completedTasksInWeek = tasksInThisWeek.filter((task) =>
+      taskLogsArray.some((log) => log.taskId === task._id)
+    ).length;
+
+    // Calculate percentage (handle division by zero just in case)
+    const percentage =
+      totalTasksInWeek > 0
+        ? Math.round((completedTasksInWeek / totalTasksInWeek) * 100)
+        : 0;
+
+    return {
+      week: `Week ${weekNum}`,
+      completion: percentage,
+    };
+  });
+
+  // 2. Calculate real counts
+  const totalTasks = masterTasksArray.length;
+  const completedTasks = taskLogsArray.length;
+
+  // 3. Calculate real compliance
+  const overallCompliance =
+    totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  // 4. Group data for the Pie Chart
   const complianceData = [
-    { name: 'Completed', value: masterTasks.completed, color: 'hsl(16, 85%, 55%)' },
-    { name: 'Pending', value: masterTasks.total - masterTasks.completed, color: 'hsl(var(--muted))' },
+    { name: "Completed", value: completedTasks, color: "hsl(16, 85%, 55%)" },
+    {
+      name: "Pending",
+      value: Math.max(0, totalTasks - completedTasks),
+      color: "hsl(var(--muted))",
+    },
   ];
 
+  const zones = [1, 2, 3, 4, 5];
+  const zoneProgress = zones.map((zoneNum) => {
+    const tasksInZone = masterTasksArray.filter(
+      (t) => t.zone === zoneNum
+    ).length;
+    const completedInZone = masterTasksArray.filter(
+      (t) =>
+        t.zone === zoneNum && taskLogsArray.some((log) => log.taskId === t._id)
+    ).length;
+
+    return {
+      zone: `Zone ${zoneNum}`,
+      tasks: tasksInZone,
+      completed: completedInZone,
+    };
+  });
   // Process tracking data for health trends chart
   const healthTrends = trackingData
-    .filter((entry: TrackingEntry) => entry.metricType === 'weight')
-    .slice(-7)
+    .filter((entry: TrackingEntry) => entry.type === selectedTrend) // FIXED: Match your new Model key and Enum case
+    .slice(-7) // Get the last 7 entries
     .map((entry: TrackingEntry) => ({
-      date: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      // Format the date for the X-axis
+      date: new Date(entry.dateRecorded || entry.date).toLocaleDateString(
+        "en-US",
+        {
+          month: "short",
+          day: "numeric",
+        }
+      ),
       value: entry.value,
     }));
-
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="space-y-8"
+    >
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-foreground">Progress History</h1>
-        <p className="mt-1 text-muted-foreground">Track your fitness journey and achievements</p>
+        <p className="mt-1 text-muted-foreground">
+          Track your fitness journey and achievements
+        </p>
       </div>
 
       {/* Stats Cards */}
@@ -98,7 +170,9 @@ export const PatientProgressPage: React.FC = () => {
                 <Award className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{overallCompliance}%</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {overallCompliance}%
+                </p>
                 <p className="text-sm text-muted-foreground">Compliance Rate</p>
               </div>
             </div>
@@ -111,8 +185,12 @@ export const PatientProgressPage: React.FC = () => {
                 <Target className="h-6 w-6 text-secondary-foreground" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{masterTasks.completed}</p>
-                <p className="text-sm text-muted-foreground">Tasks Completed</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {completedTasks}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Out of {totalTasks} total
+                </p>
               </div>
             </div>
           </CardContent>
@@ -124,7 +202,9 @@ export const PatientProgressPage: React.FC = () => {
                 <TrendingUp className="h-6 w-6 text-secondary" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">Zone {progressData?.currentZone || 1}</p>
+                <p className="text-2xl font-bold text-foreground">
+                  Zone {progressData?.currentZone || 1}
+                </p>
                 <p className="text-sm text-muted-foreground">Current Zone</p>
               </div>
             </div>
@@ -137,7 +217,9 @@ export const PatientProgressPage: React.FC = () => {
                 <Calendar className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{weeklyProgress.length || 0}</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {weeklyProgress.length || 0}
+                </p>
                 <p className="text-sm text-muted-foreground">Weeks Active</p>
               </div>
             </div>
@@ -154,9 +236,11 @@ export const PatientProgressPage: React.FC = () => {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">
-                {masterTasks.completed} of {masterTasks.total} tasks completed
+                {completedTasks} of {totalTasks} tasks completed
               </span>
-              <span className="font-medium text-foreground">{overallCompliance}%</span>
+              <span className="font-medium text-foreground">
+                {overallCompliance}%
+              </span>
             </div>
             <Progress value={overallCompliance} className="h-4" />
           </div>
@@ -176,19 +260,43 @@ export const PatientProgressPage: React.FC = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={weeklyProgress}>
                     <defs>
-                      <linearGradient id="completionGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--secondary))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--secondary))" stopOpacity={0} />
+                      <linearGradient
+                        id="completionGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="hsl(var(--secondary))"
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="hsl(var(--secondary))"
+                          stopOpacity={0}
+                        />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="week" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="hsl(var(--border))"
+                    />
+                    <XAxis
+                      dataKey="week"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                    />
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                    />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
                       }}
                     />
                     <Area
@@ -233,9 +341,9 @@ export const PatientProgressPage: React.FC = () => {
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
                     }}
                   />
                 </PieChart>
@@ -267,11 +375,16 @@ export const PatientProgressPage: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {zoneProgress.map((zone) => {
-              const percent = zone.tasks > 0 ? Math.round((zone.completed / zone.tasks) * 100) : 0;
+              const percent =
+                zone.tasks > 0
+                  ? Math.round((zone.completed / zone.tasks) * 100)
+                  : 0;
               return (
                 <div key={zone.zone} className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="font-medium text-foreground">{zone.zone}</span>
+                    <span className="font-medium text-foreground">
+                      {zone.zone}
+                    </span>
                     <span className="text-muted-foreground">{percent}%</span>
                   </div>
                   <div className="h-3 overflow-hidden rounded-full bg-muted">
@@ -280,7 +393,7 @@ export const PatientProgressPage: React.FC = () => {
                       animate={{ width: `${percent}%` }}
                       transition={{ duration: 0.8, delay: 0.1 }}
                       className={`h-full rounded-full ${
-                        percent === 100 ? 'gradient-phoenix' : 'gradient-teal'
+                        percent === 100 ? "gradient-phoenix" : "gradient-teal"
                       }`}
                     />
                   </div>
@@ -293,21 +406,48 @@ export const PatientProgressPage: React.FC = () => {
         {/* Health Trends */}
         <Card className="card-elevated">
           <CardHeader>
-            <CardTitle className="text-lg">Health Trends (Weight)</CardTitle>
+            <CardTitle className="text-lg">
+              Health Trends ({selectedTrend})
+            </CardTitle>
+            <Select 
+      value={selectedTrend} 
+      onValueChange={(value) => setSelectedTrend(value)}
+    >
+      <SelectTrigger className="w-[180px]">
+        <SelectValue placeholder="Select Metric" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="Weight">Weight (kg)</SelectItem>
+        <SelectItem value="BloodSugar">Blood Sugar (mg/dL)</SelectItem>
+        <SelectItem value="BloodPressure">Blood Pressure (mmHg)</SelectItem>
+        <SelectItem value="Activity">Activity (Steps)</SelectItem>
+      </SelectContent>
+    </Select>
           </CardHeader>
           <CardContent>
             <div className="h-64">
               {healthTrends.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={healthTrends}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} domain={['auto', 'auto']} />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="hsl(var(--border))"
+                    />
+                    <XAxis
+                      dataKey="date"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                    />
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      domain={["auto", "auto"]}
+                    />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
                       }}
                     />
                     <Line
@@ -315,8 +455,16 @@ export const PatientProgressPage: React.FC = () => {
                       dataKey="value"
                       stroke="hsl(var(--primary))"
                       strokeWidth={3}
-                      dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 6, stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
+                      dot={{
+                        fill: "hsl(var(--primary))",
+                        strokeWidth: 2,
+                        r: 4,
+                      }}
+                      activeDot={{
+                        r: 6,
+                        stroke: "hsl(var(--primary))",
+                        strokeWidth: 2,
+                      }}
                     />
                   </LineChart>
                 </ResponsiveContainer>

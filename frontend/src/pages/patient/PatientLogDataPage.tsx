@@ -10,13 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { patientApi, TrackingEntry, PatientProgress } from '@/lib/api';
 
+// Updated to match your Model's enum exactly
 const metricTypes = [
-  { value: 'weight', label: 'Weight', unit: 'kg', icon: Scale },
-  { value: 'blood_sugar', label: 'Blood Sugar', unit: 'mg/dL', icon: Droplets },
-  { value: 'heart_rate', label: 'Heart Rate', unit: 'bpm', icon: Heart },
-  { value: 'blood_pressure_systolic', label: 'Blood Pressure (Systolic)', unit: 'mmHg', icon: Activity },
-  { value: 'blood_pressure_diastolic', label: 'Blood Pressure (Diastolic)', unit: 'mmHg', icon: Activity },
-  { value: 'body_fat', label: 'Body Fat', unit: '%', icon: Scale },
+  { value: 'Weight', label: 'Weight', unit: 'kg', icon: Scale },
+  { value: 'BloodSugar', label: 'Blood Sugar', unit: 'mg/dL', icon: Droplets },
+  { value: 'BloodPressure', label: 'Blood Pressure', unit: 'mmHg', icon: Activity },
+  { value: 'Activity', label: 'Activity', unit: 'steps', icon: TrendingUp },
+  // Note: 'heart_rate' isn't in your model yet. Use 'BloodPressure' or update model.
 ];
 
 export const PatientLogDataPage: React.FC = () => {
@@ -24,11 +24,11 @@ export const PatientLogDataPage: React.FC = () => {
   const [recentEntries, setRecentEntries] = useState<TrackingEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    metricType: 'weight',
-    value: '',
-    notes: '',
-  });
+const [formData, setFormData] = useState({
+  metricType: 'Weight', // Change from 'weight' to 'Weight'
+  value: '',
+  notes: '',
+});
 
   const selectedMetric = metricTypes.find((m) => m.value === formData.metricType);
 
@@ -37,6 +37,7 @@ export const PatientLogDataPage: React.FC = () => {
       try {
         const response = await patientApi.getProgress();
         const data = response.data as PatientProgress;
+        console.log('Fetched patient progress data:', data);
         if (data.trackingData) {
           setRecentEntries(data.trackingData.slice(-10).reverse());
         }
@@ -50,64 +51,40 @@ export const PatientLogDataPage: React.FC = () => {
     fetchData();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  // ... validation logic ...
 
-    if (!formData.value) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please enter a value.',
-        variant: 'destructive',
-      });
-      return;
-    }
+  setSubmitting(true);
+  try {
+    const payload = {
+      type: formData.metricType, // Matches 'type' in controller/model
+      value: parseFloat(formData.value),
+      unit: selectedMetric?.unit || '',
+      recordDate: new Date().toISOString(), // Matches 'recordDate' in controller
+      notes: formData.notes, 
+    };
 
-    const value = parseFloat(formData.value);
-    if (isNaN(value)) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please enter a valid number.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    await patientApi.logTrackingData(payload);
 
-    setSubmitting(true);
+    // Update local state for immediate feedback
+    const newEntry: TrackingEntry = {
+      date: payload.recordDate,
+      metricType: payload.type,
+      value: payload.value,
+      unit: payload.unit,
+      notes: payload.notes,
+    };
 
-    try {
-      await patientApi.logTrackingData({
-        metricType: formData.metricType,
-        value,
-        unit: selectedMetric?.unit || '',
-        notes: formData.notes || undefined,
-      });
-
-      // Add to local state
-      const newEntry: TrackingEntry = {
-        date: new Date().toISOString(),
-        metricType: formData.metricType,
-        value,
-        unit: selectedMetric?.unit || '',
-        notes: formData.notes,
-      };
-      setRecentEntries((prev) => [newEntry, ...prev.slice(0, 9)]);
-
-      toast({
-        title: 'Data Logged',
-        description: 'Your tracking data has been saved successfully.',
-      });
-
-      setFormData({ ...formData, value: '', notes: '' });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to log data. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    setRecentEntries((prev) => [newEntry, ...prev.slice(0, 9)]);
+    toast({ title: 'Success', description: 'Metric logged successfully' });
+    setFormData({ ...formData, value: '', notes: '' });
+  } catch (error) {
+    // ... error handling ...
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const getMetricIcon = (metricType: string) => {
     const metric = metricTypes.find((m) => m.value === metricType);

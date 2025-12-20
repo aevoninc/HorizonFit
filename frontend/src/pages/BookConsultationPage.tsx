@@ -75,15 +75,11 @@ export const BookConsultationPage: React.FC = () => {
     setStep(2);
   };
 
-  const handlePayment = async () => {
+const handlePayment = async () => {
     const data = getValues();
     
     if (!isLoaded) {
-      toast({
-        title: 'Payment Not Ready',
-        description: 'Payment system is loading. Please try again.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Payment Not Ready', variant: 'destructive' });
       return;
     }
 
@@ -96,12 +92,22 @@ export const BookConsultationPage: React.FC = () => {
         amount: selectedConsultation?.price || 999,
       });
 
-      const { orderId, amount } = orderResponse.data;
+      // ✅ FIX: Extract accurately
+      const orderData = orderResponse.data.order; 
+      const serverOrderId = orderData.id; 
+      const serverAmount = orderData.amount;
+
+      // 🛑 SAFETY CHECK: Don't proceed if ID is missing
+      if (!serverOrderId) {
+        throw new Error("Failed to generate Order ID from server");
+      }
+
+      console.log("Check this ID:", serverOrderId);
 
       // Step 2: Open Razorpay
       openPayment({
-        orderId,
-        amount,
+        orderId: serverOrderId, // Use the explicit variable
+        amount: serverAmount,   // Use the explicit variable
         description: `${selectedConsultation?.label || 'Consultation'} Booking`,
         prefill: {
           name: data.name,
@@ -111,27 +117,25 @@ export const BookConsultationPage: React.FC = () => {
         onSuccess: async (response: RazorpayResponse) => {
           try {
             // Step 3: Verify and book
+            console.log("Razorpay Success Response:", response);
+            
             await publicApi.bookConsultation({
               name: data.name,
               email: data.email,
               mobileNumber: data.phone,
               requestedDateTime: data.preferredDate,
-              patientQuery: data.patientQuery,
+              patientQuery: data.patientQuery || "",
               paymentToken: response.razorpay_payment_id,
-              orderId: response.razorpay_order_id,
-              razorpaySignature: response.razorpay_signature,
+              orderId: response.razorpay_order_id,          // This should now appear!
+              razorpaySignature: response.razorpay_signature // This should now appear!
             });
 
-            toast({
-              title: 'Booking Confirmed!',
-              description: 'Check your email for confirmation details.',
-            });
-
+            toast({ title: 'Booking Confirmed!', description: 'Check your email.' });
             navigate('/booking-success');
           } catch (error) {
-            toast({
+             toast({
               title: 'Booking Failed',
-              description: 'Payment succeeded but booking failed. Please contact support.',
+              description: 'Payment verified, but booking failed. Contact support.',
               variant: 'destructive',
             });
           } finally {
@@ -139,23 +143,13 @@ export const BookConsultationPage: React.FC = () => {
           }
         },
         onError: (error) => {
-          toast({
-            title: 'Payment Failed',
-            description: error.message || 'Payment could not be processed.',
-            variant: 'destructive',
-          });
+          toast({ title: 'Payment Failed', variant: 'destructive' });
           setIsProcessing(false);
         },
-        onDismiss: () => {
-          setIsProcessing(false);
-        },
+        onDismiss: () => setIsProcessing(false),
       });
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to initiate payment. Please try again.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Initiation failed.', variant: 'destructive' });
       setIsProcessing(false);
     }
   };

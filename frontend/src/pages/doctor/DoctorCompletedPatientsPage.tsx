@@ -29,7 +29,16 @@ export const DoctorCompletedPatientsPage: React.FC = () => {
     try {
       setIsLoading(true);
       const response = await doctorApi.getCompletedPatients();
+      console.log('Fetched completed patients:', response.data);
+      if (response.data && Array.isArray(response.data.patients)) {
+      setPatients(response.data.patients);
+    } else if (Array.isArray(response.data)) {
+      // Fallback in case the API structure changes to a direct array
       setPatients(response.data);
+    } else {
+      // If no bookings found or wrong format, set to empty array
+      setPatients([]);
+    }
     } catch (error) {
       console.error('Failed to fetch completed patients:', error);
       toast({

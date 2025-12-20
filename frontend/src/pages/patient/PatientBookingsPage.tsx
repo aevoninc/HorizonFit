@@ -20,12 +20,13 @@ import { format } from 'date-fns';
 
 type BookingStatus = PatientBooking['status'];
 
-const statusConfig: Record<BookingStatus, { color: string; icon: React.ReactNode }> = {
-  pending: { color: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: <Clock className="h-4 w-4" /> },
-  confirmed: { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: <CheckCircle className="h-4 w-4" /> },
-  completed: { color: 'bg-green-100 text-green-700 border-green-200', icon: <CheckCircle className="h-4 w-4" /> },
-  cancelled: { color: 'bg-red-100 text-red-700 border-red-200', icon: <XCircle className="h-4 w-4" /> },
-  refunded: { color: 'bg-purple-100 text-purple-700 border-purple-200', icon: <RefreshCw className="h-4 w-4" /> },
+const statusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
+  'Payment Successful': { color: 'bg-green-100 text-green-700 border-green-200', icon: <CheckCircle className="h-4 w-4" /> },
+  'Cancelled': { color: 'bg-red-100 text-red-700 border-red-200', icon: <XCircle className="h-4 w-4" /> },
+  'Pending': { color: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: <Clock className="h-4 w-4" /> },
+  'Confirmed': { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: <CheckCircle className="h-4 w-4" /> },
+  'Completed': { color: 'bg-green-100 text-green-700 border-green-200', icon: <CheckCircle className="h-4 w-4" /> },
+  'Refunded': { color: 'bg-purple-100 text-purple-700 border-purple-200', icon: <RefreshCw className="h-4 w-4" /> },
 };
 
 export const PatientBookingsPage: React.FC = () => {
@@ -36,43 +37,62 @@ export const PatientBookingsPage: React.FC = () => {
   const [selectedBooking, setSelectedBooking] = useState<PatientBooking | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
-  const fetchBookings = async () => {
-    setLoading(true);
-    try {
-      const response = await patientApi.getBookings();
-      setBookings(response.data);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load bookings. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchBookings = async () => {
+  setLoading(true);
+  try {
+    const response = await patientApi.getBookings();
+    
+    // 1. Get the array from the response object
+    const rawBookings = response.data?.bookings || response.data || [];
+
+    // 2. Map MongoDB's _id to id so 'selectedBooking.id' works
+    const formattedBookings = rawBookings.map((b: any) => ({
+      ...b,
+      id: b._id || b.id, // This ensures 'id' is populated for the frontend
+    }));
+
+    setBookings(formattedBookings);
+  } catch (error) {
+    toast({
+      title: 'Error',
+      description: 'Failed to load bookings.',
+      variant: 'destructive',
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchBookings();
   }, []);
 
-  const handleCancelClick = (booking: PatientBooking) => {
+const handleCancelClick = (booking: PatientBooking) => {
     setSelectedBooking(booking);
     setCancelDialogOpen(true);
   };
 
   const handleConfirmCancel = async () => {
-    if (!selectedBooking) return;
+    // 1. Safety check for ID
+    if (!selectedBooking?.id) {
+      toast({
+        title: "Error",
+        description: "Booking ID not found. Please refresh.",
+        variant: "destructive"
+      });
+      setCancelDialogOpen(false);
+      return;
+    }
 
     setCancelling(true);
     try {
       const response = await patientApi.cancelBooking(selectedBooking.id);
       
-      // Update local state
+      // Update local state to show 'Cancelled' immediately
       setBookings((prev) =>
         prev.map((b) =>
           b.id === selectedBooking.id
-            ? { ...b, status: 'cancelled' as const, refundId: response.data.refundId }
+            ? { ...b, status: 'Cancelled' as const, refundId: response.data.refundId }
             : b
         )
       );
@@ -80,16 +100,17 @@ export const PatientBookingsPage: React.FC = () => {
       toast({
         title: 'Booking Cancelled',
         description: response.data.refundId
-          ? `Your booking has been cancelled. Refund ID: ${response.data.refundId}`
+          ? `Refund initiated. ID: ${response.data.refundId}`
           : 'Your booking has been cancelled.',
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: 'Error',
-        description: 'Failed to cancel booking. Please try again.',
+        title: 'Cancellation Failed',
+        description: error.response?.data?.message || 'Failed to cancel booking.',
         variant: 'destructive',
       });
     } finally {
+      // 2. Always reset states to stop loading spinners and close dialogs
       setCancelling(false);
       setCancelDialogOpen(false);
       setSelectedBooking(null);
@@ -108,8 +129,10 @@ export const PatientBookingsPage: React.FC = () => {
     }
   };
 
-  const upcomingBookings = bookings.filter((b) => ['pending', 'confirmed'].includes(b.status));
-  const pastBookings = bookings.filter((b) => !['pending', 'confirmed'].includes(b.status));
+const upcomingBookings = bookings.filter((b) => 
+  ['Pending', 'Confirmed', 'Payment Successful'].includes(b.status)
+);
+  const pastBookings = bookings.filter((b) => !['Pending', 'Confirmed'].includes(b.status));
 
   if (loading) {
     return (
@@ -118,7 +141,7 @@ export const PatientBookingsPage: React.FC = () => {
       </div>
     );
   }
-
+  
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
       {/* Header */}
@@ -132,62 +155,86 @@ export const PatientBookingsPage: React.FC = () => {
         <h2 className="text-xl font-semibold text-foreground">Upcoming Sessions</h2>
         {upcomingBookings.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
-            {upcomingBookings.map((booking, index) => {
-              const { date, time } = formatDateTime(booking.requestedDateTime);
-              const config = statusConfig[booking.status];
-              
-              return (
-                <motion.div
-                  key={booking.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <Card className="card-elevated border-l-4 border-l-secondary">
-                    <CardContent className="p-6">
-                      <div className="mb-4 flex items-start justify-between">
-                        <div>
-                          <h3 className="font-semibold text-foreground">{booking.type}</h3>
-                          {booking.doctorName && (
-                            <p className="text-sm text-muted-foreground">{booking.doctorName}</p>
-                          )}
-                        </div>
-                        <Badge className={config.color}>
-                          <span className="mr-1">{config.icon}</span>
-                          {booking.status}
-                        </Badge>
-                      </div>
-                      <div className="mb-4 space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="h-4 w-4" />
-                          {date}
-                        </div>
-                        {time && (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Clock className="h-4 w-4" />
-                            {time}
-                          </div>
-                        )}
-                      </div>
-                      {booking.patientQuery && (
-                        <p className="mb-4 text-sm text-muted-foreground italic">
-                          "{booking.patientQuery}"
-                        </p>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-destructive hover:bg-destructive/10"
-                        onClick={() => handleCancelClick(booking)}
-                      >
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Cancel Booking
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })}
+{upcomingBookings.map((booking, index) => {
+  const { date, time } = formatDateTime(booking.requestedDateTime);
+  const config = statusConfig[booking.status] || { color: 'bg-gray-100', icon: null };
+
+  // --- Logic for Refund Window ---
+  const paymentDate = new Date(booking.createdAt || Date.now()).getTime();
+  const currentTime = Date.now();
+  const twentyFourHours = 24 * 60 * 60 * 1000;
+  const isEligibleForRefund = (currentTime - paymentDate) < twentyFourHours;
+  const hoursRemaining = Math.max(0, 24 - (currentTime - paymentDate) / (1000 * 60 * 60)).toFixed(1);
+
+  return (
+    <motion.div
+      key={booking.id}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1 }}
+    >
+      <Card className="card-elevated border-l-4 border-l-secondary">
+        <CardContent className="p-6">
+          <div className="mb-4 flex items-start justify-between">
+            <div>
+              <h3 className="font-semibold text-foreground">
+                {booking.type ? booking.type : "General Consultation"}
+              </h3>
+              <p className="text-sm text-muted-foreground">Dr. Jaburral</p>
+            </div>
+            <Badge className={config.color}>
+              <span className="mr-1">{config.icon}</span>
+              {booking.status}
+            </Badge>
+          </div>
+
+          <div className="mb-4 space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              {date}
+            </div>
+            {time && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                {time}
+              </div>
+            )}
+          </div>
+
+          {booking.patientQuery && (
+            <p className="mb-4 text-sm text-muted-foreground italic">
+              "{booking.patientQuery}"
+            </p>
+          )}
+
+          {/* Refund Logic UI */}
+          {isEligibleForRefund ? (
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-destructive hover:bg-destructive/10"
+                onClick={() => handleCancelClick(booking)}
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                Cancel & Refund
+              </Button>
+              <p className="text-[10px] text-center text-muted-foreground flex items-center justify-center gap-1">
+                <Clock className="h-3 w-3" />
+                Refund window ends in {hoursRemaining} hours
+              </p>
+            </div>
+          ) : (
+            <div className="p-2 bg-muted/50 rounded-md text-center border border-dashed">
+              <p className="text-xs text-muted-foreground font-medium">Refund window closed</p>
+              <p className="text-[10px] text-muted-foreground">(24h post-payment limit reached)</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+})}
           </div>
         ) : (
           <Card className="card-elevated">
@@ -220,19 +267,19 @@ export const PatientBookingsPage: React.FC = () => {
                     <CardContent className="flex items-center justify-between p-4">
                       <div className="flex items-center gap-4">
                         <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                          booking.status === 'completed' ? 'bg-green-100' : 
-                          booking.status === 'refunded' ? 'bg-purple-100' : 'bg-red-100'
+                          booking.status === 'Completed' ? 'bg-green-100' : 
+                          booking.status === 'Refunded' ? 'bg-purple-100' : 'bg-red-100'
                         }`}>
-                          {booking.status === 'completed' ? (
+                          {booking.status === 'Completed' ? (
                             <CheckCircle className="h-5 w-5 text-green-600" />
-                          ) : booking.status === 'refunded' ? (
+                          ) : booking.status === 'Refunded' ? (
                             <RefreshCw className="h-5 w-5 text-purple-600" />
                           ) : (
                             <XCircle className="h-5 w-5 text-red-600" />
                           )}
                         </div>
                         <div>
-                          <h4 className="font-medium text-foreground">{booking.type}</h4>
+                          <h4 className="font-medium text-foreground">{booking.type ? booking.type : "General Consultation"}</h4>
                           <p className="text-sm text-muted-foreground">
                             {date} {time && `at ${time}`}
                           </p>

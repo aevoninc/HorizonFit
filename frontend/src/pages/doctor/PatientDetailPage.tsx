@@ -66,6 +66,8 @@ import {
   Bar,
 } from "recharts";
 import { doctorApi, Task, PatientProgress } from "@/lib/api";
+import { AssignProgramModal } from "@/pages/doctor/AssignProgramModal";
+
 
 const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const zones = [1, 2, 3, 4, 5];
@@ -102,6 +104,8 @@ export const PatientDetailPage: React.FC = () => {
   const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
   const [deactivationReason, setDeactivationReason] = useState("");
 
+  // Assign Program Modal
+  const [isAssignProgramOpen, setIsAssignProgramOpen] = useState(false);
   // Fetch patient data
   useEffect(() => {
     if (id) {
@@ -477,8 +481,19 @@ export const PatientDetailPage: React.FC = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        <Button variant="teal" onClick={() => setIsAssignProgramOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Assign Program
+        </Button>
       </div>
-
+      {/* Assign Program Modal */}
+      <AssignProgramModal
+        patientId={id || ""}
+        patientName={patientData?.patient?.name || "Patient"}
+        isOpen={isAssignProgramOpen}
+        onClose={() => setIsAssignProgramOpen(false)}
+        onSuccess={fetchPatientProgress}
+      />
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="card-elevated">

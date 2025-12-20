@@ -119,73 +119,55 @@ const renderBaseTemplate = (title, content, link, buttonText) => {
 const consultationUpdateTemplate = (recipientName, otherPartyName, status, dateTime) => {
     let title = '';
     let message = '';
-    let statusClass = ''; 
+    let statusClass = 'status-box'; 
 
     const isDoctor = recipientName.startsWith('Dr.'); 
-    const link = 'https://dashboard.aevon.in/my-appointments'; // Example dashboard link
+    const link = 'https://dashboard.aevon.in/my-appointments';
 
-    // --- Dynamic Content based on Status and Recipient Type ---
+    // Format the date so it looks nice in the email
+    const formattedDate = new Date(dateTime).toLocaleString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 
     if (status === 'Confirmed') {
         statusClass = 'status-confirmed';
         title = 'Appointment Confirmed';
+        message = isDoctor 
+            ? `<p>Dear ${recipientName},</p><p>A new consultation has been added to your schedule.</p><p><strong>Patient:</strong> ${otherPartyName}</p><p><strong>Time:</strong> ${formattedDate}</p>`
+            : `<p>Dear ${recipientName},</p><p>Your consultation is now **CONFIRMED** with **${otherPartyName}**.</p><p><strong>Date/Time:</strong> ${formattedDate}</p>`;
 
-        if (isDoctor) {
-            // Recipient is the Doctor
-            message = `
-                <p>Dear ${recipientName},</p>
-                <p>This email confirms a **new consultation booking** has been added to your schedule.</p>
-                <p><strong>Patient:</strong> ${otherPartyName}</p>
-                <p><strong>Time:</strong> ${dateTime}</p>
-                <p>Please review the patient's submitted query and ensure your virtual office is ready for the meeting.</p>
-            `;
-        } else {
-            // Recipient is the Patient
-            message = `
-                <p>Dear ${recipientName},</p>
-                <p>Your consultation booking is now **CONFIRMED**.</p>
-                <p>We look forward to connecting you with **${otherPartyName}** for your scheduled session.</p>
-                <p><strong>Appointment Date/Time:</strong> ${dateTime}</p>
-            `;
-        }
+    } else if (status === 'Rescheduled') {
+        statusClass = 'status-rescheduled'; // Ensure you have this CSS in your base template
+        title = 'Appointment Rescheduled';
+        message = `<p>Dear ${recipientName},</p>
+                   <p>Please note that your appointment with **${otherPartyName}** has been **RESCHEDULED**.</p>
+                   <p><strong>New Date/Time:</strong> ${formattedDate}</p>
+                   <p>If this new time does not work for you, please contact support or update via your dashboard.</p>`;
 
     } else if (status === 'Cancelled') {
         statusClass = 'status-cancelled';
         title = 'Appointment Cancelled';
-
-        if (isDoctor) {
-            // Recipient is the Doctor
-            message = `
-                <p>Dear ${recipientName},</p>
-                <p>Please note that the following appointment has been **CANCELLED**.</p>
-                <p><strong>Patient:</strong> ${otherPartyName}</p>
-                <p><strong>Original Time:</strong> ${dateTime}</p>
-                <p>Your schedule has been updated to reflect this change.</p>
-            `;
-        } else {
-            // Recipient is the Patient
-            message = `
-                <p>Dear ${recipientName},</p>
-                <p>Your consultation with **${otherPartyName}** on ${dateTime} has been **CANCELLED**.</p>
-                <p>If applicable, any refund will be processed according to our policy within 5-10 business days.</p>
-            `;
-        }
+        message = isDoctor
+            ? `<p>Dear ${recipientName},</p><p>The appointment with **${otherPartyName}** on ${formattedDate} has been **CANCELLED**.</p>`
+            : `<p>Dear ${recipientName},</p><p>Your consultation with **${otherPartyName}** on ${formattedDate} has been **CANCELLED**.</p><p>Refunds are processed within 5-10 business days.</p>`;
 
     } else {
-        // Handle other statuses like 'Rescheduled' or 'Pending'
         title = `Appointment ${status}`;
-        statusClass = 'status-box'; // Generic class
-        message = `<p>Dear ${recipientName}, the status of your appointment with ${otherPartyName} has been updated to **${status}**.</p><p>Please check your dashboard for details.</p>`;
+        message = `<p>Dear ${recipientName}, your appointment with ${otherPartyName} is now **${status}**.</p>`;
     }
 
-
     const content = `
-        <p>Hello ${recipientName},</p>
-        <div class="${statusClass}">
-            <h3>${title}</h3>
+        <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+            <div class="${statusClass}" style="padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h2 style="margin: 0;">${title}</h2>
+            </div>
+            ${message}
+            <p style="margin-top: 20px;">Thank you for using Aevon Health.</p>
         </div>
-        ${message}
-        <p>Thank you for using Aevon Health App.</p>
     `;
 
     return renderBaseTemplate(title, content, link, 'View Appointment Details');

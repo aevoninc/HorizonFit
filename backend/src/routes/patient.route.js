@@ -40,7 +40,7 @@ router.post('/consultation-request', protect, isPatient, requestConsultation);
 router.get('/getPatientBookings', protect, isPatient, getPatientBookings);
 
 // Cancel a booking
-router.post('/cancelBooking/:bookingId', protect, isPatient, cancelBooking);
+router.post('/cancelBooking/:id', protect, isPatient, cancelBooking);
 
 // Get patient profile
 router.get('/getPatientProfile', protect, isPatient, getPatientProfile);
@@ -49,7 +49,7 @@ router.get('/getPatientProfile', protect, isPatient, getPatientProfile);
 router.post('/update-password', protect, isPatient, updatePassword);
 
 // Create Razorpay Order ID
-router.post('/create-order', protect, isPatient, createOrderId);
+router.post('/create-order',createOrderId);
 
 router.get('/get-zone-task/:zoneNumber', getZoneTasks)
 

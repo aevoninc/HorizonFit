@@ -11,7 +11,13 @@ import {
     getCompletedPatients,
     getDeactivatedPatients,
     getNewConsultancyRequest,
-    deletePatient
+    deletePatient,
+    getAllTemplates,
+    getTemplateById,
+    createTemplate,
+    updateTemplate,
+    deleteTemplate,
+    assignProgramToPatient
 } from "../controllers/doctor.controller.js"
 import { protect, isDoctor } from '../middleware/auth.middleware.js';
 import express from "express"
@@ -42,7 +48,7 @@ router.delete("/delete-task/:taskId",deleteTask);
 router.get("/consultation-requests", getConsultationRequests);
 
 // Update Consultation Status (Confirm, Reschedule, Cancel)
-router.patch("/update-consultation-status/:bookingId", updateConsultationStatus);
+router.patch("/update-consultation-status/:id", updateConsultationStatus);
 
 // Deactivate a Patient's Account
 router.patch("/deactivate-patient/:patientId", deactivatePatient);
@@ -58,5 +64,25 @@ router.get("/get-new-consultancy-request", getNewConsultancyRequest);
 
 //delete all the record of the patient
 router.delete("/delete-patient/:patientId",deletePatient);
+
+// Get all available templates (e.g., Weight Loss, Diabetes) for a dropdown
+router.get("/templates", getAllTemplates);
+
+// Get the specific 15-week matrix for a template to view/edit
+router.get("/templates/:id", getTemplateById);
+
+// Create a new master program template
+router.post("/templates", createTemplate);
+
+// Update the 15-week matrix globally
+router.put("/templates/:id", updateTemplate);
+
+// Delete a master template
+router.delete("/templates/:id", deleteTemplate);
+
+// --- ASSIGNMENT ROUTE ---
+
+// One-click assign: takes a template and creates all tasks for a patient
+router.post("/assign-program/:patientId", assignProgramToPatient);
 
 export default router;

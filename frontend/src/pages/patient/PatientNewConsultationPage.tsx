@@ -1,22 +1,28 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Calendar, CreditCard, Check, Loader2, ShieldCheck } from 'lucide-react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { useRazorpay, RazorpayResponse } from '@/hooks/useRazorpay';
-import { patientApi } from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import {
+  Calendar,
+  CreditCard,
+  Check,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { useRazorpay, RazorpayResponse } from "@/hooks/useRazorpay";
+import { patientApi } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 const consultationSchema = z.object({
-  requestedDateTime: z.string().min(1, 'Please select a date and time'),
+  requestedDateTime: z.string().min(1, "Please select a date and time"),
   patientQuery: z.string().max(500).optional(),
 });
 
@@ -45,18 +51,18 @@ export const PatientNewConsultationPage: React.FC = () => {
     const selectedDate = new Date(data.requestedDateTime);
     if (selectedDate <= new Date()) {
       toast({
-        title: 'Invalid Date',
-        description: 'Please select a future date.',
-        variant: 'destructive',
+        title: "Invalid Date",
+        description: "Please select a future date.",
+        variant: "destructive",
       });
       return;
     }
 
     if (!isLoaded) {
       toast({
-        title: 'Payment Not Ready',
-        description: 'Payment system is loading. Please try again.',
-        variant: 'destructive',
+        title: "Payment Not Ready",
+        description: "Payment system is loading. Please try again.",
+        variant: "destructive",
       });
       return;
     }
@@ -66,13 +72,13 @@ export const PatientNewConsultationPage: React.FC = () => {
     try {
       // Step 1: Create Order ID
       const orderResponse = await patientApi.createOrder();
-      const { orderId, amount } = orderResponse.data;
-
+      const { orderId, amount } = orderResponse.data; 
+      console.log("Order Data Received:", orderId, amount);
       // Step 2: Open Razorpay
       openPayment({
         orderId,
         amount: amount || CONSULTATION_PRICE,
-        description: 'Consultation Booking',
+        description: "Consultation Booking",
         prefill: {
           name: user?.name,
           email: user?.email,
@@ -89,16 +95,17 @@ export const PatientNewConsultationPage: React.FC = () => {
             });
 
             toast({
-              title: 'Booking Confirmed!',
-              description: 'Your consultation has been scheduled.',
+              title: "Booking Confirmed!",
+              description: "Your consultation has been scheduled.",
             });
 
-            navigate('/patient/bookings');
+            navigate("/patient/bookings");
           } catch (error) {
             toast({
-              title: 'Booking Failed',
-              description: 'Payment succeeded but booking failed. Please contact support.',
-              variant: 'destructive',
+              title: "Booking Failed",
+              description:
+                "Payment succeeded but booking failed. Please contact support.",
+              variant: "destructive",
             });
           } finally {
             setIsProcessing(false);
@@ -106,9 +113,9 @@ export const PatientNewConsultationPage: React.FC = () => {
         },
         onError: (error) => {
           toast({
-            title: 'Payment Failed',
-            description: error.message || 'Payment could not be processed.',
-            variant: 'destructive',
+            title: "Payment Failed",
+            description: error.message || "Payment could not be processed.",
+            variant: "destructive",
           });
           setIsProcessing(false);
         },
@@ -118,9 +125,9 @@ export const PatientNewConsultationPage: React.FC = () => {
       });
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to initiate payment. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to initiate payment. Please try again.",
+        variant: "destructive",
       });
       setIsProcessing(false);
     }
@@ -129,22 +136,34 @@ export const PatientNewConsultationPage: React.FC = () => {
   const isLoading = isProcessing || paymentLoading;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="space-y-8"
+    >
       {/* Processing Overlay */}
       {isLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="text-center">
             <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-            <p className="mt-4 text-lg font-medium text-foreground">Processing Payment...</p>
-            <p className="text-sm text-muted-foreground">Please do not close this window</p>
+            <p className="mt-4 text-lg font-medium text-foreground">
+              Processing Payment...
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Please do not close this window
+            </p>
           </div>
         </div>
       )}
 
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Book a Consultation</h1>
-        <p className="mt-1 text-muted-foreground">Schedule a session with your doctor</p>
+        <h1 className="text-3xl font-bold text-foreground">
+          Book a Consultation
+        </h1>
+        <p className="mt-1 text-muted-foreground">
+          Schedule a session with your doctor
+        </p>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
@@ -163,10 +182,12 @@ export const PatientNewConsultationPage: React.FC = () => {
                 <Input
                   id="requestedDateTime"
                   type="datetime-local"
-                  {...register('requestedDateTime')}
+                  {...register("requestedDateTime")}
                 />
                 {errors.requestedDateTime && (
-                  <p className="text-sm text-destructive">{errors.requestedDateTime.message}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.requestedDateTime.message}
+                  </p>
                 )}
               </div>
 
@@ -176,10 +197,12 @@ export const PatientNewConsultationPage: React.FC = () => {
                   id="patientQuery"
                   placeholder="Describe what you'd like to discuss..."
                   rows={4}
-                  {...register('patientQuery')}
+                  {...register("patientQuery")}
                 />
                 {errors.patientQuery && (
-                  <p className="text-sm text-destructive">{errors.patientQuery.message}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.patientQuery.message}
+                  </p>
                 )}
               </div>
 
@@ -218,10 +241,16 @@ export const PatientNewConsultationPage: React.FC = () => {
             <div className="rounded-lg bg-muted/50 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-semibold text-foreground">Follow-up Consultation</p>
-                  <p className="text-sm text-muted-foreground">45-minute video session</p>
+                  <p className="font-semibold text-foreground">
+                    Follow-up Consultation
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    45-minute video session
+                  </p>
                 </div>
-                <span className="text-2xl font-bold text-primary">₹{CONSULTATION_PRICE}</span>
+                <span className="text-2xl font-bold text-primary">
+                  ₹{CONSULTATION_PRICE}
+                </span>
               </div>
             </div>
 
@@ -246,7 +275,7 @@ export const PatientNewConsultationPage: React.FC = () => {
 
             <div className="rounded-lg border border-secondary/30 bg-secondary/5 p-4">
               <p className="text-sm text-foreground">
-                <strong>Logged in as:</strong> {user?.name || 'Patient'}
+                <strong>Logged in as:</strong> {user?.name || "Patient"}
               </p>
               <p className="text-sm text-muted-foreground">{user?.email}</p>
             </div>

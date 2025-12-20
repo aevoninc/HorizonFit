@@ -20,12 +20,16 @@ import {
 } from '../utils/mailer.js';
 import crypto from 'crypto';
 import {
-    DOCTOR_EMAIL,
-    DOCTOR_NAME,
-    ADMIN_MAIL,
-    CONSULTANCY_BOOKING_PRICE,
-    PROGRAM_BOOKING_PRICE
-} from '../constants.js';
+  DOCTOR_EMAIL,
+  DOCTOR_NAME,
+  ADMIN_MAIL,
+  CONSULTANCY_BOOKING_PRICE,
+  PREMIUM_PROGRAM_BOOKING_PRICE,
+  NORMAL_PROGRAM_BOOKING_PRICE,
+} from "../constants.js";
+import dotenv from "dotenv";
+dotenv.config();
+
 
 const checkZoneCompletion = async (patientId, zone) => {
     // 1. Find all unique tasks that belong to the previous zone (N-1)
@@ -83,7 +87,6 @@ const calculateProgramWeek = (programStartDate, dateRecorded) => {
     return Math.min(weekNumber, 15);
 };
 
-
 // @desc    Patient submits a health metric (e.g., weight, blood sugar)
 // @route   POST /api/patient/log-metric
 // @access  Private/Patient
@@ -110,7 +113,7 @@ const logTrackingData = asyncHandler(async (req, res) => {
         type,
         value,
         unit,
-        dateRecorded: recordDate, 
+        dateRecorded: recordDate || new Date(), 
         weekNumber: calculatedWeekNumber // <-- Use the calculated value
     });
 
@@ -254,7 +257,6 @@ const getPatientTasks = asyncHandler(async (req, res) => {
 // @access  Private/Patient
 const getPatientProgress = asyncHandler(async (req, res) => {
     const patientId = req.user._id;
-
     // 1. Fetch all Master Tasks assigned to the patient (The whole plan)
     const masterTasks = await PatientProgramTask.find({ patientId })
         .sort({ programWeek: 1, createdAt: 1 })
@@ -285,88 +287,95 @@ const getPatientProgress = asyncHandler(async (req, res) => {
 // @route   POST /api/patient/consultation-request
 // @access  Private/Patient
 const requestConsultation = asyncHandler(async (req, res) => {
+  const patientId = req.user._id;
+  // Get user details from the auth middleware
+  let { name, email, mobileNumber } = req.user; 
+  mobileNumber = "8610622587"
+  const { 
+    requestedDateTime,
+    paymentToken,      
+    orderId,           
+    razorpaySignature, 
+    patientQuery, 
+  } = req.body;
 
-    const patientId = req.user._id;
 
-    const { 
-        requestedDateTime,
-        paymentToken,              // razorpay_payment_id
-        orderId,                   // razorpay_order_id
-        razorpaySignature,         // signature
-        patientQuery, 
-    } = req.body;
-
-    if (!requestedDateTime || !paymentToken || !orderId) {
-        return res.status(400).json({ 
-            message: "Date, Payment ID, and Order ID are required." 
-        });
-    }
-
-    // 1. Verify Razorpay signature security
-    const generated_signature = crypto
-        .createHmac("sha256", process.env.KEY_SECRET)
-        .update(orderId + "|" + paymentToken)
-        .digest("hex");
-
-    if (generated_signature !== razorpaySignature) {
-        return res.status(400).json({ message: "Payment verification failed!" });
-    }
-
-    // 2. Capture payment (if needed)
-    const paymentResult = await processPayment(
-        paymentToken,
-        req.user.email,
-        CONSULTANCY_BOOKING_PRICE
-    );
-
-    if (paymentResult.status !== "Payment Successful") {
-        return res.status(400).json({ message: "Payment capture failed!" });
-    }
-    // 3. Create Booking
-    const booking = await ConsultationBooking.create({
-        patientId,
-        patientEmail: req.user.email,
-        mobileNumber: req.user.mobileNumber,
-        requestedDateTime,
-        patientQuery,
-        status: "Payment Successful",
-        transactionId: paymentResult.id,
-        orderId,
-        paymentSignature: razorpaySignature,
-    })
-
-    await sendConsultationUpdateEmail(
-        DOCTOR_EMAIL,
-        'New Consultation Booking',
-        `A new consultation has been booked for ${requestedDateTime} by patient ID: ${patientId}. Please review the booking details in your dashboard.`
-    );
-
-    await sendConsultationUpdateEmail(
-        req.user.email,
-        'Consultation Booking Confirmed',
-        `Your consultation has been successfully booked for ${requestedDateTime}. We look forward to assisting you!`
-    );
-
-    res.status(201).json({
-        message: "Consultation booked successfully!",
-        booking
+  // 1. Initial Validation
+  if (!requestedDateTime || !paymentToken || !orderId || !razorpaySignature) {
+    return res.status(400).json({
+      message: "Missing required payment details or appointment date.",
     });
+  }
+
+  // 2. Security Check (Signature Verification)
+  const generated_signature = crypto
+    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+    .update(orderId + "|" + paymentToken)
+    .digest("hex");
+
+  if (generated_signature !== razorpaySignature) {
+    return res.status(400).json({ message: "Security Check Failed: Invalid Signature" });
+  }
+
+  // 3. Save to Database
+  const booking = await ConsultationBooking.create({
+    patientId,
+    patientEmail: email, // Changed from 'email' to 'patientEmail' to match your schema
+    mobileNumber: mobileNumber,
+    requestedDateTime,
+    patientQuery: patientQuery || "General Consultation",
+    status: "Payment Successful", // Matches your schema enum
+    transactionId: paymentToken,
+    orderId,
+    paymentSignature: razorpaySignature,
+  });
+
+  // 4. Emails
+  try {
+    await sendConsultationUpdateEmail(
+      DOCTOR_EMAIL,
+      'New Consultation Booking',
+      `A new consultation has been booked for ${requestedDateTime} by ${name}.`
+    );
+
+    await sendConsultationUpdateEmail(
+      email,
+      'Consultation Booking Confirmed',
+      `Hi ${name}, your booking for ${requestedDateTime} is confirmed!`
+    );
+  } catch (emailErr) {
+    console.error("Email failed to send, but booking was saved:", emailErr);
+  }
+
+  res.status(201).json({
+    message: "Consultation booked successfully!",
+    booking
+  });
 });
 
 // @desc    Patient creates a Razorpay order for consultation payment
 // @route   POST /api/patient/create-order
 // @access  Private/Patient
 const createOrderId = asyncHandler(async (req, res) => {
+  const PRICES = { consultation: 599 }; // Changed to 599 to match your frontend button
 
-    try {
-        const order = await createRazorpayOrder();
-        res.status(201).json({
-            message: "Razorpay order created successfully.",
-            order
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
+  try {
+    const order = await createRazorpayOrder(PRICES.consultation);
+    
+
+    res.status(201).json({
+      message: "Order created successfully",
+      orderId: order.id,
+      amount: order.amount, 
+      currency: order.currency,
+    });
+  } catch (error) {
+    // THIS LINE IS ESSENTIAL FOR DEBUGGING
+    console.error("BACKEND CRASH:", error); 
+    res.status(500).json({ 
+      message: "Razorpay Error: " + error.message 
+    });
+  }
 });
 
 // @desc    Patient retrieves all their consultation bookings
@@ -375,105 +384,71 @@ const createOrderId = asyncHandler(async (req, res) => {
 const getPatientBookings = asyncHandler(async (req, res) => {
     const patientId = req.user._id; 
 
+    // Use a lean query for faster read performance since we are just displaying data
     const bookings = await ConsultationBooking.find({ patientId: patientId })
-        .populate('doctorId', 'firstName lastName') // Only fetch the doctor's name
-        .sort({ requestedDateTime: -1 }); // Sort by newest request first
+        // OPTION A: If doctorId is not in schema yet, comment this out to stop the 500 error
+        // .populate('doctorId', 'firstName lastName') 
+        .sort({ requestedDateTime: -1 })
+        .lean(); 
 
-
-    if (!bookings || bookings.length === 0) {
-        return res.status(200).json({
-            message: "No consultation bookings found.",
-            bookings: []
-        });
-    }
-
+    // Always return a consistent structure
     res.status(200).json({
-        message: "Successfully fetched patient bookings.",
-        bookings: bookings
+        message: bookings.length > 0 
+            ? "Successfully fetched patient bookings." 
+            : "No consultation bookings found.",
+        bookings: bookings || []
     });
 });
 
 // @desc    Patient cancels a consultation booking and triggers a refund (if policy allows)
 // @route   PATCH /api/patient/consultation-cancel/:bookingId
 // @access  Private/Patient
+
 const cancelBooking = asyncHandler(async (req, res) => {
-    const patientId = req.user._id;
-    const { bookingId } = req.params;
-    
-    // 1. Fetch and validate the booking
-    const booking = await ConsultationBooking.findOne({
-        _id: bookingId,
-        patientId: patientId // Security check: Ensure patient owns this booking
+  const { id } = req.params;
+  const patientId = req.user._id;
+
+  const booking = await ConsultationBooking.findOne({ _id: id, patientId });
+
+  if (!booking) {
+    return res.status(404).json({ message: "Booking not found." });
+  }
+  // --- 24-HOUR POST-PAYMENT CHECK ---
+  const now = new Date();
+  const paymentTime = new Date(booking.createdAt); // When the record was created
+  const diffInMilliseconds = now - paymentTime;
+  const hoursSincePayment = diffInMilliseconds / (1000 * 60 * 60);
+
+  if (hoursSincePayment > 24) {
+    return res.status(400).json({ 
+      message: "Refunds are only available within 24 hours of payment. This window has expired." 
     });
+  }
 
-    if (!booking) {
-        return res.status(404).json({ message: 'Booking not found or you do not have permission to cancel it.' });
-    }
-
-    // 2. Status Check
-    if (booking.status === 'Cancelled' || booking.status === 'Completed') {
-        return res.status(400).json({ message: `Booking is already in status: ${booking.status}. No action taken.` });
-    }
-
-    // 3. Determine Refund Eligibility & Amount (Simplified)
-    const refundAmount = CONSULTANCY_BOOKING_PRICE ; 
-    let refundSuccess = false;
-    let refundError = null;
-    
-    // 4. Process Refund if transaction ID exists (i.e., payment was made)
-    if (booking.transactionId) {
-        try {
-            // This must be done BEFORE saving the cancellation status
-            const refundResult = await processRefund(booking.transactionId, refundAmount);
-            if (refundResult.status === 'Refund Successful') {
-                refundSuccess = true;
-                booking.refundId = refundResult.id; 
-            }
-        } catch (error) {
-            // Log the refund error, but DO NOT abort the cancellation
-            console.error('Refund initiation failed:', error.message);
-            refundError = error.message;
-        }
-    } else {
-        // If no transaction ID, no payment was made, so no refund is needed.
-        refundSuccess = true; 
-    }
-
-    // 5. Update Booking Status (CRUCIAL: This runs regardless of refund error)
+  if (booking.status === 'Cancelled') {
+    return res.status(400).json({ message: "Booking is already cancelled." });
+  }
+  try {
+    // 2. USE YOUR UTILITY FUNCTION HERE
+    // Use the function you already wrote in payment.js
+    const refundResult = await processRefund(booking.transactionId, CONSULTANCY_BOOKING_PRICE);
+    // 3. Update Database using the result from the utility
     booking.status = 'Cancelled';
+    booking.refundId = refundResult.id; 
     await booking.save();
 
-    // 6. Respond to Patient
-    let refundMessage = '';
-    if (booking.transactionId) {
-        if (refundSuccess) {
-            refundMessage = ` and a refund of $${refundAmount} has been initiated.`;
-        } else {
-            // Inform the patient that the refund failed and they need to contact support.
-            refundMessage = `. The cancellation was logged, but the automatic refund initiation failed due to a system error. Please contact support immediately regarding your payment.`;
-        }
-    } else {
-        refundMessage = '. No refund was necessary as payment was not completed.';
-    }
-
-    // 7. Notify Doctor of the Cancellation
-    // sendEmail(doctorEmail, 'Consultation Cancelled', `Booking for ${booking.requestedDateTime} was cancelled by the patient.`);
-    await sendConsultationUpdateEmail(
-        DOCTOR_EMAIL,
-        'Consultation Cancelled',
-        `The consultation booking for ${booking.requestedDateTime} has been cancelled by the patient. Please review your schedule accordingly.`
-    );
-
-    await sendConsultationUpdateEmail(
-        req.user.email,
-        'Consultation Cancellation Confirmed',
-        `Your consultation booking for ${booking.requestedDateTime} has been successfully cancelled.${refundMessage}`
-    );
-
     res.status(200).json({
-        message: `Consultation successfully cancelled${refundMessage}`,
-        booking: booking
+      message: "Booking cancelled and refund initiated successfully.",
+      refundId: refundResult.id,
+      status: booking.status
     });
+
+  } catch (error) {
+    console.error("Refund Logic Error:", error.message);
+    res.status(500).json({ 
+      message: error.message || "Refund failed. Please contact support.",
+    });
+  }
 });
 
 // @desc Get logged-in patient's profile

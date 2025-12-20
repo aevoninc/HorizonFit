@@ -12,6 +12,7 @@ import {
   UserX,
   Activity,
   BookOpen,
+  FileText,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ interface NavItem {
 
 const doctorNavItems: NavItem[] = [
   { label: 'Manage Patients', path: '/doctor/patients', icon: Users },
+  { label: 'Program Templates', path: '/doctor/templates', icon: FileText },
   { label: 'Consultations', path: '/doctor/consultations', icon: Calendar },
   { label: 'Completed Patients', path: '/doctor/completed-patients', icon: CheckCircle },
   { label: 'Deactivated Patients', path: '/doctor/deactivated-patients', icon: UserX },
@@ -40,15 +42,8 @@ const patientNavItems: NavItem[] = [
 ];
 
 export const DashboardSidebar: React.FC = () => {
-  const { role, logout, user, isAuthenticated, isLoading} = useAuth();
+  const { role, logout, user } = useAuth();
   const location = useLocation();
-  if (isLoading) {
-    return <div className="w-64 h-screen bg-teal-800 animate-pulse" />; // Optional: show a skeleton
-  }
-  console.log('DashboardSidebar - isAuthenticated:', isAuthenticated, 'role:', role, 'user:', user);
-if (!isAuthenticated || !role || !user) {
-    return null; 
-  }
   const navItems = role === 'Doctor' ? doctorNavItems : patientNavItems;
 
   const handleLogout = async () => {

@@ -116,7 +116,8 @@ export interface Consultation {
 }
 
 export interface PatientBooking {
-  id: string;
+  _id?: string; // Add this
+  id: string;   
   type: string;
   requestedDateTime: string;
   status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled' | 'Refunded';
@@ -219,9 +220,22 @@ export const doctorApi = {
     api.patch(`/doctor/update-task/${taskId}`, data),
   deleteTask: (taskId: string) => api.delete(`/doctor/delete-task/${taskId}`),
   getConsultations: () => api.get<Consultation[]>('/doctor/consultation-requests'),
-  updateConsultationStatus: (bookingId: string, status: Consultation['status'], notes?: string) =>
-    api.patch(`/doctor/update-consultation-status/${bookingId}`, { status, notes }),
+  updateConsultationStatus: (bookingId: string, status: Consultation['status'], confirmedDateTime : Date,notes?: string) =>
+    api.patch(`/doctor/update-consultation-status/${bookingId}`, { status, notes, confirmedDateTime }),
   getNewConsultancyRequest: () => api.get<Consultation[]>('/doctor/get-new-consultancy-request'),
+
+  // Template endpoints
+  getTemplates: () => api.get('/doctor/templates').then(res => res.data),
+  getTemplates: () => api.get('/doctor/templates').then(res => res.data),
+  getTemplate: (templateId: string) => api.get(`/doctor/templates/${templateId}`).then(res => res.data),
+createTemplate: (data: { name: string; description?: string; category: string; tasks: any[] }) =>
+    api.post('/doctor/templates', data).then(res => res.data),
+
+updateTemplate: (templateId: string, data: { name: string; category: string; tasks: any[] }) =>
+    api.put(`/doctor/templates/${templateId}`, data).then(res => res.data),
+  deleteTemplate: (templateId: string) => api.delete(`/doctor/templates/${templateId}`),
+  assignProgram: (patientId: string, templateId: string) =>
+    api.post(`/doctor/assign-program/${patientId}`, { templateId }).then(res => res.data),
 };
 
 // Patient API
