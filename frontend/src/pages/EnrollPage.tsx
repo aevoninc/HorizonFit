@@ -1,73 +1,92 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Flame, ArrowLeft, ArrowRight, Check, Loader2, Dumbbell, Target, Award, ShieldCheck, Crown, Star } from 'lucide-react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { useRazorpay, RazorpayResponse } from '@/hooks/useRazorpay';
-import { publicApi, ProgramTier } from '@/lib/api';
-import { cn } from '@/lib/utils';
-
-const enrollSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  email: z.string().email('Please enter a valid email').max(255),
-  phone: z.string().min(10, 'Please enter a valid phone number').max(15),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ['confirmPassword'],
-});
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import {
+  Flame,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Loader2,
+  Dumbbell,
+  Target,
+  Award,
+  ShieldCheck,
+  Crown,
+  Star,
+} from "lucide-react";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { useRazorpay, RazorpayResponse } from "@/hooks/useRazorpay";
+import { publicApi, ProgramTier } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import logo from "../../public/logo.png";
+const enrollSchema = z
+  .object({
+    name: z.string().min(2, "Name must be at least 2 characters").max(100),
+    email: z.string().email("Please enter a valid email").max(255),
+    phone: z.string().min(10, "Please enter a valid phone number").max(15),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    assignedCategory: z.enum(["Weight Loss", "Weight Gain"], {
+      errorMap: () => ({ message: "Please select a fitness goal" }),
+    }),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 type EnrollFormData = z.infer<typeof enrollSchema>;
 
 const PROGRAM_TIERS = {
   normal: {
-    name: 'Normal Program',
+    name: "Normal Program",
     price: 10000,
     features: [
-      '15 weeks of structured training',
-      'Personalized task allocation',
-      'Progress tracking & analytics',
-      'Access to all 5 zones',
-      'Basic dashboard',
+      "15 weeks of structured training",
+      "Personalized task allocation",
+      "Progress tracking & analytics",
+      "Access to all 5 zones",
+      "Basic dashboard",
     ],
     icon: Star,
   },
   premium: {
-    name: 'Premium Program',
+    name: "Premium Program",
     price: 25000,
     features: [
-      'Everything in Normal Program',
-      'Priority doctor consultations',
-      '1-on-1 weekly video calls',
-      'Advanced analytics dashboard',
-      'Diet & nutrition planning',
-      'Lifetime access to materials',
-      '24/7 support access',
+      "Everything in Normal Program",
+      "Priority doctor consultations",
+      "1-on-1 weekly video calls",
+      "Advanced analytics dashboard",
+      "Diet & nutrition planning",
+      "Lifetime access to materials",
+      "24/7 support access",
     ],
     icon: Crown,
   },
 };
 
 const programBenefits = [
-  { icon: Dumbbell, text: '15 weeks of structured training' },
-  { icon: Target, text: 'Personalized task allocation' },
-  { icon: Award, text: 'Progress tracking & analytics' },
+  { icon: Dumbbell, text: "15 weeks of structured training" },
+  { icon: Target, text: "Personalized task allocation" },
+  { icon: Award, text: "Progress tracking & analytics" },
 ];
+
+const Category = ["Weight Loss", "Weight Gain"];
 
 export const EnrollPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isLoaded, isLoading: paymentLoading, openPayment } = useRazorpay();
   const [step, setStep] = useState(1);
-  const [selectedTier, setSelectedTier] = useState<ProgramTier>('normal');
+  const [selectedTier, setSelectedTier] = useState<ProgramTier>("normal");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const {
@@ -75,28 +94,32 @@ export const EnrollPage: React.FC = () => {
     handleSubmit,
     getValues,
     trigger,
+    setValue, // Add this
+    watch,
     formState: { errors },
   } = useForm<EnrollFormData>({
     resolver: zodResolver(enrollSchema),
   });
-
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [step]);
   const selectedProgram = PROGRAM_TIERS[selectedTier];
 
   const validateAndProceed = async () => {
-  const isValid = await trigger(); // Validates Zod schema
-  if (isValid) {
-    setStep(3); // This MUST be 3 to show the payment card
-  }
+    const isValid = await trigger(); // Validates Zod schema
+    if (isValid) {
+      setStep(3); // This MUST be 3 to show the payment card
+    }
   };
 
   const handlePayment = async () => {
     const data = getValues();
-    
+
     if (!isLoaded) {
       toast({
-        title: 'Payment Not Ready',
-        description: 'Payment system is loading. Please try again.',
-        variant: 'destructive',
+        title: "Payment Not Ready",
+        description: "Payment system is loading. Please try again.",
+        variant: "destructive",
       });
       return;
     }
@@ -105,7 +128,10 @@ export const EnrollPage: React.FC = () => {
 
     try {
       // Step 1: Create Order ID with program type (amount calculated server-side)
-      const orderResponse = await publicApi.createOrderId('program', selectedTier);
+      const orderResponse = await publicApi.createOrderId(
+        "program",
+        selectedTier
+      );
       const { orderId, amount } = orderResponse.data;
 
       // Step 2: Open Razorpay
@@ -126,23 +152,29 @@ export const EnrollPage: React.FC = () => {
               email: data.email,
               mobileNumber: data.phone,
               password: data.password,
-              programType: selectedTier,
+              assignedCategory: data.assignedCategory,
+              planTier: selectedTier,
               paymentToken: response.razorpay_payment_id,
               orderId: response.razorpay_order_id,
               razorpaySignature: response.razorpay_signature,
+              programStartDate: new Date().toISOString(),
             });
 
             toast({
-              title: 'Enrollment Successful!',
-              description: 'Your account has been created. Please log in to access your dashboard.',
+              title: "Enrollment Successful!",
+              description:
+                "Your account has been created. Please log in to access your dashboard.",
             });
 
-            navigate('/booking-success');
+            navigate("/booking-success", {
+              state: { email: data.email },
+            });
           } catch (error) {
             toast({
-              title: 'Enrollment Failed',
-              description: 'Payment succeeded but enrollment failed. Please contact support.',
-              variant: 'destructive',
+              title: "Enrollment Failed",
+              description:
+                "Payment succeeded but enrollment failed. Please contact support.",
+              variant: "destructive",
             });
           } finally {
             setIsProcessing(false);
@@ -150,9 +182,9 @@ export const EnrollPage: React.FC = () => {
         },
         onError: (error) => {
           toast({
-            title: 'Payment Failed',
-            description: error.message || 'Payment could not be processed.',
-            variant: 'destructive',
+            title: "Payment Failed",
+            description: error.message || "Payment could not be processed.",
+            variant: "destructive",
           });
           setIsProcessing(false);
         },
@@ -162,9 +194,9 @@ export const EnrollPage: React.FC = () => {
       });
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to initiate payment. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to initiate payment. Please try again.",
+        variant: "destructive",
       });
       setIsProcessing(false);
     }
@@ -179,8 +211,12 @@ export const EnrollPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="text-center">
             <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-            <p className="mt-4 text-lg font-medium text-foreground">Processing Payment...</p>
-            <p className="text-sm text-muted-foreground">Please do not close this window</p>
+            <p className="mt-4 text-lg font-medium text-foreground">
+              Processing Payment...
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Please do not close this window
+            </p>
           </div>
         </div>
       )}
@@ -188,11 +224,18 @@ export const EnrollPage: React.FC = () => {
       {/* Header */}
       <nav className="border-b border-border bg-background">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-phoenix shadow-phoenix">
-              <Flame className="h-5 w-5 text-primary-foreground" />
+          <Link to="/" className="flex items-center group">
+            <div className="relative flex items-center py-2">
+              <img
+                src={logo}
+                alt="HorizonFit Logo"
+                className="h-14 w-auto object-contain transition-all duration-300 group-hover:scale-105"
+                style={{
+                  // Optional: if the logo has a white background you want to blend
+                  mixBlendMode: "multiply",
+                }}
+              />
             </div>
-            <span className="text-xl font-bold text-foreground">HorizonFit</span>
           </Link>
           <Link to="/">
             <Button variant="ghost">
@@ -209,7 +252,9 @@ export const EnrollPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8 text-center"
         >
-          <h1 className="text-3xl font-bold text-foreground">Choose Your Program</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Choose Your Program
+          </h1>
           <p className="mt-2 text-muted-foreground">
             Start your transformation journey today
           </p>
@@ -222,15 +267,25 @@ export const EnrollPage: React.FC = () => {
               <div key={s} className="flex items-center gap-4">
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                    step >= s ? 'gradient-phoenix' : 'bg-muted'
+                    step >= s ? "gradient-phoenix" : "bg-muted"
                   }`}
                 >
-                  <span className={step >= s ? 'text-primary-foreground font-semibold' : 'text-muted-foreground'}>
+                  <span
+                    className={
+                      step >= s
+                        ? "text-primary-foreground font-semibold"
+                        : "text-muted-foreground"
+                    }
+                  >
                     {s}
                   </span>
                 </div>
                 {i < 2 && (
-                  <div className={`h-1 w-16 rounded ${step > s ? 'gradient-phoenix' : 'bg-muted'}`} />
+                  <div
+                    className={`h-1 w-16 rounded ${
+                      step > s ? "gradient-phoenix" : "bg-muted"
+                    }`}
+                  />
                 )}
               </div>
             ))}
@@ -240,9 +295,33 @@ export const EnrollPage: React.FC = () => {
         {/* Step Labels */}
         <div className="mb-8 flex justify-center">
           <div className="flex items-center gap-8 text-sm">
-            <span className={step === 1 ? 'text-primary font-semibold' : 'text-muted-foreground'}>Select Plan</span>
-            <span className={step === 2 ? 'text-primary font-semibold' : 'text-muted-foreground'}>Your Details</span>
-            <span className={step === 3 ? 'text-primary font-semibold' : 'text-muted-foreground'}>Payment</span>
+            <span
+              className={
+                step === 1
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground"
+              }
+            >
+              Select Plan
+            </span>
+            <span
+              className={
+                step === 2
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground"
+              }
+            >
+              Your Details
+            </span>
+            <span
+              className={
+                step === 3
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground"
+              }
+            >
+              Payment
+            </span>
           </div>
         </div>
 
@@ -251,7 +330,7 @@ export const EnrollPage: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto"
+            className="grid gap-6 md:grid-cols-2 max-w-5xl mx-auto"
           >
             {(Object.keys(PROGRAM_TIERS) as ProgramTier[]).map((tier) => {
               const program = PROGRAM_TIERS[tier];
@@ -262,44 +341,65 @@ export const EnrollPage: React.FC = () => {
                 <Card
                   key={tier}
                   className={cn(
-                    'cursor-pointer transition-all duration-300 hover:shadow-lg',
-                    isSelected ? 'ring-2 ring-primary shadow-phoenix' : 'card-elevated'
+                    "cursor-pointer transition-all duration-300 hover:shadow-lg",
+                    isSelected
+                      ? "ring-2 ring-primary shadow-phoenix"
+                      : "card-elevated"
                   )}
                   onClick={() => setSelectedTier(tier)}
                 >
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={cn(
-                          'flex h-12 w-12 items-center justify-center rounded-xl',
-                          tier === 'premium' ? 'gradient-phoenix' : 'gradient-teal'
-                        )}>
+                        <div
+                          className={cn(
+                            "flex h-12 w-12 items-center justify-center rounded-xl",
+                            tier === "premium"
+                              ? "gradient-phoenix"
+                              : "gradient-teal"
+                          )}
+                        >
                           <Icon className="h-6 w-6 text-primary-foreground" />
                         </div>
                         <div>
-                          <CardTitle className="text-xl">{program.name}</CardTitle>
-                          {tier === 'premium' && (
-                            <span className="text-xs text-primary font-medium">MOST POPULAR</span>
+                          <CardTitle className="text-xl">
+                            {program.name}
+                          </CardTitle>
+                          {tier === "premium" && (
+                            <span className="text-xs text-primary font-medium">
+                              MOST POPULAR
+                            </span>
                           )}
                         </div>
                       </div>
-                      <div className={cn(
-                        'h-6 w-6 rounded-full border-2 flex items-center justify-center',
-                        isSelected ? 'border-primary bg-primary' : 'border-muted-foreground'
-                      )}>
-                        {isSelected && <Check className="h-4 w-4 text-primary-foreground" />}
+                      <div
+                        className={cn(
+                          "h-6 w-6 rounded-full border-2 flex items-center justify-center",
+                          isSelected
+                            ? "border-primary bg-primary"
+                            : "border-muted-foreground"
+                        )}
+                      >
+                        {isSelected && (
+                          <Check className="h-4 w-4 text-primary-foreground" />
+                        )}
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="text-center py-4">
-                      <span className="text-4xl font-bold text-gradient-phoenix">₹{program.price.toLocaleString()}</span>
+                      <span className="text-4xl font-bold text-gradient-phoenix">
+                        ₹{program.price.toLocaleString()}
+                      </span>
                       <p className="text-muted-foreground">One-time payment</p>
                     </div>
 
                     <div className="space-y-3">
                       {program.features.map((feature) => (
-                        <div key={feature} className="flex items-center gap-2 text-sm text-foreground">
+                        <div
+                          key={feature}
+                          className="flex items-center gap-2 text-sm text-foreground"
+                        >
                           <Check className="h-4 w-4 text-green-500 shrink-0" />
                           {feature}
                         </div>
@@ -329,28 +429,43 @@ export const EnrollPage: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center gap-3">
-                  <div className={cn(
-                    'flex h-12 w-12 items-center justify-center rounded-xl',
-                    selectedTier === 'premium' ? 'gradient-phoenix' : 'gradient-teal'
-                  )}>
+                  <div
+                    className={cn(
+                      "flex h-12 w-12 items-center justify-center rounded-xl",
+                      selectedTier === "premium"
+                        ? "gradient-phoenix"
+                        : "gradient-teal"
+                    )}
+                  >
                     <selectedProgram.icon className="h-6 w-6 text-primary-foreground" />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">{selectedProgram.name}</p>
-                    <p className="text-2xl font-bold text-gradient-phoenix">₹{selectedProgram.price.toLocaleString()}</p>
+                    <p className="font-semibold text-foreground">
+                      {selectedProgram.name}
+                    </p>
+                    <p className="text-2xl font-bold text-gradient-phoenix">
+                      ₹{selectedProgram.price.toLocaleString()}
+                    </p>
                   </div>
                 </div>
 
                 <div className="space-y-2 border-t border-border pt-4">
                   {selectedProgram.features.slice(0, 5).map((feature) => (
-                    <div key={feature} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div
+                      key={feature}
+                      className="flex items-center gap-2 text-sm text-muted-foreground"
+                    >
                       <Check className="h-4 w-4 text-green-500" />
                       {feature}
                     </div>
                   ))}
                 </div>
 
-                <Button variant="outline" className="w-full" onClick={() => setStep(1)}>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setStep(1)}
+                >
                   Change Plan
                 </Button>
               </CardContent>
@@ -362,7 +477,10 @@ export const EnrollPage: React.FC = () => {
                 <CardTitle>Create Your Account</CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit(() => {})} className="space-y-4">
+                <form
+                  onSubmit={handleSubmit(validateAndProceed)}
+                  className="space-y-4"
+                >
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -370,37 +488,117 @@ export const EnrollPage: React.FC = () => {
                   >
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name</Label>
-                      <Input id="name" placeholder="John Smith" {...register('name')} />
-                      {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+                      <Input
+                        id="name"
+                        placeholder="John Smith"
+                        {...register("name")}
+                      />
+                      {errors.name && (
+                        <p className="text-sm text-destructive">
+                          {errors.name.message}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" placeholder="john@example.com" {...register('email')} />
-                      {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="john@example.com"
+                        {...register("email")}
+                      />
+                      {errors.email && (
+                        <p className="text-sm text-destructive">
+                          {errors.email.message}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number</Label>
-                      <Input id="phone" placeholder="+91 98765 43210" {...register('phone')} />
-                      {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+                      <Input
+                        id="phone"
+                        placeholder="+91 98765 43210"
+                        {...register("phone")}
+                      />
+                      {errors.phone && (
+                        <p className="text-sm text-destructive">
+                          {errors.phone.message}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>What is your primary fitness goal?</Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        {Category.map((goal) => (
+                          <div
+                            key={goal}
+                            onClick={() =>
+                              setValue("assignedCategory", goal as any)
+                            }
+                            className={cn(
+                              "flex cursor-pointer items-center justify-center rounded-lg border-2 p-3 transition-all",
+                              watch("assignedCategory") === goal
+                                ? "border-primary bg-primary/10 text-primary font-bold"
+                                : "border-muted hover:border-muted-foreground"
+                            )}
+                          >
+                            {goal}
+                          </div>
+                        ))}
+                      </div>
+                      {errors.assignedCategory && (
+                        <p className="text-sm text-destructive">
+                          {errors.assignedCategory.message}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="password">Password</Label>
-                      <Input id="password" type="password" placeholder="••••••••" {...register('password')} />
-                      {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="••••••••"
+                        {...register("password")}
+                      />
+                      {errors.password && (
+                        <p className="text-sm text-destructive">
+                          {errors.password.message}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="confirmPassword">Confirm Password</Label>
-                      <Input id="confirmPassword" type="password" placeholder="••••••••" {...register('confirmPassword')} />
-                      {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>}
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        placeholder="••••••••"
+                        {...register("confirmPassword")}
+                      />
+                      {errors.confirmPassword && (
+                        <p className="text-sm text-destructive">
+                          {errors.confirmPassword.message}
+                        </p>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Your account will be created automatically after successful payment.
+                      Your account will be created automatically after
+                      successful payment.
                     </p>
                     <div className="flex gap-3">
-                      <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(1)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setStep(1)}
+                      >
                         Back
                       </Button>
-                      <Button type="button" variant="phoenix" className="flex-1" onClick={validateAndProceed}>
+                      <Button
+                        type="button"
+                        variant="phoenix"
+                        className="flex-1"
+                        onClick={validateAndProceed}
+                      >
                         Continue to Payment
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
@@ -426,8 +624,12 @@ export const EnrollPage: React.FC = () => {
                   className="space-y-6"
                 >
                   <div className="rounded-lg gradient-phoenix p-6 text-center text-primary-foreground">
-                    <p className="text-lg font-medium">{selectedProgram.name}</p>
-                    <p className="text-4xl font-bold">₹{selectedProgram.price.toLocaleString()}</p>
+                    <p className="text-lg font-medium">
+                      {selectedProgram.name}
+                    </p>
+                    <p className="text-4xl font-bold">
+                      ₹{selectedProgram.price.toLocaleString()}
+                    </p>
                   </div>
 
                   <div className="space-y-3 rounded-lg bg-muted/50 p-4">
@@ -446,7 +648,12 @@ export const EnrollPage: React.FC = () => {
                   </div>
 
                   <div className="flex gap-3">
-                    <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(2)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setStep(2)}
+                    >
                       Back
                     </Button>
                     <Button

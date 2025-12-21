@@ -170,7 +170,9 @@ export interface ProgramBookingData {
   email: string;
   mobileNumber: string;
   password: string;
-  programType: ProgramTier;
+  assignedCategory: "Weight Loss" | "Weight Gain"; // The fitness goal
+  planTier: ProgramTier;                           // 'normal' | 'premium'
+  programStartDate?: string;
   paymentToken: string;
   orderId: string;
   razorpaySignature: string;
@@ -225,7 +227,6 @@ export const doctorApi = {
   getNewConsultancyRequest: () => api.get<Consultation[]>('/doctor/get-new-consultancy-request'),
 
   // Template endpoints
-  getTemplates: () => api.get('/doctor/templates').then(res => res.data),
   getTemplates: () => api.get('/doctor/templates').then(res => res.data),
   getTemplate: (templateId: string) => api.get(`/doctor/templates/${templateId}`).then(res => res.data),
 createTemplate: (data: { name: string; description?: string; category: string; tasks: any[] }) =>

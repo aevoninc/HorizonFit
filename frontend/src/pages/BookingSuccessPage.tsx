@@ -1,10 +1,36 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useLocation, useNavigate, Link  } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle, Mail, Calendar, ArrowRight, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import confetti from 'canvas-confetti';
 
 export const BookingSuccessPage: React.FC = () => {
+
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // 1. Extract the email we passed from EnrollPage
+  const userEmail = location.state?.email || "";
+
+  useEffect(() => {
+    // 2. Fire Confetti immediately on mount
+    confetti({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#ff4e50', '#f9d423', '#00b894'] // Your brand colors
+    });
+
+    // 3. Optional: Auto-redirect to login after 8 seconds
+    const timer = setTimeout(() => {
+      navigate('/auth', { state: { email: userEmail } });
+    }, 8000);
+
+    return () => clearTimeout(timer);
+  }, [navigate, userEmail]);
+
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Header */}
@@ -66,12 +92,12 @@ export const BookingSuccessPage: React.FC = () => {
                     Back to Home
                   </Button>
                 </Link>
-                <Link to="/auth">
-                  <Button variant="phoenix" size="lg">
-                    Go to Login
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
+              <Link to="/auth" state={{ email: userEmail }}>
+                <Button variant="phoenix" size="lg">
+                  Go to Login Now
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
               </div>
             </CardContent>
           </Card>

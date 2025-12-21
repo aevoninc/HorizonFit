@@ -1,19 +1,20 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Flame, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Flame, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import logo from "../../public/logo.png";
 
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -21,8 +22,20 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export const AuthPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { login } = useAuth();
+
+  useEffect(() => {
+    if (location.state?.email) {
+      toast({
+        title: "Account Ready",
+        description: "Please sign in with the password you just created.",
+      });
+    }
+  }, [location.state, toast]);
+
+  const prefilledEmail = location.state?.email || "";
 
   const {
     register,
@@ -30,34 +43,38 @@ export const AuthPage: React.FC = () => {
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: prefilledEmail,
+    },
   });
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
       const result = await login(data.email, data.password);
-      
+
       if (result.success && result.role) {
         toast({
-          title: 'Welcome back!',
-          description: 'You have successfully logged in.',
+          title: "Welcome back!",
+          description: "You have successfully logged in.",
         });
-        
+
         // Redirect based on role
-        const redirectPath = result.role === 'Doctor' ? '/doctor/patients' : '/patient/tasks';
+        const redirectPath =
+          result.role === "Doctor" ? "/doctor/patients" : "/patient/tasks";
         navigate(redirectPath);
       } else {
         toast({
-          title: 'Login failed',
-          description: result.error || 'Invalid credentials. Please try again.',
-          variant: 'destructive',
+          title: "Login failed",
+          description: result.error || "Invalid credentials. Please try again.",
+          variant: "destructive",
         });
       }
     } catch {
       toast({
-        title: 'Error',
-        description: 'An unexpected error occurred. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -74,14 +91,23 @@ export const AuthPage: React.FC = () => {
           transition={{ duration: 0.5 }}
           className="mx-auto w-full max-w-md"
         >
-          <Link to="/" className="mb-8 inline-flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-phoenix shadow-phoenix">
-              <Flame className="h-5 w-5 text-primary-foreground" />
+          <Link to="/" className="flex items-center group">
+            <div className="relative flex items-center py-2">
+              <img
+                src={logo}
+                alt="HorizonFit Logo"
+                className="h-14 w-auto object-contain transition-all duration-300 group-hover:scale-105"
+                style={{
+                  // Optional: if the logo has a white background you want to blend
+                  mixBlendMode: "multiply",
+                }}
+              />
             </div>
-            <span className="text-xl font-bold text-foreground">HorizonFit</span>
           </Link>
 
-          <h1 className="mb-2 text-3xl font-bold text-foreground">Welcome Back</h1>
+          <h1 className="mb-2 text-3xl font-bold text-foreground">
+            Welcome Back
+          </h1>
           <p className="mb-8 text-muted-foreground">
             Sign in to access your personalized fitness dashboard
           </p>
@@ -96,11 +122,13 @@ export const AuthPage: React.FC = () => {
                   type="email"
                   placeholder="you@example.com"
                   className="pl-10"
-                  {...register('email')}
+                  {...register("email")}
                 />
               </div>
               {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.email.message}
+                </p>
               )}
             </div>
 
@@ -113,11 +141,13 @@ export const AuthPage: React.FC = () => {
                   type="password"
                   placeholder="••••••••"
                   className="pl-10"
-                  {...register('password')}
+                  {...register("password")}
                 />
               </div>
               {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.password.message}
+                </p>
               )}
             </div>
 
@@ -143,8 +173,11 @@ export const AuthPage: React.FC = () => {
           </form>
 
           <p className="mt-8 text-center text-sm text-muted-foreground">
-            Don't have an account?{' '}
-            <Link to="/enroll" className="font-semibold text-primary hover:underline">
+            Don't have an account?{" "}
+            <Link
+              to="/enroll"
+              className="font-semibold text-primary hover:underline"
+            >
               Enroll in our program
             </Link>
           </p>
@@ -168,7 +201,8 @@ export const AuthPage: React.FC = () => {
               Your Journey Awaits
             </h2>
             <p className="mx-auto max-w-sm text-secondary-foreground/80">
-              Track your progress, complete tasks, and achieve your fitness goals with personalized guidance.
+              Track your progress, complete tasks, and achieve your fitness
+              goals with personalized guidance.
             </p>
           </motion.div>
         </div>

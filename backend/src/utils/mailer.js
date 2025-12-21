@@ -128,19 +128,17 @@ const sendTaskAssignmentEmail = async (recipient, personName,password,otherParty
 /**
  * Sends confirmation to both the patient and the doctor for the 15-Week Program booking.
  */
-const sendProgramBookingEmail = async (recipient, personName, otherPartyName, startDate, paymentId) => {
+const sendProgramBookingEmail = async (recipient, personName, otherPartyName, startDate, paymentId, price, planTier) => {
     const programName = '15-Week Wellness Program';
     const isDoctor = personName.startsWith('Dr.');
-    let subject;
+    
+    const subject = isDoctor 
+        ? `[NEW ENROLLMENT] ${otherPartyName} - ${planTier.toUpperCase()}`
+        : `Confirmation: Your ${programName} Enrollment`;
 
-    if (isDoctor) {
-        subject = `NEW ENROLLMENT: ${programName} - Patient ${otherPartyName}`;
-    } else {
-        subject = `CONFIRMATION: Your ${programName} Enrollment is Complete!`;
-    }
-
-    const htmlBody = programBookingTemplate(personName, otherPartyName, startDate, paymentId);
-    const textBody = `Hello ${personName}, your enrollment in the ${programName} is confirmed (Start Date: ${startDate}). Please check your dashboard.`;
+    // Passing all arguments to the updated template
+    const htmlBody = programBookingTemplate(personName, otherPartyName, startDate, paymentId, price, planTier);
+    const textBody = `Hello ${personName}, your enrollment is confirmed. Plan: ${planTier}, Price: ${price}. Start Date: ${startDate}.`;
 
     await sendEmail(recipient, subject, textBody, htmlBody);
 };

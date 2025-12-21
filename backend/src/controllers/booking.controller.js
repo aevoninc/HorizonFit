@@ -23,6 +23,7 @@ import {
   PREMIUM_PROGRAM_BOOKING_PRICE,
   NORMAL_PROGRAM_BOOKING_PRICE,
 } from "../constants.js";
+import mongoose from "mongoose";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -123,121 +124,120 @@ const programBooking = asyncHandler(async (req, res) => {
     email,
     mobileNumber,
     password,
-    assignedCategory, // This is the tier (e.g., 'normal' or 'premium')
+    planTier,
+    assignedCategory,
     programStartDate,
-    paymentToken, // razorpay_payment_id
-    orderId, // razorpay_order_id
-    razorpaySignature, // signature
+    paymentToken,    // razorpay_payment_id
+    orderId,         // razorpay_order_id
+    razorpaySignature,
   } = req.body;
 
   // 1. Initial Validation
-  if (
-    !name ||
-    !email ||
-    !password ||
-    !assignedCategory ||
-    !paymentToken ||
-    !orderId
-  ) {
-    return res
-      .status(400)
-      .json({ message: "All fields and payment details are required." });
+  if (!name || !email || !password || !assignedCategory || !paymentToken || !orderId || !razorpaySignature) {
+    return res.status(400).json({ message: "All fields and payment details are required." });
   }
-
+  console.log("Program Booking Request Received:", req.body);
   // 2. Pricing Logic (Source of Truth)
   const PRICES = {
     normal: 10000,
     premium: 25000,
   };
-  const actualPrice = PRICES[assignedCategory.toLowerCase()] || 10000;
+      
+  const categoryKey = assignedCategory.toLowerCase();
+  const actualPlanTier = planTier ? planTier.toLowerCase() : 'normal';
+const actualPrice = PRICES[actualPlanTier] || 10000;
 
-  // 3. Check if user already exists
+  // 3. Check if user already exists before processing transaction
   const userExists = await User.findOne({ email });
   if (userExists) {
-    return res
-      .status(400)
-      .json({ message: `User already exists with email: ${email}.` });
+    return res.status(400).json({ message: `User already exists with email: ${email}.` });
   }
-
+  console.log(`Processing payment for ${email} for amount ${actualPrice}`);
   // 4. Verify Razorpay Signature Security
-  // IMPORTANT: Use process.env.RAZORPAY_KEY_SECRET
   const generated_signature = crypto
     .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-    .update(orderId + "|" + paymentToken)
+    .update(`${orderId}|${paymentToken}`)
     .digest("hex");
 
   if (generated_signature !== razorpaySignature) {
     console.error(`Security Alert: Signature mismatch for order ${orderId}`);
-    return res
-      .status(400)
-      .json({ message: "Invalid payment signature. Transaction rejected." });
+    return res.status(400).json({ message: "Invalid payment signature. Transaction rejected." });
   }
 
-  // 5. Capture Payment
-  // We pass the actualPrice calculated in Step 2
-  const paymentResult = await processPayment(paymentToken, email, actualPrice);
+  // 5. Atomic Database Transaction
+  // We use a session to ensure Booking and User creation both succeed or both fail.
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (paymentResult.status !== "Payment Successful") {
-    return res
-      .status(400)
-      .json({ message: "Payment failed at gateway capture." });
-  }
+  try {
+    // 6. Create Program Booking Record
+    const [booking] = await programBookingModel.create(
+      [{
+        status: "Payment Successful",
+        email,
+        mobileNumber,
+        externalTransactionId: paymentToken, // This is the Razorpay Payment ID
+        orderId,
+        paymentSignature: razorpaySignature,
+        programCategory: assignedCategory,
+        programPrice: actualPrice,
+      }],
+      { session }
+    );
 
-  // 6. Create Program Booking Record
-  const booking = await programBookingModel.create({
-    status: "Payment Successful",
-    email,
-    mobileNumber,
-    externalTransactionId: paymentResult.id,
-    orderId,
-    paymentSignature: razorpaySignature,
-    programCategory: assignedCategory,
-    programPrice: actualPrice,
-  });
-
-  // 7. Create the Patient User Account
-  const patient = await User.create({
+    // 7. Create the Patient User Account
+const [patient] = await User.create(
+  [{
     name,
     email,
-    password, // Note: Ensure your User model hashes this password in a pre-save hook!
+    password, 
     mobileNumber,
     role: "Patient",
-    assignedCategory,
+    assignedCategory, // e.g., "Weight Loss"
+    planTier: actualPlanTier, // e.g., "normal" or "premium"
     programStartDate: programStartDate || new Date(),
     programBookingId: booking._id,
-  });
+  }],
+  { session }
+);
+    console.log(`Patient account created: ${patient._id} for booking ${booking._id}`); 
+    // If everything is successful, commit the changes to the database
+    await session.commitTransaction();
 
-  if (!patient) {
-    // Log this - it's a critical state: Payment taken but user not created.
-    console.error(
-      `CRITICAL: Payment ID ${paymentResult.id} succeeded but user creation failed for ${email}`
-    );
-    return res
-      .status(500)
-      .json({
-        message:
-          "Payment successful, but account setup failed. Contact support.",
-      });
+    // 8. Success Response
+    res.status(201).json({
+      success: true,
+      message: "Enrollment successful!",
+      patient: { id: patient._id, email: patient.email },
+      bookingId: booking._id,
+    });
+
+    // 9. Send Notifications (Non-blocking / Background)
+    // We do this AFTER committing the transaction
+
+Promise.allSettled([
+      // To Patient: (recipient, personName, otherPartyName, startDate, paymentId, price, planTier)
+      sendProgramBookingEmail(email, name, DOCTOR_NAME, startDate, paymentToken, actualPrice, actualPlanTier),
+      
+      // To Doctor: (recipient, personName, otherPartyName, startDate, paymentId, price, planTier)
+      sendProgramBookingEmail(DOCTOR_EMAIL, DOCTOR_NAME, name, startDate, paymentToken, actualPrice, actualPlanTier),
+      
+      // Welcome Email: (recipient, patientName, assignedDoctorName, password)
+      sendPatientWelcomeEmail(email, name, DOCTOR_NAME, password)
+    ]).catch(err => console.error("Notification Error:", err));
+
+  } catch (error) {
+    // If any step fails, undo all database changes made during this session
+    await session.abortTransaction();
+    
+    console.error("CRITICAL ERROR during program booking session:", error);
+    res.status(500).json({
+      message: "Payment verified but account creation failed. Please contact support immediately.",
+      error: error.message
+    });
+  } finally {
+    session.endSession();
   }
-
-  // 8. Send Notifications (Non-blocking)
-  Promise.allSettled([
-    sendProgramBookingEmail(email, name, actualPrice),
-    sendProgramBookingEmail(
-      DOCTOR_EMAIL,
-      `New Enrollment: ${name}`,
-      actualPrice
-    ),
-    sendProgramBookingEmail(ADMIN_MAIL, `New Enrollment: ${name}`, actualPrice),
-    sendPatientWelcomeEmail(email, name, DOCTOR_NAME),
-  ]);
-
-  // 9. Success Response
-  res.status(201).json({
-    message: "Enrollment successful!",
-    patient: { id: patient._id, email: patient.email },
-    bookingId: booking._id,
-  });
 });
 
 const newCreateOrderId = asyncHandler(async (req, res) => {
@@ -271,4 +271,5 @@ const newCreateOrderId = asyncHandler(async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 export { newRequestConsultation, programBooking, newCreateOrderId };

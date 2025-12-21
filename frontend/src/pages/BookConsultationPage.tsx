@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useRazorpay, RazorpayResponse } from '@/hooks/useRazorpay';
 import { publicApi } from '@/lib/api';
+import logo from "../../public/logo.png";
 
 const bookingSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
@@ -172,11 +173,18 @@ const handlePayment = async () => {
       {/* Header */}
       <nav className="border-b border-border bg-background">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-phoenix shadow-phoenix">
-              <Flame className="h-5 w-5 text-primary-foreground" />
+          <Link to="/" className="flex items-center group">
+            <div className="relative flex items-center py-2">
+              <img
+                src={logo}
+                alt="HorizonFit Logo"
+                className="h-14 w-auto object-contain transition-all duration-300 group-hover:scale-105"
+                style={{
+                  // Optional: if the logo has a white background you want to blend
+                  mixBlendMode: "multiply",
+                }}
+              />
             </div>
-            <span className="text-xl font-bold text-foreground">HorizonFit</span>
           </Link>
           <Link to="/">
             <Button variant="ghost">

@@ -270,50 +270,56 @@ const taskAssignmentTemplate = (recipientName, otherPartyName, taskName, dueDate
 };
 
 
-const programBookingTemplate = (recipientName, otherPartyName, startDate, paymentId) => {
+const programBookingTemplate = (recipientName, otherPartyName, startDate, paymentId, price, planTier) => {
     const programName = '15-Week Wellness Program';
     const link = 'https://horizonfit.in/#';
     const isDoctor = recipientName.startsWith('Dr.');
     
-    let title = isDoctor ? `New Patient Enrolled in ${programName}` : `Your ${programName} is Confirmed!`;
+    // Format price as currency
+    const formattedPrice = new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+    }).format(price);
+
+    let title = isDoctor ? `New Enrollment: ${otherPartyName}` : `Welcome to the ${programName}!`;
     let message = '';
 
     if (isDoctor) {
-        // Recipient is the Doctor (Notifying them of a new patient)
         message = `
             <p>Dear ${recipientName},</p>
-            <p>A new patient, **${otherPartyName}**, has successfully enrolled and paid for the **${programName}**.</p>
+            <p>A new patient has successfully enrolled in your program.</p>
             <div class="status-box">
-                <p style="margin: 5px 0;"><strong>Patient Name:</strong> ${otherPartyName}</p>
-                <p style="margin: 5px 0;"><strong>Program Start Date:</strong> ${startDate}</p>
+                <p style="margin: 5px 0;"><strong>Patient:</strong> ${otherPartyName}</p>
+                <p style="margin: 5px 0;"><strong>Plan Tier:</strong> ${planTier.toUpperCase()}</p>
+                <p style="margin: 5px 0;"><strong>Amount Paid:</strong> ${formattedPrice}</p>
+                <p style="margin: 5px 0;"><strong>Start Date:</strong> ${new Date(startDate).toLocaleDateString()}</p>
             </div>
-            <p>Please check your program queue to begin setting up their initial plan and consultation schedule.</p>
+            <p>Please review the patient's profile to begin their journey.</p>
         `;
     } else {
-        // Recipient is the Patient (Confirming their payment and enrollment)
         message = `
             <p>Dear ${recipientName},</p>
-            <p>Congratulations! Your enrollment in the **${programName}** is now **CONFIRMED**.</p>
-            <div class="status-confirmed">
-                <h3 style="margin: 0; padding: 0;">Payment Successful</h3>
+            <p>Your enrollment in the <strong>${programName}</strong> is now confirmed!</p>
+            
+            <div style="background-color: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin: 0; color: #155724;">Payment Successful</h3>
+                <p style="margin: 5px 0; color: #155724;">Amount: ${formattedPrice} (${planTier.toUpperCase()} Plan)</p>
             </div>
-            <p>Here are your program details:</p>
-            <ul style="list-style: none; padding-left: 0;">
-                <li style="margin-bottom: 5px;"><strong>Your Specialist:</strong> ${otherPartyName}</li>
-                <li style="margin-bottom: 5px;"><strong>Program Start Date:</strong> ${startDate}</li>
-                <li style="margin-bottom: 5px;"><strong>Payment ID:</strong> ${paymentId}</li>
+
+            <ul style="list-style: none; padding-left: 0; line-height: 2;">
+                <li><strong>Your Specialist:</strong> ${otherPartyName}</li>
+                <li><strong>Start Date:</strong> ${new Date(startDate).toLocaleDateString()}</li>
+                <li><strong>Transaction ID:</strong> ${paymentId}</li>
             </ul>
-            <p>Click below to access your program dashboard and view your first steps.</p>
         `;
     }
     
     const content = `
-        <p>Hello ${recipientName},</p>
         ${message}
-        <p>Thank you for choosing Aevon Health App.</p>
+        <p>We are excited to help you achieve your health goals!</p>
     `;
 
-    return renderBaseTemplate(title, content, link, isDoctor ? 'View Patient Records' : 'Start My Program');
+    return renderBaseTemplate(title, content, link, isDoctor ? 'Open Doctor Dashboard' : 'Go to My Program');
 };
 
 export {

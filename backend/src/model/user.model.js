@@ -26,6 +26,11 @@ const UserSchema = new mongoose.Schema({
       enum: ['Weight Gain', 'Weight Loss', null],
       default: null
     }, // e.g., 'Weight Loss'
+    planTier: {
+      type: String,
+      enum: ['normal', 'premium'],
+      required: true
+    },
     programStartDate: { type: Date, default: null },
     programBookingId:{
       type: mongoose.Schema.Types.ObjectId,
