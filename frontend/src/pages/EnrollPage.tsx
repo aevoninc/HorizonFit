@@ -13,6 +13,10 @@ import {
   ShieldCheck,
   Crown,
   Star,
+  MessageCircle,
+  ClipboardCheck,
+  Calendar,
+  CreditCard,
 } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -79,7 +83,36 @@ const programBenefits = [
   { icon: Award, text: "Progress tracking & analytics" },
 ];
 
+const STEPS = [
+  {
+    id: 1,
+    label: "Consultation Check",
+    icon: MessageCircle,
+    description: "Verify your consultation",
+  },
+  {
+    id: 2,
+    label: "Select Plan",
+    icon: ClipboardCheck,
+    description: "Choose your program",
+  },
+  {
+    id: 3,
+    label: "Your Details",
+    icon: Calendar,
+    description: "Create your account",
+  },
+  {
+    id: 4,
+    label: "Payment",
+    icon: CreditCard,
+    description: "Complete enrollment",
+  },
+];
+
 const Category = ["Weight Loss", "Weight Gain"];
+
+
 
 export const EnrollPage: React.FC = () => {
   const navigate = useNavigate();
@@ -88,6 +121,7 @@ export const EnrollPage: React.FC = () => {
   const [step, setStep] = useState(1);
   const [selectedTier, setSelectedTier] = useState<ProgramTier>("normal");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [bookingId, setBookingId] = useState("");
 
   const {
     register,
@@ -105,10 +139,22 @@ export const EnrollPage: React.FC = () => {
   }, [step]);
   const selectedProgram = PROGRAM_TIERS[selectedTier];
 
+  const handleVerifyConsultation = async () => {
+  try {
+    setIsProcessing(true);
+    // const response = await publicApi.verifyBooking(bookingId);
+    setStep(2); 
+  } catch (error) {
+    toast({ title: "Invalid ID", variant: "destructive" });
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
   const validateAndProceed = async () => {
-    const isValid = await trigger(); // Validates Zod schema
+    const isValid = await trigger();
     if (isValid) {
-      setStep(3); // This MUST be 3 to show the payment card
+      setStep(4); // Move from Form (3) to Payment (4)
     }
   };
 
@@ -253,84 +299,171 @@ export const EnrollPage: React.FC = () => {
           className="mb-8 text-center"
         >
           <h1 className="text-3xl font-bold text-foreground">
-            Choose Your Program
+            Enroll in the 15-Week Program
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Start your transformation journey today
+            Doctor-personalized fitness journey awaits you
           </p>
         </motion.div>
 
         {/* Progress Steps */}
-        <div className="mb-8 flex justify-center">
-          <div className="flex items-center gap-4">
-            {[1, 2, 3].map((s, i) => (
-              <div key={s} className="flex items-center gap-4">
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                    step >= s ? "gradient-phoenix" : "bg-muted"
-                  }`}
-                >
-                  <span
-                    className={
-                      step >= s
-                        ? "text-primary-foreground font-semibold"
-                        : "text-muted-foreground"
-                    }
-                  >
-                    {s}
-                  </span>
+        <div className="mb-8">
+          <div className="flex justify-center">
+            <div className="flex items-center gap-2 md:gap-4">
+              {STEPS.map((s, i) => (
+                <div key={s.id} className="flex items-center gap-2 md:gap-4">
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={cn(
+                        "flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full transition-all duration-300",
+                        step >= s.id
+                          ? "gradient-phoenix shadow-phoenix"
+                          : "bg-muted border-2 border-border"
+                      )}
+                    >
+                      {step > s.id ? (
+                        <Check className="h-5 w-5 text-primary-foreground" />
+                      ) : (
+                        <s.icon
+                          className={cn(
+                            "h-4 w-4 md:h-5 md:w-5",
+                            step >= s.id
+                              ? "text-primary-foreground"
+                              : "text-muted-foreground"
+                          )}
+                        />
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        "mt-2 text-xs md:text-sm font-medium hidden md:block",
+                        step >= s.id ? "text-primary" : "text-muted-foreground"
+                      )}
+                    >
+                      {s.label}
+                    </span>
+                  </div>
+                  {i < STEPS.length - 1 && (
+                    <div
+                      className={cn(
+                        "h-1 w-8 md:w-16 rounded transition-all duration-300",
+                        step > s.id ? "gradient-phoenix" : "bg-muted"
+                      )}
+                    />
+                  )}
                 </div>
-                {i < 2 && (
-                  <div
-                    className={`h-1 w-16 rounded ${
-                      step > s ? "gradient-phoenix" : "bg-muted"
-                    }`}
-                  />
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Step Labels */}
-        <div className="mb-8 flex justify-center">
-          <div className="flex items-center gap-8 text-sm">
-            <span
-              className={
-                step === 1
-                  ? "text-primary font-semibold"
-                  : "text-muted-foreground"
-              }
-            >
-              Select Plan
-            </span>
-            <span
-              className={
-                step === 2
-                  ? "text-primary font-semibold"
-                  : "text-muted-foreground"
-              }
-            >
-              Your Details
-            </span>
-            <span
-              className={
-                step === 3
-                  ? "text-primary font-semibold"
-                  : "text-muted-foreground"
-              }
-            >
-              Payment
-            </span>
-          </div>
-        </div>
-
-        {/* Step 1: Select Plan */}
+        {/* Step 1: Consultation Check */}
         {step === 1 && (
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="grid gap-6 md:grid-cols-2 max-w-5xl mx-auto"
+            className="max-w-2xl mx-auto"
+          >
+            <Card className="card-elevated overflow-hidden">
+              <div className="gradient-teal p-6 text-center">
+                <MessageCircle className="mx-auto h-12 w-12 text-secondary-foreground mb-3" />
+                <h2 className="text-xl font-bold text-secondary-foreground">
+                  Consultation Required
+                </h2>
+                <p className="text-secondary-foreground/80 mt-2">
+                  By Invite Only Following a Specialist Consultation
+                </p>
+              </div>
+              <CardContent className="p-8 space-y-6">
+                <div className="text-center space-y-4">
+                  <p className="text-muted-foreground leading-relaxed">
+                    To ensure the best results, all participants must first
+                    complete a{" "}
+                    <strong className="text-foreground">
+                      1:1 specialist consultation
+                    </strong>
+                    . This allows our doctors to understand your unique needs
+                    and create a truly personalized program.
+                  </p>
+
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                    <p className="text-sm font-medium text-foreground">
+                      Why consultation first?
+                    </p>
+                    <div className="grid gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-green-500 shrink-0" />
+                        <span>
+                          Personalized assessment of your fitness level
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-green-500 shrink-0" />
+                        <span>Understanding of your health conditions</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-green-500 shrink-0" />
+                        <span>Customized goals and expectations</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-border pt-6">
+                  <p className="text-sm text-muted-foreground text-center mb-4">
+                    Already completed a consultation? Enter your Booking ID:
+                  </p>
+                  <div className="flex gap-3">
+                    <Input
+                      placeholder="Enter Booking ID (e.g., HF-12345)"
+                      value={bookingId}
+                      onChange={(e) => setBookingId(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button variant="teal" onClick={handleVerifyConsultation}>
+                      Verify
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">
+                      or
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <Link to="/book-consultation">
+                    <Button
+                      variant="phoenix"
+                      size="lg"
+                      className="w-full sm:w-auto"
+                    >
+                      <Calendar className="mr-2 h-5 w-5" />
+                      Book My Consultation Now
+                    </Button>
+                  </Link>
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Schedule your consultation and receive a Booking ID via
+                    email
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Step 2: Select Plan */}
+        {step === 2 && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto"
           >
             {(Object.keys(PROGRAM_TIERS) as ProgramTier[]).map((tier) => {
               const program = PROGRAM_TIERS[tier];
@@ -410,8 +543,12 @@ export const EnrollPage: React.FC = () => {
               );
             })}
 
-            <div className="md:col-span-2 flex justify-center mt-4">
-              <Button variant="phoenix" size="lg" onClick={() => setStep(2)}>
+            <div className="md:col-span-2 flex justify-between mt-4">
+              <Button variant="outline" onClick={() => setStep(1)}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+              <Button variant="phoenix" size="lg" onClick={() => setStep(3)}>
                 Continue with {selectedProgram.name}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -419,8 +556,8 @@ export const EnrollPage: React.FC = () => {
           </motion.div>
         )}
 
-        {/* Step 2: Form */}
-        {step === 2 && (
+        {/* Step 3: Form */}
+        {step === 3 && (
           <div className="grid gap-8 lg:grid-cols-5 max-w-5xl mx-auto">
             {/* Program Summary */}
             <Card className="card-elevated lg:col-span-2">
@@ -464,7 +601,7 @@ export const EnrollPage: React.FC = () => {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => setStep(1)}
+                  onClick={() => setStep(2)}
                 >
                   Change Plan
                 </Button>
@@ -477,10 +614,7 @@ export const EnrollPage: React.FC = () => {
                 <CardTitle>Create Your Account</CardTitle>
               </CardHeader>
               <CardContent>
-                <form
-                  onSubmit={handleSubmit(validateAndProceed)}
-                  className="space-y-4"
-                >
+                <form onSubmit={handleSubmit(() => {})} className="space-y-4">
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -527,23 +661,24 @@ export const EnrollPage: React.FC = () => {
                       )}
                     </div>
                     <div className="space-y-2">
-                      <Label>What is your primary fitness goal?</Label>
+                      <Label>Fitness Goal</Label>
                       <div className="grid grid-cols-2 gap-4">
-                        {Category.map((goal) => (
-                          <div
-                            key={goal}
-                            onClick={() =>
-                              setValue("assignedCategory", goal as any)
+                        {Category.map((cat) => (
+                          <Button
+                            key={cat}
+                            type="button"
+                            variant={
+                              watch("assignedCategory") === cat
+                                ? "teal"
+                                : "outline"
                             }
-                            className={cn(
-                              "flex cursor-pointer items-center justify-center rounded-lg border-2 p-3 transition-all",
-                              watch("assignedCategory") === goal
-                                ? "border-primary bg-primary/10 text-primary font-bold"
-                                : "border-muted hover:border-muted-foreground"
-                            )}
+                            onClick={() =>
+                              setValue("assignedCategory", cat as any)
+                            }
+                            className="w-full"
                           >
-                            {goal}
-                          </div>
+                            {cat}
+                          </Button>
                         ))}
                       </div>
                       {errors.assignedCategory && (
@@ -589,7 +724,7 @@ export const EnrollPage: React.FC = () => {
                         type="button"
                         variant="outline"
                         className="flex-1"
-                        onClick={() => setStep(1)}
+                        onClick={() => setStep(2)}
                       >
                         Back
                       </Button>
@@ -610,8 +745,8 @@ export const EnrollPage: React.FC = () => {
           </div>
         )}
 
-        {/* Step 3: Payment */}
-        {step === 3 && (
+        {/* Step 4: Payment */}
+        {step === 4 && (
           <div className="max-w-2xl mx-auto">
             <Card className="card-elevated">
               <CardHeader>
@@ -639,11 +774,11 @@ export const EnrollPage: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Check className="h-4 w-4 text-green-500" />
-                      30-day money-back guarantee
+                      Instant account activation
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Check className="h-4 w-4 text-green-500" />
-                      Instant access upon payment
+                      30-day money-back guarantee
                     </div>
                   </div>
 
@@ -652,7 +787,7 @@ export const EnrollPage: React.FC = () => {
                       type="button"
                       variant="outline"
                       className="flex-1"
-                      onClick={() => setStep(2)}
+                      onClick={() => setStep(3)}
                     >
                       Back
                     </Button>
@@ -661,7 +796,7 @@ export const EnrollPage: React.FC = () => {
                       variant="phoenix"
                       className="flex-1"
                       onClick={handlePayment}
-                      disabled={isLoading || !isLoaded}
+                      disabled={isLoading}
                     >
                       {isLoading ? (
                         <>
@@ -669,7 +804,10 @@ export const EnrollPage: React.FC = () => {
                           Processing...
                         </>
                       ) : (
-                        <>Pay ₹{selectedProgram.price.toLocaleString()}</>
+                        <>
+                          Pay ₹{selectedProgram.price.toLocaleString()}
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </>
                       )}
                     </Button>
                   </div>
@@ -679,6 +817,27 @@ export const EnrollPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Footer with Branding */}
+      <footer className="border-t border-border bg-muted/30 py-8 mt-12">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-phoenix">
+                <Flame className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <span className="font-bold text-foreground">HorizonFit</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              © 2024 HorizonFit. All rights reserved.
+            </p>
+            <p className="text-xs text-secondary">
+              Developed by <span className="font-medium">Javid Shariff</span>{" "}
+              (Technical Lead) @ Aevon Inc
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
