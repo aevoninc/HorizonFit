@@ -1,48 +1,48 @@
 import {
-    createPatient,
-    getPatientList,
-    allocateTasks,
-    getPatientProgress,
-    updateTask,
-    deleteTask,
-    getConsultationRequests,
-    updateConsultationStatus,
-    deactivatePatient,
-    getCompletedPatients,
-    getDeactivatedPatients,
-    getNewConsultancyRequest,
-    deletePatient,
-    getAllTemplates,
-    getTemplateById,
-    createTemplate,
-    updateTemplate,
-    deleteTemplate,
-    assignProgramToPatient
-} from "../controllers/doctor.controller.js"
-import { protect, isDoctor } from '../middleware/auth.middleware.js';
-import express from "express"
+  createPatient,
+  getPatientList,
+  allocateTasks,
+  getPatientProgress,
+  updateTask,
+  deleteTask,
+  getConsultationRequests,
+  updateConsultationStatus,
+  deactivatePatient,
+  getCompletedPatients,
+  getDeactivatedPatients,
+  getNewConsultancyRequest,
+  deletePatient,
+  getAllTemplates,
+  getTemplateById,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  assignProgramToPatient,
+} from "../controllers/doctor.controller.js";
+import { protect, isDoctor } from "../middleware/auth.middleware.js";
+import express from "express";
 
 const router = express.Router();
 
 router.use(protect, isDoctor); // Apply protect and isDoctor middleware to all routes in this file
 
 // Create a new Patient (Manual process done by Doctor/Admin)
-router.post("/create-patient",createPatient);
+router.post("/create-patient", createPatient);
 
 // Get list of all Patients (for Doctor's dashboard view)
-router.get("/patients",getPatientList);
+router.get("/patients", getPatientList);
 
 // Doctor allocates tasks and program metrics to a specific patient
-router.post("/allocate-tasks/:patientId",allocateTasks);
+router.post("/allocate-tasks/:patientId", allocateTasks);
 
 // Get Patient Progress Data
-router.get("/patient-progress/:patientId",getPatientProgress);
+router.get("/patient-progress/:patientId", getPatientProgress);
 
 // Update a specific task for a patient
-router.patch("/update-task/:taskId",updateTask);
+router.patch("/update-task/:taskId", updateTask);
 
 // Delete a specific task for a patient
-router.delete("/delete-task/:taskId",deleteTask);
+router.delete("/delete-task/:taskId", deleteTask);
 
 // Get Consultation Requests for the Doctor
 router.get("/consultation-requests", getConsultationRequests);
@@ -63,7 +63,7 @@ router.get("/deactivated-patients", getDeactivatedPatients);
 router.get("/get-new-consultancy-request", getNewConsultancyRequest);
 
 //delete all the record of the patient
-router.delete("/delete-patient/:patientId",deletePatient);
+router.delete("/delete-patient/:patientId", deletePatient);
 
 // Get all available templates (e.g., Weight Loss, Diabetes) for a dropdown
 router.get("/templates", getAllTemplates);

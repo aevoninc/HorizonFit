@@ -19,9 +19,9 @@ const generateRefreshToken = (userId) => {
   );
 };
 
-const setTokens = async (res, userId, role) => {
+const setTokens = async (res, userId, role, planTier) => {
   // 1. GENERATE TOKENS
-  const accessToken = generateAccessToken(userId, role);
+  const accessToken = generateAccessToken(userId, role,planTier);
   const refreshToken = generateRefreshToken(userId);
 
   // Define expiry times in milliseconds
@@ -58,13 +58,13 @@ const authLogin = asyncHandler(async (req, res) => {
       .json({ message: "Please provide email and password" });
   }
   const user = await User.findOne({ email }).select("+password");
-
   if (user && (await user.matchPassword(password))) {
     // --- 1. Successful Authentication (NO ROLE CHECK) ---
     const { accessToken, refreshToken } = await setTokens(
       res,
       user._id,
-      user.role
+      user.role,
+      user.planTier || "normal"
     );
 
     // --- 2. Store Refresh Token Securely ---
@@ -96,6 +96,8 @@ const authLogin = asyncHandler(async (req, res) => {
         name: user.name, // Make sure name is in your schema!
       },
       role: user.role,
+      planTier: user.planTier || "normal",
+      message: "Login successful.",
       // accessToken: accessToken // Keep this only if frontend needs it for non-cookie requests
     });
   } else {

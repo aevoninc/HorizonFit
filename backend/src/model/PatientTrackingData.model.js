@@ -28,7 +28,9 @@ const TrackingDataSchema = new mongoose.Schema({
     // We are simplifying 'metrics' to be a clear list of health metrics:
     type: {
         type: String,
-        enum: ['Weight', 'BloodSugar', 'BloodPressure', 'Activity'], 
+        enum: ['Weight', 'BloodSugar', 'BloodPressure', 'Activity','bodyFatPercentage',
+            'visceralFat'
+        ], 
         required: true 
     },
     

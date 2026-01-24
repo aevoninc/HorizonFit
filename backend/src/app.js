@@ -24,12 +24,16 @@ import authRoutes from "./routes/auth.route.js";
 import doctorRoutes from "./routes/doctor.route.js";
 import patientRoutes from "./routes/patient.route.js";
 import bookingRoutes from "./routes/booking.route.js";  
-
+import normalPlanPatientRoutes from './routes/normalPlanPatient.route.js';
+import normalPlanDoctorRoutes from './routes/normalPlanDoctor.route.js';
 // Define Routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/doctor", doctorRoutes);
 app.use("/api/v1/patients", patientRoutes);
 app.use("/api/v1/public", bookingRoutes);
+app.use('/api/v1/doctor/normal-plan', normalPlanDoctorRoutes);
+app.use('/api/v1/patient/normal-plan', normalPlanPatientRoutes);
+
 app.get("/test", (req, res) => {
   res.send("API Working!");
 });

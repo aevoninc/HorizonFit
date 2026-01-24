@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useLocation } from 'react-router-dom';
 import {
   Select,
   SelectContent,
@@ -46,31 +47,43 @@ export const DoctorConsultationsPage: React.FC = () => {
     fetchConsultations();
   }, []);
 
+
+const location = useLocation();
+
 const fetchConsultations = async () => {
   try {
     setIsLoading(true);
-    const response = await doctorApi.getConsultations();
     
-    // Log it to be sure: console.log("API Response:", response.data);
-    console.log("API Response:", response.data);
-    // FIX: Look for the 'bookings' property in the object
-    if (response.data && Array.isArray(response.data.bookings)) {
-      console.log(response.data)
-      setConsultations(response.data.bookings);
-    } else if (Array.isArray(response.data)) {
-      // Fallback in case the API structure changes to a direct array
-      setConsultations(response.data);
-    } else {
-      // If no bookings found or wrong format, set to empty array
-      setConsultations([]);
+    // Check if we are on the new-requests path
+    const isNewRequestPath = location.pathname.includes('new-requests');
+    
+    // Switch API call based on path
+    const response = isNewRequestPath 
+      ? await doctorApi.getNewConsultancyRequests() 
+      : await doctorApi.getConsultations();
+
+    console.log("Current Path:", location.pathname);
+    console.log("Data Received:", response.data);
+
+    // Standardize data extraction
+    // Your backend returns { bookings: [] } if empty, but directly the array if not empty.
+    // Let's handle both gracefully.
+    let bookingsArray = [];
+    
+    if (Array.isArray(response.data)) {
+      bookingsArray = response.data;
+    } else if (response.data && Array.isArray(response.data.bookings)) {
+      bookingsArray = response.data.bookings;
     }
+
+    setConsultations(bookingsArray);
     
   } catch (error) {
     console.error('Failed to fetch consultations:', error);
-    setConsultations([]); // Keep it as an array to prevent crashes
+    setConsultations([]);
     toast({
-      title: 'Error',
-      description: 'Failed to load consultations.',
+      title: 'Fetch Error',
+      description: 'Could not load requests.',
       variant: 'destructive',
     });
   } finally {
@@ -78,11 +91,26 @@ const fetchConsultations = async () => {
   }
 };
 
-  const filteredConsultations = consultations.filter(
-    (consultation) =>
-      consultation.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      consultation.type.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+// Trigger fetch on mount and whenever the path changes
+useEffect(() => {
+  fetchConsultations();
+}, [location.pathname]);
+
+// 3. Re-run the fetch whenever the path changes
+useEffect(() => {
+  fetchConsultations();
+}, [location.pathname]);
+
+const filteredConsultations = consultations.filter((consultation) => {
+  // Use lowercase search query for comparison
+  const search = searchQuery.toLowerCase();
+
+  // Safely check for properties. Adjust 'name' if your backend uses that instead of 'patientName'
+  const name = (consultation.patientName || consultation.name || "").toLowerCase();
+  const type = (consultation.type || "").toLowerCase();
+
+  return name.includes(search) || type.includes(search);
+});
 
   const handleUpdateStatus = async () => {
     if (!selectedConsultation || !newStatus) return;
@@ -136,7 +164,16 @@ const fetchConsultations = async () => {
         <h1 className="text-3xl font-bold text-foreground">Consultations</h1>
         <p className="mt-1 text-muted-foreground">Manage consultation requests and bookings</p>
       </div>
-
+      {location.pathname.includes('new-requests') && (
+        <div className="mb-6 rounded-xl border border-teal-500/20 bg-teal-500/5 p-4 border-l-4 border-l-teal-500">
+           <h3 className="text-teal-700 font-bold flex items-center gap-2">
+             <span className="text-lg">🌟</span> New Patient Inquiries
+           </h3>
+           <p className="text-xs text-slate-600">
+             These individuals haven't joined a program yet. Your first consultation is the key to their journey!
+           </p>
+        </div>
+      )}
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-4">
         <Card className="card-elevated">

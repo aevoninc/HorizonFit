@@ -14,6 +14,7 @@ import {
   sendPatientWelcomeEmail,
   sendTaskAssignmentEmail,
 } from "../utils/mailer.js";
+import weeklyLog from "../model/normalPlanModels/weeklyLog.model.js";
 
 // @desc    Create a new Patient (Manual process done by Doctor/Admin)
 // @route   POST /api/doctor/create-patient
@@ -110,7 +111,6 @@ const getPatientList = asyncHandler(async (req, res) => {
 const allocateTasks = asyncHandler(async (req, res) => {
   const { patientId } = req.params;
   const { tasks } = req.body;
-
   // 1. Validation: Check if the patient exists
   const patient = await User.findById(patientId).select(
     "-createdAt -updatedAt -password -programStartDate"
@@ -141,6 +141,8 @@ const allocateTasks = asyncHandler(async (req, res) => {
       task.daysApplicable.forEach((day) => {
         tasksToInsert.push({
           patientId,
+          title: task.title,
+          category: task.category || "mindset",
           description: task.description,
           zone: task.zone,
           programWeek: task.programWeek,
@@ -156,6 +158,8 @@ const allocateTasks = asyncHandler(async (req, res) => {
       // just push the task as a single entry
       tasksToInsert.push({
         patientId,
+        title: task.name,
+        category: task.category || "mindset",
         description: task.description,
         zone: task.zone,
         programWeek: task.programWeek,
@@ -270,12 +274,9 @@ const deleteTask = asyncHandler(async (req, res) => {
     // 2. Delete all associated Patient Task Logs (CRITICAL for data integrity)
     await PatientTaskLog.deleteMany({ taskId });
 
-    res
-      .status(200)
-      .json({
-        message:
-          "Task and all associated compliance logs deleted successfully.",
-      });
+    res.status(200).json({
+      message: "Task and all associated compliance logs deleted successfully.",
+    });
   } catch (error) {
     console.error("Error deleting task and associated logs:", error);
     res.status(500).json({ message: error.message });
@@ -288,7 +289,7 @@ const deleteTask = asyncHandler(async (req, res) => {
 // backend/src/controllers/doctor.controller.js
 const getConsultationRequests = asyncHandler(async (req, res) => {
   // 1. Fetch EVERY booking in the system (No doctorId filter)
-  const bookings = await ConsultationBooking.find({})
+  const bookings = await ConsultationBooking.find({ patientId: { $ne: null } })
     .populate("patientId", "fullName email")
     .sort({ createdAt: -1 });
 
@@ -336,10 +337,15 @@ const getConsultationRequests = asyncHandler(async (req, res) => {
 const updateConsultationStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status, confirmedDateTime } = req.body;
-
   // 1. Validation
-  if (!["Pending", "Confirmed", "Rescheduled", "Cancelled", "Completed"].includes(status)) {
-    return res.status(400).json({ message: "Invalid booking status provided." });
+  if (
+    !["Pending", "Confirmed", "Rescheduled", "Cancelled", "Completed"].includes(
+      status
+    )
+  ) {
+    return res
+      .status(400)
+      .json({ message: "Invalid booking status provided." });
   }
 
   const updateData = { status };
@@ -347,7 +353,8 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
   if (status === "Confirmed" || status === "Rescheduled") {
     if (!confirmedDateTime) {
       return res.status(400).json({
-        message: "Confirmed date and time is required for confirmation/rescheduling.",
+        message:
+          "Confirmed date and time is required for confirmation/rescheduling.",
       });
     }
     updateData.confirmedDateTime = new Date(confirmedDateTime);
@@ -368,15 +375,25 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
   // 4. Send Email Notification
   try {
     // Added 'await' here - findById is an async operation
-    const user = await User.findById(updatedBooking.patientId).select("email name");
+    if (updatedBooking.patientId == null) {
+      return res
+        .status(404)
+        .json({ message: "No Patient Id with this Booking" });
+    }
+    const user = await User.findById(updatedBooking.patientId).select(
+      "email name"
+    );
     if (user && user.email) {
-      await sendConsultationUpdateEmail(
-        user.email,
-        user.name,
-        DOCTOR_NAME, // Ensure DOCTOR_NAME is defined globally or use a string
-        status,
-        updatedBooking.confirmedDateTime || updatedBooking.requestedDateTime
-      );
+      // NEW (Matches the mailer object structure)
+      await sendConsultationUpdateEmail({
+        recipient: user.email,
+        personName: user.name,
+        doctor: DOCTOR_NAME || "Your Specialist",
+        status: status,
+        dateTime:
+          updatedBooking.confirmedDateTime || updatedBooking.requestedDateTime,
+        bookingId: updatedBooking._id,
+      });
     }
   } catch (emailError) {
     console.error("Email notification failed:", emailError);
@@ -408,12 +425,10 @@ const getCompletedPatients = asyncHandler(async (req, res) => {
   }).select("email programStartDate assignedCategory");
 
   if (completedPatients.length === 0) {
-    return res
-      .status(200)
-      .json({
-        message: "No patients found with a completed 15-week program.",
-        patients: [],
-      });
+    return res.status(200).json({
+      message: "No patients found with a completed 15-week program.",
+      patients: [],
+    });
   }
 
   res.status(200).json(completedPatients);
@@ -467,14 +482,47 @@ const getDeactivatedPatients = asyncHandler(async (req, res) => {
 const getNewConsultancyRequest = asyncHandler(async (req, res) => {
   const bookings = await ConsultationBooking.find({ patientId: null });
   if (bookings.length === 0) {
-    return res
-      .status(200)
-      .json({
-        message: "No bookings found with null patientId.",
-        bookings: [],
-      });
+    return res.status(200).json({
+      message: "No bookings found with null patientId.",
+      bookings: [],
+    });
   }
-  res.status(200).json(bookings);
+
+  const formattedBookings = bookings.map((b) => {
+    const booking = b.toObject();
+
+    // Map the DB statuses to the lowercase statuses your frontend uses
+    const statusMap = {
+      "Payment Successful": "pending",
+      Confirmed: "confirmed",
+      Completed: "completed",
+      Cancelled: "cancelled",
+      Refunded: "cancelled",
+    };
+
+    return {
+      id: booking._id,
+      patientName: booking.patientId?.fullName || "Guest User",
+      patientEmail: booking.patientId?.email || booking.patientEmail || "N/A",
+      date: booking.requestedDateTime
+        ? new Date(booking.requestedDateTime).toLocaleDateString()
+        : "N/A",
+      time: booking.requestedDateTime
+        ? new Date(booking.requestedDateTime).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "N/A",
+      status: statusMap[booking.status] || "pending", // Fallback to pending
+      type: booking.patientQuery || "General Consultation",
+      notes: booking.cancellationReason || "",
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    bookings: formattedBookings,
+  });
 });
 
 // @desc    Doctor deletes a Patient account and all associated data
@@ -537,6 +585,7 @@ const assignProgramToPatient = asyncHandler(async (req, res) => {
   // 3. Map the Fixed Matrix tasks to the Patient Task Model
   // We transform the 'blueprint' tasks into 'live' patient tasks
   const tasksToInsert = template.tasks.map((task) => ({
+    title: task.name,
     patientId: patientId, // Links each task to this specific patient
     description: task.description,
     programWeek: task.programWeek,
@@ -566,7 +615,7 @@ const createTemplate = asyncHandler(async (req, res) => {
   const { name, category, tasks } = req.body;
 
   // 1. Validate that category exists and matches the Enum
-  if (!category || !['Weight Gain', 'Weight Loss'].includes(category)) {
+  if (!category || !["Weight Gain", "Weight Loss"].includes(category)) {
     res.status(400);
     throw new Error("Category must be 'Weight Gain' or 'Weight Loss'");
   }
@@ -578,12 +627,12 @@ const createTemplate = asyncHandler(async (req, res) => {
   }
 
   // 2. Map 'category' to 'metricType'
-  const template = await ProgramTemplate.create({ 
-    name, 
-    metricType: category, 
-    tasks: tasks || [] 
+  const template = await ProgramTemplate.create({
+    name,
+    metricType: category,
+    tasks: tasks || [],
   });
-  
+
   res.status(201).json(template);
 });
 
@@ -619,13 +668,12 @@ const updateTemplate = asyncHandler(async (req, res) => {
   }
 
   // Debugging: Log the whole body to see what keys actually exist
-  console.log("Received Body:", req.body);
 
   template.name = req.body.name || template.name;
-  
+
   // Explicitly check for category or metricType
   const newMetricType = req.body.category || req.body.metricType;
-  
+
   if (newMetricType) {
     template.metricType = newMetricType;
   }
@@ -653,7 +701,7 @@ const deleteTemplate = asyncHandler(async (req, res) => {
 });
 
 const seedWeightLossTemplate = async (req, res) => {
-     // Your fixed matrix file
+  // Your fixed matrix file
 
   const template = await ProgramTemplate.findOneAndUpdate(
     { name: "Weight Loss" },
@@ -664,9 +712,9 @@ const seedWeightLossTemplate = async (req, res) => {
     },
     { upsert: true, new: true }
   );
-  console.log("Weight Loss template seeded or updated.");
   // res.status(200).json({ message: "Template Seeded Successfully", template });
 };
+
 export {
   createPatient,
   getPatientList,

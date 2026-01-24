@@ -50,9 +50,7 @@ const sendEmail = async (recipient, subject, text, html) => {
     };
     try {
         const info = await transporter.sendMail(mailOptions);
-        console.log(`[EMAIL] Sent to ${recipient}: ${info.messageId}`);
     } catch (error) {
-        console.log("Error details:", error);
         console.error(`[EMAIL] FAILED to send email to ${recipient}: ${error.message}`);
     }
 };
@@ -65,11 +63,15 @@ const sendEmail = async (recipient, subject, text, html) => {
 /**
  * Sends a consultation update email (Confirmed, Rescheduled, Cancelled).
  */
-const sendConsultationUpdateEmail = async (recipient, personName, doctor, status, dateTime) => {
+// Fixed sendConsultationUpdateEmail in mailer.js
+const sendConsultationUpdateEmail = async ({ recipient, personName, doctor, status, dateTime, bookingId }) => {
     
     const subject = `${status} Consultation with ${doctor}`;
     
-    const htmlBody = consultationUpdateTemplate(personName, doctor, status, dateTime);
+    // We pass the parameters to the template. 
+    // Note: Added bookingId as the 5th argument.
+    const htmlBody = consultationUpdateTemplate(personName, doctor, status, dateTime, bookingId);
+    
     const textBody = `Hello ${personName}, your consultation status with ${doctor} is ${status} for ${dateTime}. Please check your dashboard.`;
 
     await sendEmail(recipient, subject, textBody, htmlBody);

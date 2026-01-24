@@ -28,9 +28,9 @@ const bookingSchema = z.object({
 type BookingFormData = z.infer<typeof bookingSchema>;
 
 const consultationTypes = [
-  { value: 'initial', label: 'Initial Assessment', price: 999, description: 'Comprehensive fitness evaluation' },
-  { value: 'followup', label: 'Follow-up Session', price: 599, description: 'Progress review and adjustments' },
-  { value: 'nutrition', label: 'Nutrition Consultation', price: 799, description: 'Personalized diet planning' },
+  { value: 'initial', label: 'Initial Assessment', price: 200, description: 'Comprehensive fitness evaluation' },
+  // { value: 'followup', label: 'Follow-up Session', price: 599, description: 'Progress review and adjustments' },
+  // { value: 'nutrition', label: 'Nutrition Consultation', price: 799, description: 'Personalized diet planning' },
 ];
 
 export const BookConsultationPage: React.FC = () => {
@@ -78,7 +78,6 @@ export const BookConsultationPage: React.FC = () => {
 
 const handlePayment = async () => {
     const data = getValues();
-    
     if (!isLoaded) {
       toast({ title: 'Payment Not Ready', variant: 'destructive' });
       return;
@@ -90,25 +89,20 @@ const handlePayment = async () => {
       // Step 1: Create Order ID
       const orderResponse = await publicApi.createOrderId('consultation', {
         consultationType: data.consultationType,
-        amount: selectedConsultation?.price || 999,
       });
 
-      // ✅ FIX: Extract accurately
-      const orderData = orderResponse.data.order; 
-      const serverOrderId = orderData.id; 
-      const serverAmount = orderData.amount;
+      // ✅ CORRECTED EXTRACTION: Match your Backend keys
+      const serverOrderId = orderResponse.data.orderId; 
+      const serverAmount = orderResponse.data.amount;
 
-      // 🛑 SAFETY CHECK: Don't proceed if ID is missing
       if (!serverOrderId) {
-        throw new Error("Failed to generate Order ID from server");
+        throw new Error("Server did not return an Order ID");
       }
-
-      console.log("Check this ID:", serverOrderId);
 
       // Step 2: Open Razorpay
       openPayment({
-        orderId: serverOrderId, // Use the explicit variable
-        amount: serverAmount,   // Use the explicit variable
+        orderId: serverOrderId, 
+        amount: serverAmount,   
         description: `${selectedConsultation?.label || 'Consultation'} Booking`,
         prefill: {
           name: data.name,
@@ -117,9 +111,7 @@ const handlePayment = async () => {
         },
         onSuccess: async (response: RazorpayResponse) => {
           try {
-            // Step 3: Verify and book
-            console.log("Razorpay Success Response:", response);
-            
+            // Step 3: Send data to your verify/book endpoint
             await publicApi.bookConsultation({
               name: data.name,
               email: data.email,
@@ -127,33 +119,27 @@ const handlePayment = async () => {
               requestedDateTime: data.preferredDate,
               patientQuery: data.patientQuery || "",
               paymentToken: response.razorpay_payment_id,
-              orderId: response.razorpay_order_id,          // This should now appear!
-              razorpaySignature: response.razorpay_signature // This should now appear!
+              orderId: response.razorpay_order_id,
+              razorpaySignature: response.razorpay_signature 
             });
 
-            toast({ title: 'Booking Confirmed!', description: 'Check your email.' });
+            toast({ title: 'Booking Confirmed!' });
             navigate('/booking-success');
           } catch (error) {
-             toast({
-              title: 'Booking Failed',
-              description: 'Payment verified, but booking failed. Contact support.',
-              variant: 'destructive',
-            });
+            toast({ title: 'Booking Failed', variant: 'destructive' });
           } finally {
             setIsProcessing(false);
           }
         },
-        onError: (error) => {
-          toast({ title: 'Payment Failed', variant: 'destructive' });
-          setIsProcessing(false);
-        },
+        onError: () => setIsProcessing(false),
         onDismiss: () => setIsProcessing(false),
       });
     } catch (error) {
-      toast({ title: 'Error', description: 'Initiation failed.', variant: 'destructive' });
+      console.error("Order Creation Error:", error);
+      toast({ title: 'Error', description: 'Failed to initiate payment.', variant: 'destructive' });
       setIsProcessing(false);
     }
-  };
+};
 
   const isLoading = isProcessing || paymentLoading;
 

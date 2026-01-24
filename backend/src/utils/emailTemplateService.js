@@ -116,35 +116,37 @@ const renderBaseTemplate = (title, content, link, buttonText) => {
 // 1. CONSULTATION UPDATE TEMPLATE (User's Existing Function)
 // =================================================================
 
-const consultationUpdateTemplate = (recipientName, otherPartyName, status, dateTime) => {
+const consultationUpdateTemplate = (recipientName, otherPartyName, status, dateTime, bookingId) => {
     let title = '';
     let message = '';
     let statusClass = 'status-box'; 
 
-    const isDoctor = recipientName.startsWith('Dr.'); 
-    const link = 'https://dashboard.aevon.in/my-appointments';
+    const isDoctor = recipientName?.startsWith('Dr.'); 
+    // You can now use bookingId in the link if needed, e.g., for direct tracking
+    const link = `https://dashboard.aevon.in/my-appointments/${bookingId || ''}`;
 
-    // Format the date so it looks nice in the email
-    const formattedDate = new Date(dateTime).toLocaleString('en-US', {
+    // Safely format the date
+    const formattedDate = dateTime ? new Date(dateTime).toLocaleString('en-US', {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-    });
+    }) : 'TBD';
 
+    // Handle status logic
     if (status === 'Confirmed') {
         statusClass = 'status-confirmed';
         title = 'Appointment Confirmed';
         message = isDoctor 
             ? `<p>Dear ${recipientName},</p><p>A new consultation has been added to your schedule.</p><p><strong>Patient:</strong> ${otherPartyName}</p><p><strong>Time:</strong> ${formattedDate}</p>`
-            : `<p>Dear ${recipientName},</p><p>Your consultation is now **CONFIRMED** with **${otherPartyName}**.</p><p><strong>Date/Time:</strong> ${formattedDate}</p>`;
+            : `<p>Dear ${recipientName},</p><p>Your consultation is now <strong>CONFIRMED</strong> with <strong>${otherPartyName}</strong>.</p><p><strong>Date/Time:</strong> ${formattedDate}</p>`;
 
     } else if (status === 'Rescheduled') {
-        statusClass = 'status-rescheduled'; // Ensure you have this CSS in your base template
+        statusClass = 'status-rescheduled';
         title = 'Appointment Rescheduled';
         message = `<p>Dear ${recipientName},</p>
-                   <p>Please note that your appointment with **${otherPartyName}** has been **RESCHEDULED**.</p>
+                   <p>Please note that your appointment with <strong>${otherPartyName}</strong> has been <strong>RESCHEDULED</strong>.</p>
                    <p><strong>New Date/Time:</strong> ${formattedDate}</p>
                    <p>If this new time does not work for you, please contact support or update via your dashboard.</p>`;
 
@@ -152,20 +154,22 @@ const consultationUpdateTemplate = (recipientName, otherPartyName, status, dateT
         statusClass = 'status-cancelled';
         title = 'Appointment Cancelled';
         message = isDoctor
-            ? `<p>Dear ${recipientName},</p><p>The appointment with **${otherPartyName}** on ${formattedDate} has been **CANCELLED**.</p>`
-            : `<p>Dear ${recipientName},</p><p>Your consultation with **${otherPartyName}** on ${formattedDate} has been **CANCELLED**.</p><p>Refunds are processed within 5-10 business days.</p>`;
+            ? `<p>Dear ${recipientName},</p><p>The appointment with <strong>${otherPartyName}</strong> on ${formattedDate} has been <strong>CANCELLED</strong>.</p>`
+            : `<p>Dear ${recipientName},</p><p>Your consultation with <strong>${otherPartyName}</strong> on ${formattedDate} has been <strong>CANCELLED</strong>.</p><p>Refunds are processed within 5-10 business days.</p>`;
 
     } else {
         title = `Appointment ${status}`;
-        message = `<p>Dear ${recipientName}, your appointment with ${otherPartyName} is now **${status}**.</p>`;
+        message = `<p>Dear ${recipientName}, your appointment with ${otherPartyName} is now <strong>${status}</strong>.</p>
+                   <p><strong>Scheduled for:</strong> ${formattedDate}</p>`;
     }
 
     const content = `
         <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
-            <div class="${statusClass}" style="padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <h2 style="margin: 0;">${title}</h2>
+            <div class="${statusClass}" style="padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #14b8a6; background-color: #f0fdfa;">
+                <h2 style="margin: 0; color: #0f766e;">${title}</h2>
             </div>
             ${message}
+            <p style="font-size: 12px; color: #666; margin-top: 15px;">Reference ID: ${bookingId || 'N/A'}</p>
             <p style="margin-top: 20px;">Thank you for using Aevon Health.</p>
         </div>
     `;

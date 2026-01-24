@@ -8,6 +8,7 @@ import React, {
 import { authApi } from "@/lib/api";
 
 type UserRole = "Patient" | "Doctor" | null;
+type PlanTier = "normal" | "premium" | null;
 
 interface User {
   id: string;
@@ -19,6 +20,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   role: UserRole;
+  planTier: PlanTier;
   isLoading: boolean;
   login: (
     email: string,
@@ -41,6 +43,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [role, setRole] = useState<UserRole>(() => {
     return sessionStorage.getItem("userRole") as UserRole;
   });
+  const [planTier, setPlanTier] = useState<PlanTier>(() => {
+    return sessionStorage.getItem("planTier") as PlanTier;
+  });
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -49,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const initializeAuth = async () => {
       const storedRole = sessionStorage.getItem("userRole") as UserRole;
       const storedUser = sessionStorage.getItem("user");
+      const storedPlanTier = sessionStorage.getItem("planTier") as PlanTier;
 
       if (storedRole && storedUser) {
         try {
@@ -56,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           const parsedUser = JSON.parse(storedUser);
           setRole(storedRole);
           setUser(parsedUser);
-
+          setPlanTier(storedPlanTier);
           // 2. Then validate tokens in the background
           await authApi.refreshToken();
         } catch (error) {
@@ -78,7 +84,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const response = await authApi.login(email, password);
       // 1. Destructure 'user' and 'role' from response.data
       // 2. Then get the details FROM that user object
-      const { user: backendUser, role: userRole } = response.data;
+      console.log("Login response data:", response.data);
+      const { user: backendUser, role: userRole, planTier } = response.data;
 
       const userData = {
         id: backendUser._id,
@@ -88,7 +95,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       setUser(userData);
       setRole(userRole);
-
+      setPlanTier(planTier);
+      sessionStorage.setItem("planTier", planTier);
       sessionStorage.setItem("userRole", userRole);
       sessionStorage.setItem("user", JSON.stringify(userData));
 
@@ -137,6 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isAuthenticated: !!user,
         user,
         role,
+        planTier,
         isLoading,
         login,
         logout,

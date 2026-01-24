@@ -203,6 +203,9 @@ export const publicApi = {
   bookProgram: (data: ProgramBookingData) => api.post('/public/program-booking', data),
   verifyPayment: (data: { orderId: string; paymentToken: string; razorpaySignature: string }) =>
     api.post('/public/verify-payment', data),
+verifyBooking: (data: { consultationId: string }) => 
+    api.post('/public/verify-consultation-id', data),
+
 };
 
 // Doctor API
@@ -222,9 +225,9 @@ export const doctorApi = {
     api.patch(`/doctor/update-task/${taskId}`, data),
   deleteTask: (taskId: string) => api.delete(`/doctor/delete-task/${taskId}`),
   getConsultations: () => api.get<Consultation[]>('/doctor/consultation-requests'),
+getNewConsultancyRequests: () => api.get<Consultation[]>('/doctor/get-new-consultancy-request'),
   updateConsultationStatus: (bookingId: string, status: Consultation['status'], confirmedDateTime : Date,notes?: string) =>
     api.patch(`/doctor/update-consultation-status/${bookingId}`, { status, notes, confirmedDateTime }),
-  getNewConsultancyRequest: () => api.get<Consultation[]>('/doctor/get-new-consultancy-request'),
 
   // Template endpoints
   getTemplates: () => api.get('/doctor/templates').then(res => res.data),
@@ -237,13 +240,14 @@ updateTemplate: (templateId: string, data: { name: string; category: string; tas
   deleteTemplate: (templateId: string) => api.delete(`/doctor/templates/${templateId}`),
   assignProgram: (patientId: string, templateId: string) =>
     api.post(`/doctor/assign-program/${patientId}`, { templateId }).then(res => res.data),
+
 };
 
 // Patient API
 export const patientApi = {
   // Zone Tasks
   getZoneTasks: (zoneNumber: number) => api.get<ZoneTask>(`/patients/get-zone-task/${zoneNumber}`),
-  logTaskCompletion: (taskId: string) => api.post(`/patients/logTaskCompletion/${taskId}`),
+  logTaskCompletion: (taskId: string) => api.post(`/patients/logTaskCompletion`,taskId),
   
   // Progress
   getProgress: () => api.get<PatientProgress>('/patients/getPatientProgress'),

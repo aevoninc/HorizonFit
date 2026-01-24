@@ -68,7 +68,6 @@ import {
 import { doctorApi, Task, PatientProgress } from "@/lib/api";
 import { AssignProgramModal } from "@/pages/doctor/AssignProgramModal";
 
-
 const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const zones = [1, 2, 3, 4, 5];
 const weeks = [1, 2, 3];
@@ -87,8 +86,10 @@ export const PatientDetailPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const timeSlots = ["Morning", "Afternoon", "Evening", "Night"];
   const metricSlots = ["Weight Loss", "Weight Gain"];
+  const categories = ["nutrition", "exercise", "hydration", "sleep", "mindset"];
   const [newTask, setNewTask] = useState({
     name: "",
+    category: "",
     zoneId: "",
     weekNumber: "",
     frequency: "",
@@ -135,6 +136,7 @@ export const PatientDetailPage: React.FC = () => {
   const handleAddTask = async () => {
     if (
       !newTask.name ||
+      !newTask.category ||
       !newTask.zoneId ||
       !newTask.weekNumber ||
       !newTask.frequency ||
@@ -152,6 +154,8 @@ export const PatientDetailPage: React.FC = () => {
     try {
       setIsSubmitting(true);
       const taskData = {
+        title: newTask.name,
+        category:newTask.category,
         description: newTask.name.trim(),
         zone: parseInt(newTask.zoneId),
         programWeek: parseInt(newTask.weekNumber),
@@ -593,7 +597,7 @@ export const PatientDetailPage: React.FC = () => {
               <DialogHeader>
                 <DialogTitle>Allocate New Task</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 pt-4">
+              <div className="space-y-1 pt-4">
                 <div className="space-y-2">
                   <Label>
                     Task Name <span className="text-destructive">*</span>
@@ -607,7 +611,28 @@ export const PatientDetailPage: React.FC = () => {
                     maxLength={100}
                   />
                 </div>
-
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Category <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={newTask.category}
+                    onValueChange={(value) =>
+                      setNewTask({ ...newTask, category: value })
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="What type of task is this?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>

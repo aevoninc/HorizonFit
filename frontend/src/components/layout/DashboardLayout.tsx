@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { DashboardSidebar } from './DashboardSidebar';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const DashboardLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { planTier } = useAuth();
 
   // Load collapsed state from localStorage
   useEffect(() => {

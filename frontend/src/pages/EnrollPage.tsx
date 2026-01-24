@@ -61,20 +61,20 @@ const PROGRAM_TIERS = {
     ],
     icon: Star,
   },
-  premium: {
-    name: "Premium Program",
-    price: 25000,
-    features: [
-      "Everything in Normal Program",
-      "Priority doctor consultations",
-      "1-on-1 weekly video calls",
-      "Advanced analytics dashboard",
-      "Diet & nutrition planning",
-      "Lifetime access to materials",
-      "24/7 support access",
-    ],
-    icon: Crown,
-  },
+  // premium: {
+  //   name: "Premium Program",
+  //   price: 25000,
+  //   features: [
+  //     "Everything in Normal Program",
+  //     "Priority doctor consultations",
+  //     "1-on-1 weekly video calls",
+  //     "Advanced analytics dashboard",
+  //     "Diet & nutrition planning",
+  //     "Lifetime access to materials",
+  //     "24/7 support access",
+  //   ],
+  //   icon: Crown,
+  // },
 };
 
 const programBenefits = [
@@ -139,11 +139,15 @@ export const EnrollPage: React.FC = () => {
   }, [step]);
   const selectedProgram = PROGRAM_TIERS[selectedTier];
 
-  const handleVerifyConsultation = async () => {
+const handleVerifyConsultation = async () => {
   try {
     setIsProcessing(true);
-    // const response = await publicApi.verifyBooking(bookingId);
+    
+    // Pass as an object { consultationId: "your_id_here" }
+    const response = await publicApi.verifyBooking({ consultationId: bookingId }); 
+    console.log("Verification Response:", response.data);
     setStep(2); 
+    toast({ title: "Success", description: "Consultation verified!" });
   } catch (error) {
     toast({ title: "Invalid ID", variant: "destructive" });
   } finally {

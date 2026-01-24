@@ -5,7 +5,7 @@ export const options = {
     }
 export const DOCTOR_EMAIL = "javidshariff2005@gmail.com"
 export const DOCTOR_NAME = "Dr.Jaburral"
-export const CONSULTANCY_BOOKING_PRICE = 500
+export const CONSULTANCY_BOOKING_PRICE = 200
 export const PREMIUM_PROGRAM_BOOKING_PRICE = 25000
-export const NORMAL_PROGRAM_BOOKING_PRICE = 25000
+export const NORMAL_PROGRAM_BOOKING_PRICE = 10000
 export const ADMIN_MAIL = "javidshariff2005@gmail.com"

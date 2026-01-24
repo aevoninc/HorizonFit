@@ -252,7 +252,7 @@ export const HomePage: React.FC = () => {
                   Meet Your Specialist
                 </span>
                 <h2 className="mb-4 text-3xl font-bold text-secondary-foreground md:text-4xl">
-                  Dr. Sarah Mitchell
+                  DR.M.JABAARRUL
                 </h2>
                 <p className="mb-6 text-secondary-foreground/80">
                   With over 15 years of experience in sports medicine and fitness coaching, Dr. Mitchell has helped thousands of clients achieve their health goals through personalized programs.

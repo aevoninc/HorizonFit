@@ -27,7 +27,6 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 dotenv.config();
 
-
 const newRequestConsultation = asyncHandler(async (req, res) => {
   const {
     name,
@@ -40,8 +39,6 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
     patientQuery,
   } = req.body;
 
-  console.log("New Consultation Request Received:", req.body);
-
   // 1. Initial Validation
   if (!requestedDateTime || !paymentToken || !orderId || !razorpaySignature) {
     return res.status(400).json({
@@ -49,6 +46,7 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
     });
   }
 
+  console
   // 2. Security Check (Signature Verification)
   // This proves the payment was successful without needing to call 'capture' again
   const generated_signature = crypto
@@ -78,37 +76,43 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
     amountPaid: CONSULTANCY_BOOKING_PRICE,
   });
 
-  console.log("Consultation Booking Created:", booking._id);
-
-  // 4. Send Emails (Non-blocking)
-  const emailBody = `
-        A new consultation has been booked.
-        Customer: ${name}
-        Email: ${email}
-        Phone: ${mobileNumber}
-        Date/Time: ${requestedDateTime}
-        Transaction ID: ${paymentToken}
-        Order ID: ${orderId}
-    `;
-
   // Fire and forget emails so the user doesn't wait
-  Promise.allSettled([
-    sendConsultationUpdateEmail(
-      DOCTOR_EMAIL,
-      "New Consultation Booking",
-      emailBody
-    ),
-    sendConsultationUpdateEmail(
-      ADMIN_MAIL,
-      "New Consultation Booking",
-      emailBody
-    ),
-    sendConsultationUpdateEmail(
-      email,
-      "Consultation Confirmed - HorizonFit",
-      `Hi ${name}, your booking for ${requestedDateTime} is confirmed. Transaction ID: ${paymentToken}`
-    ),
-  ]).catch((err) => console.error("Email Sending Error:", err));
+  // ✅ Corrected Controller Call
+try {
+    await Promise.allSettled([
+      // 1. Email to Doctor
+      sendConsultationUpdateEmail({
+        recipient: DOCTOR_EMAIL,
+        personName: `Dr. ${DOCTOR_NAME}`, // Use the doctor's name
+        doctor: name, // The Patient's name (from req.body)
+        status: "Confirmed",
+        dateTime: requestedDateTime,
+        bookingId: booking._id,
+      }),
+  
+      // 2. Email to Admin
+       sendConsultationUpdateEmail({
+        recipient: ADMIN_MAIL,
+        personName: "Admin",
+        doctor: name, // Patient's name for admin reference
+        status: "Confirmed",
+        dateTime: requestedDateTime,
+        bookingId: booking._id,
+      }),
+  
+      // 3. Email to Patient
+       sendConsultationUpdateEmail({
+        recipient: email, // The user's email from req.body
+        personName: name, // The user's name from req.body
+        doctor: DOCTOR_NAME,
+        status: "Confirmed",
+        dateTime: requestedDateTime,
+        bookingId: booking._id,
+      }),
+    ])
+} catch (error) {
+    console.error("Error sending consultation booking emails:", error);
+}
 
   // 5. Final Success Response
   res.status(201).json({
@@ -127,32 +131,43 @@ const programBooking = asyncHandler(async (req, res) => {
     planTier,
     assignedCategory,
     programStartDate,
-    paymentToken,    // razorpay_payment_id
-    orderId,         // razorpay_order_id
+    paymentToken, // razorpay_payment_id
+    orderId, // razorpay_order_id
     razorpaySignature,
   } = req.body;
 
   // 1. Initial Validation
-  if (!name || !email || !password || !assignedCategory || !paymentToken || !orderId || !razorpaySignature) {
-    return res.status(400).json({ message: "All fields and payment details are required." });
+  if (
+    !name ||
+    !email ||
+    !password ||
+    !assignedCategory ||
+    !paymentToken ||
+    !orderId ||
+    !razorpaySignature
+  ) {
+    return res
+      .status(400)
+      .json({ message: "All fields and payment details are required." });
   }
-  console.log("Program Booking Request Received:", req.body);
+  const startDate = programStartDate || new Date();
   // 2. Pricing Logic (Source of Truth)
   const PRICES = {
-    normal: 10000,
-    premium: 25000,
+    normal: NORMAL_PROGRAM_BOOKING_PRICE,
+    premium:PREMIUM_PROGRAM_BOOKING_PRICE 
   };
-      
+
   const categoryKey = assignedCategory.toLowerCase();
-  const actualPlanTier = planTier ? planTier.toLowerCase() : 'normal';
-const actualPrice = PRICES[actualPlanTier] || 10000;
+  const actualPlanTier = planTier ? planTier.toLowerCase() : "normal";
+  const actualPrice = PRICES[actualPlanTier];
 
   // 3. Check if user already exists before processing transaction
   const userExists = await User.findOne({ email });
   if (userExists) {
-    return res.status(400).json({ message: `User already exists with email: ${email}.` });
+    return res
+      .status(400)
+      .json({ message: `User already exists with email: ${email}.` });
   }
-  console.log(`Processing payment for ${email} for amount ${actualPrice}`);
   // 4. Verify Razorpay Signature Security
   const generated_signature = crypto
     .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
@@ -161,7 +176,9 @@ const actualPrice = PRICES[actualPlanTier] || 10000;
 
   if (generated_signature !== razorpaySignature) {
     console.error(`Security Alert: Signature mismatch for order ${orderId}`);
-    return res.status(400).json({ message: "Invalid payment signature. Transaction rejected." });
+    return res
+      .status(400)
+      .json({ message: "Invalid payment signature. Transaction rejected." });
   }
 
   // 5. Atomic Database Transaction
@@ -172,35 +189,39 @@ const actualPrice = PRICES[actualPlanTier] || 10000;
   try {
     // 6. Create Program Booking Record
     const [booking] = await programBookingModel.create(
-      [{
-        status: "Payment Successful",
-        email,
-        mobileNumber,
-        externalTransactionId: paymentToken, // This is the Razorpay Payment ID
-        orderId,
-        paymentSignature: razorpaySignature,
-        programCategory: assignedCategory,
-        programPrice: actualPrice,
-      }],
+      [
+        {
+          status: "Payment Successful",
+          email,
+          mobileNumber,
+          externalTransactionId: paymentToken, // This is the Razorpay Payment ID
+          orderId,
+          paymentSignature: razorpaySignature,
+          programCategory: assignedCategory,
+          programPrice: actualPrice,
+        },
+      ],
       { session }
     );
 
     // 7. Create the Patient User Account
-const [patient] = await User.create(
-  [{
-    name,
-    email,
-    password, 
-    mobileNumber,
-    role: "Patient",
-    assignedCategory, // e.g., "Weight Loss"
-    planTier: actualPlanTier, // e.g., "normal" or "premium"
-    programStartDate: programStartDate || new Date(),
-    programBookingId: booking._id,
-  }],
-  { session }
-);
-    console.log(`Patient account created: ${patient._id} for booking ${booking._id}`); 
+    const [patient] = await User.create(
+      [
+        {
+          name,
+          email,
+          password,
+          mobileNumber,
+          role: "Patient",
+          assignedCategory, // e.g., "Weight Loss"
+          planTier: actualPlanTier, // e.g., "normal" or "premium"
+          programStartDate: programStartDate || new Date(),
+          programBookingId: booking._id,
+        },
+      ],
+      { session }
+    );
+
     // If everything is successful, commit the changes to the database
     await session.commitTransaction();
 
@@ -215,25 +236,41 @@ const [patient] = await User.create(
     // 9. Send Notifications (Non-blocking / Background)
     // We do this AFTER committing the transaction
 
-Promise.allSettled([
+    Promise.allSettled([
       // To Patient: (recipient, personName, otherPartyName, startDate, paymentId, price, planTier)
-      sendProgramBookingEmail(email, name, DOCTOR_NAME, startDate, paymentToken, actualPrice, actualPlanTier),
-      
-      // To Doctor: (recipient, personName, otherPartyName, startDate, paymentId, price, planTier)
-      sendProgramBookingEmail(DOCTOR_EMAIL, DOCTOR_NAME, name, startDate, paymentToken, actualPrice, actualPlanTier),
-      
-      // Welcome Email: (recipient, patientName, assignedDoctorName, password)
-      sendPatientWelcomeEmail(email, name, DOCTOR_NAME, password)
-    ]).catch(err => console.error("Notification Error:", err));
+      sendProgramBookingEmail(
+        email,
+        name,
+        DOCTOR_NAME,
+        startDate,
+        paymentToken,
+        actualPrice,
+        actualPlanTier
+      ),
 
+      // To Doctor: (recipient, personName, otherPartyName, startDate, paymentId, price, planTier)
+      sendProgramBookingEmail(
+        DOCTOR_EMAIL,
+        DOCTOR_NAME,
+        name,
+        startDate,
+        paymentToken,
+        actualPrice,
+        actualPlanTier
+      ),
+
+      // Welcome Email: (recipient, patientName, assignedDoctorName, password)
+      sendPatientWelcomeEmail(email, name, DOCTOR_NAME, password),
+    ]).catch((err) => console.error("Notification Error:", err));
   } catch (error) {
     // If any step fails, undo all database changes made during this session
     await session.abortTransaction();
-    
+
     console.error("CRITICAL ERROR during program booking session:", error);
     res.status(500).json({
-      message: "Payment verified but account creation failed. Please contact support immediately.",
-      error: error.message
+      message:
+        "Payment verified but account creation failed. Please contact support immediately.",
+      error: error.message,
     });
   } finally {
     session.endSession();
@@ -244,9 +281,9 @@ const newCreateOrderId = asyncHandler(async (req, res) => {
   const { type, programType } = req.body;
   // 1. Define pricing (Source of Truth)
   const PRICES = {
-    normal: 10000, // or NORMAL_PROGRAM_BOOKING_PRICE
-    premium: 25000, // or PREMIUM_PROGRAM_BOOKING_PRICE
-    consultation: 999, // or CONSULTANCY_BOOKING_PRICE
+    normal: NORMAL_PROGRAM_BOOKING_PRICE, // or NORMAL_PROGRAM_BOOKING_PRICE
+    premium: PREMIUM_PROGRAM_BOOKING_PRICE, // or PREMIUM_PROGRAM_BOOKING_PRICE
+    consultation:CONSULTANCY_BOOKING_PRICE , // or CONSULTANCY_BOOKING_PRICE
   };
 
   // 2. Determine price
@@ -272,4 +309,16 @@ const newCreateOrderId = asyncHandler(async (req, res) => {
   }
 });
 
-export { newRequestConsultation, programBooking, newCreateOrderId };
+const verifyCosultationId = asyncHandler(async (req, res) => {
+  const { consultationId } = req.body;
+  if (!mongoose.Types.ObjectId.isValid(consultationId)) {
+    return res.status(400).json({ message: "Invalid Consultation ID format." });
+  }
+  const booking = await ConsultationBooking.findById(consultationId);
+  if (!booking) {
+    return res.status(404).json({ message: "Consultation not found." });
+  }
+  res.status(200).json({ message: "Consultation found.", booking });
+});
+
+export { newRequestConsultation, programBooking, newCreateOrderId ,verifyCosultationId};
