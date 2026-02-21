@@ -1,7 +1,7 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import User from "../model/user.model.js";
 import jwt from "jsonwebtoken";
-import RefreshToken from "../model/RefreshToken.model.js";
+import RefreshToken from "../model/refreshToken.model.js";
 
 const generateAccessToken = (userId, role) => {
   return jwt.sign(

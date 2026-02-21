@@ -6,7 +6,7 @@ import PatientTrackingData from "../model/patientTrackingData.model.js";
 import PatientTaskLog from "../model/patientTaskLog.model.js";
 import ConsultationBooking from "../model/consultationBooking.model.js";
 import Weight_Loss from "../utils/weightLossProgram.js";
-import RefreshTokenModel from "../model/RefreshToken.model.js";
+import RefreshTokenModel from "../model/refreshToken.model.js";
 import ProgramTemplate from "../model/programTemplateSchema.model.js";
 import { DOCTOR_EMAIL, DOCTOR_NAME, ADMIN_MAIL } from "../constants.js";
 import {
