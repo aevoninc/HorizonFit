@@ -7,7 +7,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:8080", // your frontend URL
+    origin: process.env.CORS_ORIGIN || "http://localhost:8080", // your frontend URL
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
     methods: ["GET", "POST", "PUT", 'PATCH' ,"DELETE", "OPTIONS"],
