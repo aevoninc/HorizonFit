@@ -38,7 +38,7 @@ export interface RazorpayResponse {
   razorpay_signature: string;
 }
 
-const RAZORPAY_KEY = 'rzp_test_Rino5m0CIKz7uD';
+const RAZORPAY_KEY = import.meta.env.RAZORPAY_KEY;
 
 export const useRazorpay = () => {
   const [isLoaded, setIsLoaded] = useState(false);
