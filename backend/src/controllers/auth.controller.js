@@ -21,7 +21,7 @@ const generateRefreshToken = (userId) => {
 
 const setTokens = async (res, userId, role, planTier) => {
   // 1. GENERATE TOKENS
-  const accessToken = generateAccessToken(userId, role,planTier);
+  const accessToken = generateAccessToken(userId, role, planTier);
   const refreshToken = generateRefreshToken(userId);
 
   // Define expiry times in milliseconds
@@ -33,18 +33,18 @@ const setTokens = async (res, userId, role, planTier) => {
   const maxAgeRefresh = REFRESH_DAYS * 24 * 60 * 60 * 1000; // 30 days
   // 2. SET ACCESS TOKEN COOKIE (Short-Lived)
   res.cookie("accessToken", accessToken, {
-    httpOnly: true, // CRITICAL: Prevents client-side JS (XSS attacks) from reading the token.
-    secure: process.env.NODE_ENV !== "development", // Ensures cookie is only sent over HTTPS (in production).
-    sameSite: "strict", // Helps mitigate Cross-Site Request Forgery (CSRF).
-    maxAge: maxAgeAccess, // Token expires after 15 minutes.
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: maxAgeAccess,
   });
 
   // 3. SET REFRESH TOKEN COOKIE (Long-Lived)
   res.cookie("refreshToken", refreshToken, {
-    httpOnly: true, // CRITICAL: Cannot be accessed by client-side JS.
-    secure: process.env.NODE_ENV !== "development",
-    sameSite: "strict",
-    maxAge: maxAgeRefresh, // Token expires after 30 days.
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    maxAge: maxAgeRefresh,
   });
 
   return { accessToken, refreshToken }; // Returns tokens (the Access Token is often returned in the body for frontend convenience)
@@ -81,11 +81,11 @@ const authLogin = asyncHandler(async (req, res) => {
       ipAddress,
       expiresAt: new Date(
         Date.now() +
-          parseInt(process.env.JWT_REFRESH_SECRET_EXPIRY, 10) *
-            24 *
-            60 *
-            60 *
-            1000
+        parseInt(process.env.JWT_REFRESH_SECRET_EXPIRY, 10) *
+        24 *
+        60 *
+        60 *
+        1000
       ), // Matches cookie maxAge
     });
 
@@ -132,8 +132,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     // 4. Set the new Access Token cookie
     res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV !== "development",
-      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 15 * 60 * 1000,
     });
 
@@ -157,17 +157,17 @@ const logoutUser = asyncHandler(async (req, res) => {
   // 2. Clear the Access Token cookie in the browser
   res.cookie("accessToken", "", {
     httpOnly: true,
-    expires: new Date(0), // Set expiry to the past to force deletion
-    secure: process.env.NODE_ENV !== "development",
-    sameSite: "strict",
+    expires: new Date(0),
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   });
 
   // 3. Clear the Refresh Token cookie in the browser
   res.cookie("refreshToken", "", {
     httpOnly: true,
-    expires: new Date(0), // Set expiry to the past to force deletion
-    secure: process.env.NODE_ENV !== "development",
-    sameSite: "strict",
+    expires: new Date(0),
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   });
 
   res.status(200).json({ message: "User logged out successfully." });

@@ -16,6 +16,23 @@ import {
 } from "../utils/mailer.js";
 import weeklyLog from "../model/normalPlanModels/weeklyLog.model.js";
 
+
+export async function createDoctor(name,email,password,mobileNumber){
+
+    const patient = await User.create({
+      name,
+      email,
+      password,
+      mobileNumber,
+      role: "Doctor",
+      isActive: true,
+  planTier: "premium",
+  currentZone: 1,
+  status: "active"
+    });
+
+    console.log("Doctor created successfully:", patient);
+};
 // @desc    Create a new Patient (Manual process done by Doctor/Admin)
 // @route   POST /api/doctor/create-patient
 // @access  Private (Requires Doctor role via middleware)

@@ -42,7 +42,7 @@ const UserSchema = new mongoose.Schema(
       ref: "ProgramBooking",
       default: null,
     },
-    currentZone : { type: Number, required: true, min: 1, max: 5, default: 1 },
+    currentZone: { type: Number, required: true, min: 1, max: 5, default: 1 },
     lastMetricsDate: { type: Date },
     lastWeeklyLogDate: { type: Date },
     totalWeeksCompleted: { type: Number, default: 0 },
@@ -97,29 +97,29 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-UserSchema.methods.generateAccessToken = async function () {
+UserSchema.methods.generateAccessToken = function () {
   return jwt.sign(
     {
       _id: this._id,
-      fullname: this.fullname,
-      username: this.username,
+      name: this.name,
       email: this.email,
+      role: this.role,
     },
-    process.env.ACCESS_TOKEN_SECRET,
+    process.env.JWT_ACCESS_SECRET,
     {
-      expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+      expiresIn: process.env.JWT_ACCESS_SECRET_EXPIRY,
     }
   );
 };
 
-UserSchema.methods.generateRefreshToken = async function () {
+UserSchema.methods.generateRefreshToken = function () {
   return jwt.sign(
     {
       _id: this._id,
     },
-    process.env.REFRESH_TOKEN_SECRET,
+    process.env.JWT_REFRESH_SECRET,
     {
-      expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
+      expiresIn: process.env.JWT_REFRESH_SECRET_EXPIRY,
     }
   );
 };

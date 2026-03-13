@@ -11,14 +11,14 @@ const refreshTokenSchema = new Schema({
         // Store the token hashed (if you choose to hash it before storage)
         // or just the unique token string (if you use a long, random JWT)
     },
-    
+
     // 2. Core Links (Who and Where)
     userId: {
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
-    
+
     // 3. Security and Device Tracking
     userAgent: {
         type: String, // The raw string (e.g., "Chrome on Windows 10")
@@ -32,17 +32,17 @@ const refreshTokenSchema = new Schema({
         type: String, // Client-generated persistent ID (optional, but recommended)
         default: null
     },
-    
+
     // 4. Expiration
     expiresAt: {
         type: Date,
         required: true,
         // This index will allow MongoDB to automatically delete expired tokens
-        index: { expires: 0 } 
+        index: { expires: 0 }
     }
 }, { timestamps: true });
 
 // Optional: Index on userId and schoolId for fast lookups (e.g., "Log out of all devices")
-refreshTokenSchema.index({ userId: 1, schoolId: 1 });
+refreshTokenSchema.index({ userId: 1 });
 
 export default mongoose.model('RefreshToken', refreshTokenSchema);

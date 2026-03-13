@@ -33,7 +33,14 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Prevent loop: don't retry if it's already a retry or an auth-related critical endpoint
+    const url = originalRequest.url || '';
+    const isAuthEndpoint =
+      url.includes('/auth/login') ||
+      url.includes('/auth/refresh-token') ||
+      url.includes('/auth/logout');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -49,11 +56,8 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError as Error);
-        try {
-          await api.post('/auth/logout');
-        } catch {
-          // Ignore logout errors
-        }
+        // Refresh failed - clean up and bounce to login
+        sessionStorage.clear();
         window.location.href = '/auth';
         return Promise.reject(refreshError);
       } finally {
@@ -86,7 +90,7 @@ export interface Task {
   zoneId: number;
   weekNumber: number;
   dayOfWeek: string[];
-  frequency: 'Daily'| 'SpecificDays'| 'Weekly'| 'OneTime';
+  frequency: 'Daily' | 'SpecificDays' | 'Weekly' | 'OneTime';
   status: 'Pending' | 'In-Progress' | 'Completed';
   isCompleted?: boolean;
 }
@@ -117,7 +121,7 @@ export interface Consultation {
 
 export interface PatientBooking {
   _id?: string; // Add this
-  id: string;   
+  id: string;
   type: string;
   requestedDateTime: string;
   status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled' | 'Refunded';
@@ -181,7 +185,11 @@ export interface ProgramBookingData {
 // Auth API
 export const authApi = {
   login: (email: string, password: string) =>
-    api.post<{ role: 'Patient' | 'Doctor'; user: { id: string; email: string; name: string } }>('/auth/login', { email, password }),
+    api.post<{
+      role: 'Patient' | 'Doctor';
+      planTier: 'normal' | 'premium';
+      user: { _id: string; email: string; name: string }
+    }>('/auth/login', { email, password }),
   logout: () => api.post('/auth/logout'),
   refreshToken: () => api.get('/auth/refresh-token'),
 };
@@ -203,7 +211,7 @@ export const publicApi = {
   bookProgram: (data: ProgramBookingData) => api.post('/public/program-booking', data),
   verifyPayment: (data: { orderId: string; paymentToken: string; razorpaySignature: string }) =>
     api.post('/public/verify-payment', data),
-verifyBooking: (data: { consultationId: string }) => 
+  verifyBooking: (data: { consultationId: string }) =>
     api.post('/public/verify-consultation-id', data),
 
 };
@@ -225,17 +233,17 @@ export const doctorApi = {
     api.patch(`/doctor/update-task/${taskId}`, data),
   deleteTask: (taskId: string) => api.delete(`/doctor/delete-task/${taskId}`),
   getConsultations: () => api.get<Consultation[]>('/doctor/consultation-requests'),
-getNewConsultancyRequests: () => api.get<Consultation[]>('/doctor/get-new-consultancy-request'),
-  updateConsultationStatus: (bookingId: string, status: Consultation['status'], confirmedDateTime : Date,notes?: string) =>
+  getNewConsultancyRequests: () => api.get<Consultation[]>('/doctor/get-new-consultancy-request'),
+  updateConsultationStatus: (bookingId: string, status: Consultation['status'], confirmedDateTime: Date, notes?: string) =>
     api.patch(`/doctor/update-consultation-status/${bookingId}`, { status, notes, confirmedDateTime }),
 
   // Template endpoints
   getTemplates: () => api.get('/doctor/templates').then(res => res.data),
   getTemplate: (templateId: string) => api.get(`/doctor/templates/${templateId}`).then(res => res.data),
-createTemplate: (data: { name: string; description?: string; category: string; tasks: any[] }) =>
+  createTemplate: (data: { name: string; description?: string; category: string; tasks: any[] }) =>
     api.post('/doctor/templates', data).then(res => res.data),
 
-updateTemplate: (templateId: string, data: { name: string; category: string; tasks: any[] }) =>
+  updateTemplate: (templateId: string, data: { name: string; category: string; tasks: any[] }) =>
     api.put(`/doctor/templates/${templateId}`, data).then(res => res.data),
   deleteTemplate: (templateId: string) => api.delete(`/doctor/templates/${templateId}`),
   assignProgram: (patientId: string, templateId: string) =>
@@ -247,15 +255,15 @@ updateTemplate: (templateId: string, data: { name: string; category: string; tas
 export const patientApi = {
   // Zone Tasks
   getZoneTasks: (zoneNumber: number) => api.get<ZoneTask>(`/patients/get-zone-task/${zoneNumber}`),
-  logTaskCompletion: (taskId: string) => api.post(`/patients/logTaskCompletion`,taskId),
-  
+  logTaskCompletion: (taskId: string) => api.post(`/patients/logTaskCompletion`, taskId),
+
   // Progress
   getProgress: () => api.get<PatientProgress>('/patients/getPatientProgress'),
-  
+
   // Health Tracking
   logTrackingData: (data: { metricType: string; value: number; unit: string; notes?: string }) =>
     api.post('/patients/log-tracking-data', data),
-  
+
   // Bookings/Consultations
   createOrder: () => api.post<RazorpayOrder>('/patients/create-order'),
   requestConsultation: (data: {
@@ -267,7 +275,7 @@ export const patientApi = {
   }) => api.post('/patients/consultation-request', data),
   getBookings: () => api.get<PatientBooking[]>('/patients/getPatientBookings'),
   cancelBooking: (id: string) => api.post<{ refundId?: string }>(`/patients/cancelBooking/${id}`),
-  
+
   // Profile
   getProfile: () => api.get<PatientProfile>('/patients/getPatientProfile'),
   updatePassword: (data: { currentPassword: string; newPassword: string }) =>

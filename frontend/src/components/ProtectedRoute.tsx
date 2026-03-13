@@ -20,9 +20,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
     );
   }
 
-  // if (!isAuthenticated) {
-  //   return <Navigate to="/auth" state={{ from: location }} replace />;
-  // }
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" replace />;
+  }
 
   if (requiredRole && role !== requiredRole) {
     // Redirect to appropriate dashboard based on role
