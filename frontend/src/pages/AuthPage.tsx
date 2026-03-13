@@ -21,6 +21,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export const AuthPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -41,6 +42,7 @@ export const AuthPage: React.FC = () => {
     register,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -48,8 +50,15 @@ export const AuthPage: React.FC = () => {
     },
   });
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setValue(name as any, value);
+    if (errorMessage) setErrorMessage(null);
+  };
+
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
+    setErrorMessage(null);
     try {
       const result = await login(data.email, data.password);
 
@@ -59,21 +68,33 @@ export const AuthPage: React.FC = () => {
           description: "You have successfully logged in.",
         });
 
-        // Redirect based on role
-        const redirectPath =
-          result.role === "Doctor" ? "/doctor/patients" : "/patient/tasks";
+        const redirectPath = result.role === "Doctor" ? "/doctor/patients" : "/patient/tasks";
         navigate(redirectPath);
-      } else {
-        toast({
-          title: "Login failed",
-          description: result.error || "Invalid credentials. Please try again.",
-          variant: "destructive",
-        });
       }
-    } catch {
+    } catch (error: any) {
+      console.error("Login component error:", error);
+
+      let message = "An unexpected error occurred. Please try again.";
+
+      if (!error.response) {
+        message = "Cannot connect to server. Please check your connection or try again later.";
+      } else {
+        switch (error.response.status) {
+          case 401:
+            message = "Invalid email or password.";
+            break;
+          case 429:
+            message = "Too many attempts. Please wait a moment.";
+            break;
+          default:
+            message = error.response.data?.message || message;
+        }
+      }
+
+      setErrorMessage(message);
       toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        title: "Login failed",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -123,6 +144,7 @@ export const AuthPage: React.FC = () => {
                   placeholder="you@example.com"
                   className="pl-10"
                   {...register("email")}
+                  onChange={handleInputChange}
                 />
               </div>
               {errors.email && (
@@ -142,6 +164,7 @@ export const AuthPage: React.FC = () => {
                   placeholder="••••••••"
                   className="pl-10"
                   {...register("password")}
+                  onChange={handleInputChange}
                 />
               </div>
               {errors.password && (
@@ -150,6 +173,17 @@ export const AuthPage: React.FC = () => {
                 </p>
               )}
             </div>
+
+            {errorMessage && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive flex items-center gap-2"
+              >
+                <Flame className="h-4 w-4" />
+                {errorMessage}
+              </motion.div>
+            )}
 
             <Button
               type="submit"

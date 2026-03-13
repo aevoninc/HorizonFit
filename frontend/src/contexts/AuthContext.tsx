@@ -6,6 +6,7 @@ import React, {
   useEffect,
 } from "react";
 import { authApi } from "@/lib/api";
+import { PageLoader } from "@/components/ui/PageLoader";
 
 type UserRole = "Patient" | "Doctor" | null;
 type PlanTier = "normal" | "premium" | null;
@@ -52,12 +53,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Check for existing session on mount (user info from sessionStorage, tokens from HttpOnly cookies)
   useEffect(() => {
     const initializeAuth = async () => {
-      const storedRole = sessionStorage.getItem("userRole") as UserRole;
-      const storedUser = sessionStorage.getItem("user");
-      const storedPlanTier = sessionStorage.getItem("planTier") as PlanTier;
+      try {
+        const storedRole = sessionStorage.getItem("userRole") as UserRole;
+        const storedUser = sessionStorage.getItem("user");
+        const storedPlanTier = sessionStorage.getItem("planTier") as PlanTier;
 
-      if (storedRole && storedUser) {
-        try {
+        if (storedRole && storedUser) {
           // 1. SET STATE IMMEDIATELY (Don't wait for API)
           const parsedUser = JSON.parse(storedUser);
           setRole(storedRole);
@@ -65,15 +66,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setPlanTier(storedPlanTier);
           // 2. Then validate tokens in the background
           await authApi.refreshToken();
-        } catch (error) {
-          console.error("Session restoration failed", error);
-          // Only clear if the refresh actually fails
-          sessionStorage.clear();
-          setRole(null);
-          setUser(null);
         }
+      } catch (error) {
+        console.error("Session restoration failed", error);
+        // Only clear if the refresh actually fails
+        sessionStorage.clear();
+        setRole(null);
+        setUser(null);
+        setPlanTier(null);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initializeAuth();
@@ -82,9 +85,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = useCallback(async (email: string, password: string) => {
     try {
       const response = await authApi.login(email, password);
-      // 1. Destructure 'user' and 'role' from response.data
-      // 2. Then get the details FROM that user object
-      console.log("Login response data:", response.data);
       const { user: backendUser, role: userRole, planTier } = response.data;
 
       const userData = {
@@ -101,9 +101,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       sessionStorage.setItem("user", JSON.stringify(userData));
 
       return { success: true, role: userRole };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Login failed";
-      return { success: false, error: message };
+    } catch (error: any) {
+      setUser(null);
+      // Re-throw so the UI can catch and display specific server errors
+      throw error;
     }
   }, []);
 
@@ -138,6 +139,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return false;
     }
   }, []);
+
+  if (isLoading) {
+    return <PageLoader />;
+  }
 
   return (
     <AuthContext.Provider

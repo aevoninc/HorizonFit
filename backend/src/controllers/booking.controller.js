@@ -46,7 +46,6 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
     });
   }
 
-  console
   // 2. Security Check (Signature Verification)
   // This proves the payment was successful without needing to call 'capture' again
   const generated_signature = crypto
@@ -78,7 +77,7 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
 
   // Fire and forget emails so the user doesn't wait
   // ✅ Corrected Controller Call
-try {
+  try {
     await Promise.allSettled([
       // 1. Email to Doctor
       sendConsultationUpdateEmail({
@@ -89,9 +88,9 @@ try {
         dateTime: requestedDateTime,
         bookingId: booking._id,
       }),
-  
+
       // 2. Email to Admin
-       sendConsultationUpdateEmail({
+      sendConsultationUpdateEmail({
         recipient: ADMIN_MAIL,
         personName: "Admin",
         doctor: name, // Patient's name for admin reference
@@ -99,9 +98,9 @@ try {
         dateTime: requestedDateTime,
         bookingId: booking._id,
       }),
-  
+
       // 3. Email to Patient
-       sendConsultationUpdateEmail({
+      sendConsultationUpdateEmail({
         recipient: email, // The user's email from req.body
         personName: name, // The user's name from req.body
         doctor: DOCTOR_NAME,
@@ -110,9 +109,9 @@ try {
         bookingId: booking._id,
       }),
     ])
-} catch (error) {
+  } catch (error) {
     console.error("Error sending consultation booking emails:", error);
-}
+  }
 
   // 5. Final Success Response
   res.status(201).json({
@@ -154,7 +153,7 @@ const programBooking = asyncHandler(async (req, res) => {
   // 2. Pricing Logic (Source of Truth)
   const PRICES = {
     normal: NORMAL_PROGRAM_BOOKING_PRICE,
-    premium:PREMIUM_PROGRAM_BOOKING_PRICE 
+    premium: PREMIUM_PROGRAM_BOOKING_PRICE
   };
 
   const categoryKey = assignedCategory.toLowerCase();
@@ -283,7 +282,7 @@ const newCreateOrderId = asyncHandler(async (req, res) => {
   const PRICES = {
     normal: NORMAL_PROGRAM_BOOKING_PRICE, // or NORMAL_PROGRAM_BOOKING_PRICE
     premium: PREMIUM_PROGRAM_BOOKING_PRICE, // or PREMIUM_PROGRAM_BOOKING_PRICE
-    consultation:CONSULTANCY_BOOKING_PRICE , // or CONSULTANCY_BOOKING_PRICE
+    consultation: CONSULTANCY_BOOKING_PRICE, // or CONSULTANCY_BOOKING_PRICE
   };
 
   // 2. Determine price
@@ -321,4 +320,4 @@ const verifyCosultationId = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Consultation found.", booking });
 });
 
-export { newRequestConsultation, programBooking, newCreateOrderId ,verifyCosultationId};
+export { newRequestConsultation, programBooking, newCreateOrderId, verifyCosultationId };

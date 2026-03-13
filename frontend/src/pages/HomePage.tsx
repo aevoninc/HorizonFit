@@ -255,7 +255,7 @@ export const HomePage: React.FC = () => {
                   DR.M.JABAARRUL
                 </h2>
                 <p className="mb-6 text-secondary-foreground/80">
-                  With over 15 years of experience in sports medicine and fitness coaching, Dr. Mitchell has helped thousands of clients achieve their health goals through personalized programs.
+                  With over 15 years of experience in sports medicine and fitness coaching, DR.M.JABAARRUL has helped thousands of clients achieve their health goals through personalized programs.
                 </p>
                 <div className="mb-8 grid grid-cols-3 gap-4">
                   <div className="text-center">

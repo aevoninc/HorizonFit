@@ -70,9 +70,9 @@ const getNormalPlanProgress = async (req, res) => {
     const lastMetricsDate = latestMetrics?.loggedAt;
     const daysSinceLastMetrics = lastMetricsDate
       ? Math.floor(
-          (Date.now() - new Date(lastMetricsDate).getTime()) /
-            (24 * 60 * 60 * 1000)
-        )
+        (Date.now() - new Date(lastMetricsDate).getTime()) /
+        (24 * 60 * 60 * 1000)
+      )
       : 999;
 
     // They can enter if it's been 7 days AND they are not at the end of the program
@@ -114,26 +114,26 @@ const getNormalPlanProgress = async (req, res) => {
       latestMetrics,
       recommendations: recommendations
         ? {
-            ...recommendations.toObject(),
-            dailyCalories:
-              recommendations.doctorOverride?.dailyCalories ||
-              recommendations.dailyCalories,
-            waterIntake:
-              recommendations.doctorOverride?.waterIntake ||
-              recommendations.waterIntake,
-            sleepDuration:
-              recommendations.doctorOverride?.sleepDuration ||
-              recommendations.sleepDuration,
-            exerciseMinutes:
-              recommendations.doctorOverride?.exerciseMinutes ||
-              recommendations.exerciseMinutes,
-            exerciseType:
-              recommendations.doctorOverride?.exerciseType ||
-              recommendations.exerciseType,
-            meditationMinutes:
-              recommendations.doctorOverride?.meditationMinutes ||
-              recommendations.meditationMinutes,
-          }
+          ...recommendations.toObject(),
+          dailyCalories:
+            recommendations.doctorOverride?.dailyCalories ||
+            recommendations.dailyCalories,
+          waterIntake:
+            recommendations.doctorOverride?.waterIntake ||
+            recommendations.waterIntake,
+          sleepDuration:
+            recommendations.doctorOverride?.sleepDuration ||
+            recommendations.sleepDuration,
+          exerciseMinutes:
+            recommendations.doctorOverride?.exerciseMinutes ||
+            recommendations.exerciseMinutes,
+          exerciseType:
+            recommendations.doctorOverride?.exerciseType ||
+            recommendations.exerciseType,
+          meditationMinutes:
+            recommendations.doctorOverride?.meditationMinutes ||
+            recommendations.meditationMinutes,
+        }
         : null,
       weeklyLogs,
       totalWeeksCompleted: normalPlanPatient.totalWeeksCompleted || 0,
@@ -164,7 +164,7 @@ const checkVideoCompletion = async (req, res) => {
 
     const zoneProgress = await PatientZoneProgress.findOne({
       patientId,
-      zoneNumber: User.currentZone,
+      zoneNumber: normalPlanPatient?.currentZone || 1,
     });
 
     const allVideosWatched = zoneProgress?.videosCompleted || false;
@@ -210,7 +210,7 @@ const canEnterMetrics = async (req, res) => {
     if (lastMetrics) {
       const daysSince = Math.floor(
         (Date.now() - new Date(lastMetrics.loggedAt).getTime()) /
-          (24 * 60 * 60 * 1000)
+        (24 * 60 * 60 * 1000)
       );
 
       if (daysSince < 7) {
@@ -272,7 +272,7 @@ const submitBodyMetrics = async (req, res) => {
     if (lastMetrics) {
       const daysSince = Math.floor(
         (Date.now() - new Date(lastMetrics.dateRecorded).getTime()) /
-          (24 * 60 * 60 * 1000)
+        (24 * 60 * 60 * 1000)
       );
 
       if (daysSince < 7) {
