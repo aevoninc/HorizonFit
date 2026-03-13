@@ -57,20 +57,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const storedRole = sessionStorage.getItem("userRole") as UserRole;
         const storedUser = sessionStorage.getItem("user");
         const storedPlanTier = sessionStorage.getItem("planTier") as PlanTier;
+        const hasToken = !!localStorage.getItem("accessToken");
 
-        if (storedRole && storedUser) {
-          // 1. SET STATE IMMEDIATELY (Don't wait for API)
-          const parsedUser = JSON.parse(storedUser);
-          setRole(storedRole);
-          setUser(parsedUser);
-          setPlanTier(storedPlanTier);
-          // 2. Then validate tokens in the background
-          await authApi.refreshToken();
+        console.log("AuthProvider: Initializing Auth...", { storedRole, hasToken });
+
+        if (hasToken || (storedRole && storedUser)) {
+          // 1. SET STATE IMMEDIATELY (Optimistic restore)
+          if (storedRole && storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            setRole(storedRole);
+            setUser(parsedUser);
+            setPlanTier(storedPlanTier);
+            console.log("AuthProvider: Restored state from storage", { role: storedRole, user: parsedUser.email });
+          }
+
+          // 2. VERIFY with backend (High fidelity check)
+          try {
+            const response = await authApi.getMe();
+            console.log("AuthProvider: Session verified via /me", response.data);
+            // Update state with fresh data from server
+            const { user: backendUser, role: userRole, planTier: backendPlanTier } = response.data;
+            const userData = {
+              id: backendUser._id,
+              email: backendUser.email,
+              name: backendUser.name || "User",
+            };
+            setUser(userData);
+            setRole(userRole);
+            setPlanTier(backendPlanTier);
+
+            // Sync storage
+            sessionStorage.setItem("userRole", userRole);
+            sessionStorage.setItem("user", JSON.stringify(userData));
+            sessionStorage.setItem("planTier", backendPlanTier);
+          } catch (meError) {
+            console.warn("AuthProvider: /me verification failed, attempting refresh", meError);
+            // 3. Attempt refresh if /me fails (e.g. accessToken expired but refreshToken still valid)
+            await authApi.refreshToken();
+            const retryResponse = await authApi.getMe();
+            console.log("AuthProvider: Session restored after refresh", retryResponse.data);
+          }
         }
       } catch (error) {
         console.error("Session restoration failed", error);
         // Only clear if the refresh actually fails
         sessionStorage.clear();
+        localStorage.clear();
         setRole(null);
         setUser(null);
         setPlanTier(null);
@@ -84,8 +116,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const login = useCallback(async (email: string, password: string) => {
     try {
+      console.log("AuthProvider: Attempting login for", email);
       const response = await authApi.login(email, password);
-      const { user: backendUser, role: userRole, planTier } = response.data;
+      console.log("AuthProvider: Login result", response.data);
+      const { user: backendUser, role: userRole, planTier, accessToken, refreshToken } = response.data;
 
       const userData = {
         id: backendUser._id,
@@ -96,6 +130,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(userData);
       setRole(userRole);
       setPlanTier(planTier);
+
+      // Save for next session
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+
       sessionStorage.setItem("planTier", planTier);
       sessionStorage.setItem("userRole", userRole);
       sessionStorage.setItem("user", JSON.stringify(userData));
@@ -103,6 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return { success: true, role: userRole };
     } catch (error: any) {
       setUser(null);
+      localStorage.clear();
       // Re-throw so the UI can catch and display specific server errors
       throw error;
     }
@@ -120,6 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // 2. Clear storage
       sessionStorage.clear();
+      localStorage.clear();
 
       // 3. Force redirect to clear any stuck React memory/states
       window.location.href = "/auth";
@@ -134,8 +175,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Session expired - clear everything
       setUser(null);
       setRole(null);
-      sessionStorage.removeItem("userRole");
-      sessionStorage.removeItem("user");
+      sessionStorage.clear();
+      localStorage.clear();
       return false;
     }
   }, []);

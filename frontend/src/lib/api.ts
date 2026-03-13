@@ -28,6 +28,18 @@ const processQueue = (error: Error | null) => {
   failedQueue = [];
 };
 
+// Request interceptor to attach Bearer token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -51,12 +63,23 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await api.get('/auth/refresh-token');
+        const refreshToken = localStorage.getItem('refreshToken');
+        const response = await api.get('/auth/refresh-token', {
+          headers: {
+            'Cookie': `refreshToken=${refreshToken}` // Note: This only works if backend STILL checks cookies, or we change backend to accept refreshToken in header/body
+          }
+        });
+
+        const { accessToken } = response.data;
+        if (accessToken) {
+          localStorage.setItem('accessToken', accessToken);
+        }
+
         processQueue(null);
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError as Error);
-        // Refresh failed - clean up and bounce to login
+        localStorage.clear();
         sessionStorage.clear();
         window.location.href = '/auth';
         return Promise.reject(refreshError);
@@ -188,10 +211,13 @@ export const authApi = {
     api.post<{
       role: 'Patient' | 'Doctor';
       planTier: 'normal' | 'premium';
-      user: { _id: string; email: string; name: string }
+      user: { _id: string; email: string; name: string };
+      accessToken: string;
+      refreshToken: string;
     }>('/auth/login', { email, password }),
   logout: () => api.post('/auth/logout'),
   refreshToken: () => api.get('/auth/refresh-token'),
+  getMe: () => api.get('/auth/me'),
 };
 
 // Public API

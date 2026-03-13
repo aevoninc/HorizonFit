@@ -67,6 +67,7 @@ const createPatient = asyncHandler(async (req, res) => {
       password,
       mobileNumber,
       role: "Patient",
+      planTier: "normal", // Default to normal for manual creation
       assignedCategory,
       programStartDate: programStartDate || new Date(),
     });
