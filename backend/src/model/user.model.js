@@ -100,7 +100,7 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
 UserSchema.methods.generateAccessToken = function () {
   return jwt.sign(
     {
-      _id: this._id,
+      userId: this._id,
       name: this.name,
       email: this.email,
       role: this.role,

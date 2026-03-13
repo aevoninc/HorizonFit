@@ -3,6 +3,21 @@ import User from "../model/user.model.js";
 import jwt from "jsonwebtoken";
 import RefreshToken from "../model/refreshToken.model.js";
 
+// Helper to parse expiry string like '15m' or '30d' into milliseconds
+const parseExpiry = (expiryStr, defaultMs) => {
+  if (!expiryStr) return defaultMs;
+  // Strip quotes and whitespace if any remain
+  const cleanStr = expiryStr.toString().replace(/['"]/g, "").trim();
+  const value = parseInt(cleanStr, 10);
+  if (isNaN(value)) return defaultMs;
+
+  if (cleanStr.endsWith("d")) return value * 24 * 60 * 60 * 1000;
+  if (cleanStr.endsWith("m")) return value * 60 * 1000;
+  if (cleanStr.endsWith("h")) return value * 60 * 60 * 1000;
+  if (cleanStr.endsWith("s")) return value * 1000;
+  return value; // Assume ms if no suffix
+};
+
 const generateAccessToken = (userId, role) => {
   return jwt.sign(
     { userId, role },
@@ -24,30 +39,28 @@ const setTokens = async (res, userId, role, planTier) => {
   const accessToken = generateAccessToken(userId, role, planTier);
   const refreshToken = generateRefreshToken(userId);
 
-  // Define expiry times in milliseconds
-  const ACCESS_MINUTES =
-    parseInt(process.env.JWT_ACCESS_SECRET_EXPIRY, 10) || 30;
-  const REFRESH_DAYS =
-    parseInt(process.env.JWT_REFRESH_SECRET_EXPIRY, 10) || 30;
-  const maxAgeAccess = ACCESS_MINUTES * 60 * 60 * 1000; // 15 minutes
-  const maxAgeRefresh = REFRESH_DAYS * 24 * 60 * 60 * 1000; // 30 days
+  const isProd = process.env.NODE_ENV?.trim().toLowerCase() === "production";
+
+  const maxAgeAccess = parseExpiry(process.env.JWT_ACCESS_SECRET_EXPIRY, 15 * 60 * 1000);
+  const maxAgeRefresh = parseExpiry(process.env.JWT_REFRESH_SECRET_EXPIRY, 30 * 24 * 60 * 60 * 1000);
+
   // 2. SET ACCESS TOKEN COOKIE (Short-Lived)
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
     maxAge: maxAgeAccess,
   });
 
   // 3. SET REFRESH TOKEN COOKIE (Long-Lived)
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
     maxAge: maxAgeRefresh,
   });
 
-  return { accessToken, refreshToken }; // Returns tokens (the Access Token is often returned in the body for frontend convenience)
+  return { accessToken, refreshToken };
 };
 
 const authLogin = asyncHandler(async (req, res) => {
@@ -81,12 +94,8 @@ const authLogin = asyncHandler(async (req, res) => {
       ipAddress,
       expiresAt: new Date(
         Date.now() +
-        parseInt(process.env.JWT_REFRESH_SECRET_EXPIRY, 10) *
-        24 *
-        60 *
-        60 *
-        1000
-      ), // Matches cookie maxAge
+        parseExpiry(process.env.JWT_REFRESH_SECRET_EXPIRY, 30 * 24 * 60 * 60 * 1000)
+      ),
     });
 
     res.json({
@@ -97,8 +106,9 @@ const authLogin = asyncHandler(async (req, res) => {
       },
       role: user.role,
       planTier: user.planTier || "normal",
+      accessToken,
+      refreshToken,
       message: "Login successful.",
-      // accessToken: accessToken // Keep this only if frontend needs it for non-cookie requests
     });
   } else {
     res.status(401).json({ message: "Invalid email or password." });
@@ -116,10 +126,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     // 1. Check if the token exists in the database
     const storedToken = await RefreshToken.findOne({ token: refreshToken });
     if (!storedToken) {
-      // Token is invalid/revoked/expired from DB
-      return res
-        .status(403)
-        .json({ message: "Revoked or invalid refresh token." });
+      return res.status(403).json({ message: "Revoked or invalid refresh token." });
     }
 
     // 2. Verify the JWT signature
@@ -127,14 +134,21 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
     // 3. Find user and issue new Access Token
     const user = await User.findById(decoded.userId).select("role");
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
     const newAccessToken = generateAccessToken(user._id, user.role);
 
-    // 4. Set the new Access Token cookie
+    // 4. Set the new Access Token cookie (use same robust logic)
+    const isProd = process.env.NODE_ENV?.trim().toLowerCase() === "production";
+    const maxAgeAccess = parseExpiry(process.env.JWT_ACCESS_SECRET_EXPIRY, 15 * 60 * 1000);
+
     res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 15 * 60 * 1000,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      maxAge: maxAgeAccess,
     });
 
     res.status(200).json({
@@ -142,35 +156,48 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       accessToken: newAccessToken,
     });
   } catch (error) {
+    console.error("Refresh token error:", error);
     res.status(403).json({ message: "Invalid or expired refresh token." });
   }
 });
 
 const logoutUser = asyncHandler(async (req, res) => {
   const refreshToken = req.cookies.refreshToken;
-  // 1. Invalidate the Refresh Token in the database (CRITICAL STEP)
   if (refreshToken) {
-    // Since the RefreshToken model stores the raw token, we can delete it directly.
     await RefreshToken.deleteOne({ token: refreshToken });
   }
 
-  // 2. Clear the Access Token cookie in the browser
-  res.cookie("accessToken", "", {
-    httpOnly: true,
-    expires: new Date(0),
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  });
+  const isProd = process.env.NODE_ENV?.trim().toLowerCase() === "production";
 
-  // 3. Clear the Refresh Token cookie in the browser
-  res.cookie("refreshToken", "", {
+  const clearCookieOptions = {
     httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
     expires: new Date(0),
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  });
+  };
+
+  res.cookie("accessToken", "", clearCookieOptions);
+  res.cookie("refreshToken", "", clearCookieOptions);
 
   res.status(200).json({ message: "User logged out successfully." });
 });
 
-export { authLogin, refreshAccessToken, logoutUser };
+const getMe = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  res.status(200).json({
+    user: {
+      _id: user._id,
+      email: user.email,
+      name: user.name,
+    },
+    role: user.role,
+    planTier: user.planTier || "normal",
+  });
+});
+
+export { authLogin, refreshAccessToken, logoutUser, getMe };
