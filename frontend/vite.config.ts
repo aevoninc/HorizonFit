@@ -5,7 +5,7 @@ import path from "path";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   // 1. Tell Vite to look for files in the same folder (fixes blank page)
-  base: "./",
+  base: "/",
 
   server: {
     host: "::",

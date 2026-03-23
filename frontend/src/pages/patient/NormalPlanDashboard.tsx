@@ -92,43 +92,43 @@ export const NormalPlanDashboard: React.FC = () => {
     }
   };
 
-const fetchProgress = useCallback(async () => {
-  try {
-    setLoading(true);
-    const response = await normalPlanPatientApi.getProgress();
-    const progressData = response.data;
+  const fetchProgress = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await normalPlanPatientApi.getProgress();
+      const progressData = response.data;
 
-    const zoneToFetch = progressData.currentZone; // ✅ source of truth
+      const zoneToFetch = progressData.currentZone; // ✅ source of truth
 
-    const tasksResponse = await patientApi.getZoneTasks(zoneToFetch);
-    console.log(tasksResponse);
-    const updatedZones = progressData.zones.map((zone) =>
-      zone.zoneNumber === zoneToFetch
-        ? {
+      const tasksResponse = await patientApi.getZoneTasks(zoneToFetch);
+      console.log(tasksResponse);
+      const updatedZones = progressData.zones.map((zone) =>
+        zone.zoneNumber === zoneToFetch
+          ? {
             ...zone,
             diyTasks: tasksResponse.data.task.map((task: any) => ({
               ...task,
               isCompleted: task.status === "Completed",
             })),
           }
-        : zone,
-    );
+          : zone,
+      );
 
-    setProgress({ ...progressData, zones: updatedZones });
-    setCurrentZone(zoneToFetch); // update UI AFTER
-    setCanEnterMetrics(progressData.canEnterMetrics);
-    setDaysUntilNextMetrics(progressData.daysUntilNextMetrics);
-  } catch (error: any) {
-    toast({
-      title: "Error",
-      description:
-        error.response?.data?.message || "Failed to load your progress.",
-      variant: "destructive",
-    });
-  } finally {
-    setLoading(false);
-  }
-}, [toast]);
+      setProgress({ ...progressData, zones: updatedZones });
+      setCurrentZone(zoneToFetch); // update UI AFTER
+      setCanEnterMetrics(progressData.canEnterMetrics);
+      setDaysUntilNextMetrics(progressData.daysUntilNextMetrics);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to load your progress.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
 
   useEffect(() => {
@@ -151,10 +151,10 @@ const fetchProgress = useCallback(async () => {
         setProgress((prev) =>
           prev
             ? {
-                ...prev,
-                latestMetrics: response.data.metrics,
-                recommendations: response.data.recommendations,
-              }
+              ...prev,
+              latestMetrics: response.data.metrics,
+              recommendations: response.data.recommendations,
+            }
             : null,
         );
 
@@ -285,35 +285,35 @@ const fetchProgress = useCallback(async () => {
     );
   }
 
-  if (!progress) {
-    return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-lg font-medium text-muted-foreground">
-          Unable to load your progress
-        </p>
-        <Button onClick={fetchProgress} variant="outline" className="mt-4">
-          Try Again
-        </Button>
-      </div>
-    );
-  }
-  const zones = progress?.zones ?? [];
+  const safeProgress = progress ?? {
+    zones: [],
+    currentZone: 1,
+    programCompleted: false,
+    latestMetrics: null,
+    recommendations: null,
+    weeklyLogs: [],
+    totalWeeksCompleted: 0,
+    canEnterMetrics: false,
+    daysUntilNextMetrics: 0,
+    patientId: null,
+  };
 
-  const currentZoneData = progress.zones.find(
+  const zones = safeProgress.zones;
+
+  const currentZoneData = safeProgress.zones.find(
     (z) => z.zoneNumber === currentZone,
   );
 
   const completedTasks =
     currentZoneData?.diyTasks?.filter((t) => t.isCompleted).length ?? 0;
 
-  const totalTasks = currentZoneData?.diyTasks.length || 0;
+  const totalTasks = currentZoneData?.diyTasks?.length || 0;
   const canSubmitLog =
-    currentZoneData?.videosCompleted && progress.latestMetrics;
+    currentZoneData?.videosCompleted && safeProgress.latestMetrics;
 
-    console.log(progress);
+  console.log(safeProgress);
   // Program Completed Screen
-  if (progress.programCompleted) {
+  if (safeProgress.programCompleted) {
     return (
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
@@ -383,39 +383,38 @@ const fetchProgress = useCallback(async () => {
         </h3>
         <ScrollArea className="w-full whitespace-nowrap">
           <div className="flex gap-3 pb-2">
-{zones.map((zone) => {
-  const isCurrent = zone.zoneNumber === currentZone;
+            {zones.map((zone) => {
+              const isCurrent = zone.zoneNumber === currentZone;
 
-  return (
-    <button
-      key={zone.zoneNumber}
-      disabled={!isCurrent}
-      className={`relative flex flex-col items-center gap-2 rounded-xl border p-4 min-w-[100px]
-        ${
-          isCurrent
-            ? "border-secondary bg-secondary/10 shadow-teal"
-            : "cursor-not-allowed border-border/50 bg-muted/50 opacity-50"
-        }`}
-    >
-      <div
-        className={`flex h-10 w-10 items-center justify-center rounded-full
+              return (
+                <button
+                  key={zone.zoneNumber}
+                  disabled={!isCurrent}
+                  className={`relative flex flex-col items-center gap-2 rounded-xl border p-4 min-w-[100px]
+        ${isCurrent
+                      ? "border-secondary bg-secondary/10 shadow-teal"
+                      : "cursor-not-allowed border-border/50 bg-muted/50 opacity-50"
+                    }`}
+                >
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-full
           ${isCurrent ? "gradient-phoenix" : "bg-muted"}`}
-      >
-        {isCurrent ? (
-          <span className="font-bold text-primary-foreground">
-            {zone.zoneNumber}
-          </span>
-        ) : (
-          <Lock className="h-5 w-5 text-muted-foreground" />
-        )}
-      </div>
+                  >
+                    {isCurrent ? (
+                      <span className="font-bold text-primary-foreground">
+                        {zone.zoneNumber}
+                      </span>
+                    ) : (
+                      <Lock className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
 
-      <span className="text-sm font-medium text-foreground">
-        {zone.zoneName}
-      </span>
-    </button>
-  );
-})}
+                  <span className="text-sm font-medium text-foreground">
+                    {zone.zoneName}
+                  </span>
+                </button>
+              );
+            })}
 
           </div>
           <ScrollBar orientation="horizontal" />
@@ -468,7 +467,7 @@ const fetchProgress = useCallback(async () => {
           <MetricsInputCard
             currentZone={currentZone}
             onSubmit={handleMetricsSubmit}
-            latestMetrics={progress.latestMetrics}
+            latestMetrics={safeProgress.latestMetrics}
             videosCompleted={currentZoneData?.videosCompleted}
             canEnterMetrics={canEnterMetrics}
             daysUntilNextEntry={daysUntilNextMetrics}
@@ -476,8 +475,8 @@ const fetchProgress = useCallback(async () => {
           />
 
           {/* Recommendations */}
-          {progress.recommendations ? (
-            <RecommendationsCard recommendations={progress.recommendations} />
+          {safeProgress.recommendations ? (
+            <RecommendationsCard recommendations={safeProgress.recommendations} />
           ) : (
             <Card className="card-elevated">
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -503,33 +502,43 @@ const fetchProgress = useCallback(async () => {
 
         {/* Tasks Tab */}
         <TabsContent value="tasks">
-          {currentZoneData?.isUnlocked && currentZoneData?.diyTasks?.length ? (
+          {/* {currentZoneData?.isUnlocked && currentZoneData?.diyTasks?.length ? ( */}
             <DIYTasksList
-              tasks={currentZoneData.diyTasks}
+              tasks={currentZoneData?.diyTasks?.length ? currentZoneData.diyTasks : []}
               onTaskToggle={(taskId) => {
                 const updatedTasks = currentZoneData.diyTasks.map((task) =>
                   task._id === taskId
                     ? {
-                        ...task,
-                        isCompleted: !task.isCompleted,
-                        status: !task.isCompleted ? "Completed" : "Pending",
-                      }
+                      ...task,
+                      isCompleted: !task.isCompleted,
+                      status: !task.isCompleted ? "Completed" : "Pending",
+                    }
                     : task,
                 );
                 handleTasksUpdate(updatedTasks);
               }}
-              zoneName={currentZoneData.zoneName}
+              zoneName={currentZoneData?.zoneName || ""}
+              onTaskAdded={fetchProgress}
             />
-          ) : (
-            <Card className="card-elevated">
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Lock className="h-12 w-12 text-muted-foreground" />
-                <p className="mt-4 font-medium text-muted-foreground">
-                  Complete previous zones to unlock tasks
-                </p>
-              </CardContent>
-            </Card>
-          )}
+          {/* // ) : ( */}
+            {/* <DIYTasksList
+              tasks={[]}
+              onTaskToggle={(taskId) => {
+                const updatedTasks = currentZoneData.diyTasks.map((task) =>
+                  task._id === taskId
+                    ? {
+                      ...task,
+                      isCompleted: !task.isCompleted,
+                      status: !task.isCompleted ? "Completed" : "Pending",
+                    }
+                    : task,
+                );
+                handleTasksUpdate(updatedTasks);
+              }}
+              zoneName={currentZoneData?.zoneName || ""}
+              onTaskAdded={fetchProgress}
+            /> */}
+          {/* )} */}
         </TabsContent>
 
         {/* Daily Log Tab */}
@@ -556,9 +565,9 @@ const fetchProgress = useCallback(async () => {
         <TabsContent value="weekly">
           <WeeklyLogForm
             currentZone={currentZone}
-            currentWeek={progress.totalWeeksCompleted + 1}
-            lastLog={progress.weeklyLogs[progress.weeklyLogs.length - 1]}
-            latestMetrics={progress.latestMetrics}
+            currentWeek={safeProgress.totalWeeksCompleted + 1}
+            lastLog={safeProgress.weeklyLogs[safeProgress.weeklyLogs.length - 1]}
+            latestMetrics={safeProgress.latestMetrics}
             completedTasks={completedTasks}
             totalTasks={totalTasks}
             onSubmit={handleWeeklyLogSubmit}

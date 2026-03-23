@@ -281,7 +281,9 @@ export const doctorApi = {
 export const patientApi = {
   // Zone Tasks
   getZoneTasks: (zoneNumber: number) => api.get<ZoneTask>(`/patients/get-zone-task/${zoneNumber}`),
-  logTaskCompletion: (taskId: string) => api.post(`/patients/logTaskCompletion`, taskId),
+  logTaskCompletion: (data: { taskIds: string[], completionDate: string }) => api.post(`/patients/logTaskCompletion`, data),
+  allocateTasks: (tasks: Omit<Task, 'id' | 'status'>[]) => api.post(`/patients/allocate-tasks`, { tasks }),
+  deleteTask: (taskId: string) => api.delete(`/patients/tasks/${taskId}`),
 
   // Progress
   getProgress: () => api.get<PatientProgress>('/patients/getPatientProgress'),

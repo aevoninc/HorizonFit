@@ -9,14 +9,28 @@ import {
   PartyPopper,
   ArrowRight,
   Calendar,
+  Plus,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { TaskFormModal, TaskFormData } from "../doctor/TaskFormModal";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { patientApi, ZoneTask, Task } from "@/lib/api";
+import { patientApi, doctorApi, ZoneTask, Task } from "@/lib/api";
 import { AxiosError } from "axios";
 
 interface ZoneState {
@@ -54,6 +68,22 @@ export const PatientTasksPage: React.FC = () => {
   const [nextRequiredZone, setNextRequiredZone] = useState<number | null>(null);
   const [programCompleted, setProgramCompleted] = useState(false);
   const [loggingTaskId, setLoggingTaskId] = useState<string | null>(null);
+
+  // Add Task Modal State
+  const { user } = useAuth();
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [taskFormData, setTaskFormData] = useState<TaskFormData>({
+    description: "",
+    programWeek: 1,
+    zone: 1,
+    frequency: "SpecificDays",
+    daysApplicable: ["Mon"],
+    timeOfDay: "Morning",
+  });
+
   const { toast } = useToast();
 
   const fetchZoneTasks = useCallback(async (zoneNumber: number) => {
@@ -87,11 +117,11 @@ export const PatientTasksPage: React.FC = () => {
           prev.map((z) =>
             z.zone === zoneNumber
               ? {
-                  ...z,
-                  accessible: false,
-                  loading: false,
-                  error: `Zone locked. Complete Zone ${next} first.`,
-                }
+                ...z,
+                accessible: false,
+                loading: false,
+                error: `Zone locked. Complete Zone ${next} first.`,
+              }
               : z
           )
         );
@@ -218,6 +248,86 @@ export const PatientTasksPage: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+
+  const handleAddTaskSubmit = async () => {
+    if (!taskFormData.description || taskFormData.daysApplicable.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide a description and select at least one day.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsAddingTask(true);
+      const taskPayload = {
+        title: taskFormData.description,
+        category: "General Health",
+        description: taskFormData.description.trim(),
+        zone: taskFormData.zone,
+        programWeek: taskFormData.programWeek,
+        daysApplicable: taskFormData.daysApplicable,
+        frequency: taskFormData.frequency,
+        timeOfDay: taskFormData.timeOfDay,
+        metricRequired: null as any,
+      };
+
+      await patientApi.allocateTasks([taskPayload]);
+
+      toast({
+        title: "Task Added",
+        description: `Successfully added task: ${taskFormData.description}`,
+      });
+
+      setIsAddTaskOpen(false);
+
+      // Optionally reset form
+      setTaskFormData(prev => ({
+        ...prev,
+        description: "",
+      }));
+
+      // Refresh both program completion and current zone
+      checkProgramCompletion();
+      fetchZoneTasks(activeZone);
+
+    } catch (error: any) {
+      console.error("Failed to add task:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to add task. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingTask(false);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!taskToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      await patientApi.deleteTask(taskToDelete);
+      toast({
+        title: "Task Deleted",
+        description: "The task was successfully removed.",
+      });
+      setTaskToDelete(null);
+      fetchZoneTasks(activeZone);
+      checkProgramCompletion();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to delete task.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const currentZone = zones.find((z) => z.zone === activeZone);
   // Extract the flat task array from your backend response
   const allTasks = currentZone?.data?.task || [];
@@ -325,11 +435,25 @@ export const PatientTasksPage: React.FC = () => {
       className="space-y-6"
     >
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">My Tasks</h1>
-        <p className="mt-1 text-muted-foreground">
-          Complete your daily tasks to progress through zones
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">My Tasks</h1>
+          <p className="mt-1 text-muted-foreground">
+            Complete your daily tasks to progress through zones
+          </p>
+        </div>
+        <Button variant="teal" onClick={() => {
+          setTaskFormData(prev => ({
+            ...prev,
+            zone: activeZone,
+            programWeek: activeWeek,
+            daysApplicable: [dayNames[activeDay] || "Mon"]
+          }));
+          setIsAddTaskOpen(true);
+        }}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Task
+        </Button>
       </div>
 
       {/* Overall Progress */}
@@ -368,22 +492,20 @@ export const PatientTasksPage: React.FC = () => {
                 key={zone.zone}
                 onClick={() => handleZoneClick(zone)}
                 disabled={zone.loading}
-                className={`relative flex flex-col items-center gap-2 rounded-xl border p-4 transition-all duration-200 min-w-[100px] ${
-                  zone.accessible
-                    ? activeZone === zone.zone
-                      ? "border-secondary bg-secondary/10 shadow-teal"
-                      : "border-border bg-card hover:border-secondary/50 hover:shadow-sm"
-                    : "cursor-not-allowed border-border/50 bg-muted/50 opacity-60"
-                }`}
+                className={`relative flex flex-col items-center gap-2 rounded-xl border p-4 transition-all duration-200 min-w-[100px] ${zone.accessible
+                  ? activeZone === zone.zone
+                    ? "border-secondary bg-secondary/10 shadow-teal"
+                    : "border-border bg-card hover:border-secondary/50 hover:shadow-sm"
+                  : "cursor-not-allowed border-border/50 bg-muted/50 opacity-60"
+                  }`}
               >
                 <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                    zone.accessible
-                      ? activeZone === zone.zone
-                        ? "gradient-phoenix"
-                        : "bg-secondary/20"
-                      : "bg-muted"
-                  }`}
+                  className={`flex h-10 w-10 items-center justify-center rounded-full ${zone.accessible
+                    ? activeZone === zone.zone
+                      ? "gradient-phoenix"
+                      : "bg-secondary/20"
+                    : "bg-muted"
+                    }`}
                 >
                   {zone.loading ? (
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -451,25 +573,23 @@ export const PatientTasksPage: React.FC = () => {
                   <button
                     key={day}
                     onClick={() => setActiveDay(index)}
-                    className={`relative flex flex-col items-center gap-1 rounded-lg border px-4 py-3 transition-all duration-200 min-w-[60px] ${
-                      activeDay === index
-                        ? "border-secondary bg-secondary/10 shadow-sm"
-                        : "border-border bg-card hover:border-secondary/50"
-                    }`}
+                    className={`relative flex flex-col items-center gap-1 rounded-lg border px-4 py-3 transition-all duration-200 min-w-[60px] ${activeDay === index
+                      ? "border-secondary bg-secondary/10 shadow-sm"
+                      : "border-border bg-card hover:border-secondary/50"
+                      }`}
                   >
                     <span className="text-sm font-medium text-foreground">
                       {day}
                     </span>
                     <div
-                      className={`h-2 w-2 rounded-full ${
-                        status === "Completed"
-                          ? "bg-green-500"
-                          : status === "partial"
+                      className={`h-2 w-2 rounded-full ${status === "Completed"
+                        ? "bg-green-500"
+                        : status === "partial"
                           ? "bg-yellow-500"
                           : status === "pending"
-                          ? "bg-red-400"
-                          : "bg-muted"
-                      }`}
+                            ? "bg-red-400"
+                            : "bg-muted"
+                        }`}
                     />
                   </button>
                 );
@@ -526,13 +646,12 @@ export const PatientTasksPage: React.FC = () => {
                         transition={{ duration: 0.2 }}
                       >
                         <Card
-                          className={`group relative overflow-hidden transition-all duration-300 border-l-4 ${
-                            isCompleted
-                              ? "bg-slate-50/80 border-l-green-500 opacity-75"
-                              : task.timeOfDay === "Morning"
+                          className={`group relative overflow-hidden transition-all duration-300 border-l-4 ${isCompleted
+                            ? "bg-slate-50/80 border-l-green-500 opacity-75"
+                            : task.timeOfDay === "Morning"
                               ? "border-l-amber-400 shadow-sm hover:shadow-md"
                               : "border-l-indigo-400 shadow-sm hover:shadow-md"
-                          }`}
+                            }`}
                         >
                           <CardContent className="p-5">
                             <div className="flex items-start gap-5">
@@ -564,11 +683,10 @@ export const PatientTasksPage: React.FC = () => {
                                 <div className="flex flex-wrap items-center gap-2 mb-2">
                                   {/* Time Badge */}
                                   <span
-                                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                      task.timeOfDay === "Morning"
-                                        ? "bg-amber-100 text-amber-700"
-                                        : "bg-indigo-100 text-indigo-700"
-                                    }`}
+                                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${task.timeOfDay === "Morning"
+                                      ? "bg-amber-100 text-amber-700"
+                                      : "bg-indigo-100 text-indigo-700"
+                                      }`}
                                   >
                                     <Calendar className="h-3 w-3" />
                                     {task.timeOfDay}
@@ -589,11 +707,10 @@ export const PatientTasksPage: React.FC = () => {
 
                                 <label
                                   htmlFor={task._id}
-                                  className={`text-lg font-bold leading-tight block transition-colors ${
-                                    isCompleted
-                                      ? "text-slate-400 line-through"
-                                      : "text-slate-900"
-                                  }`}
+                                  className={`text-lg font-bold leading-tight block transition-colors ${isCompleted
+                                    ? "text-slate-400 line-through"
+                                    : "text-slate-900"
+                                    }`}
                                 >
                                   {task.description}
                                 </label>
@@ -613,6 +730,21 @@ export const PatientTasksPage: React.FC = () => {
                                   </div>
                                 )}
                               </div>
+
+                              {/* Delete Button (Only for self-assigned tasks) */}
+                              {task.category === "General Health" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive/50 hover:text-destructive hover:bg-destructive/10 -mt-2 -mr-2"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setTaskToDelete(task._id);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
@@ -628,18 +760,16 @@ export const PatientTasksPage: React.FC = () => {
                   className="mt-8 pt-6 border-t border-slate-100"
                 >
                   <Card
-                    className={`overflow-hidden border-none shadow-lg transition-all duration-500 ${
-                      isDayAlreadyLogged || isDayReadyForSubmit
-                        ? "bg-gradient-to-r from-teal-500 to-emerald-600"
-                        : "bg-slate-100"
-                    }`}
+                    className={`overflow-hidden border-none shadow-lg transition-all duration-500 ${isDayAlreadyLogged || isDayReadyForSubmit
+                      ? "bg-gradient-to-r from-teal-500 to-emerald-600"
+                      : "bg-slate-100"
+                      }`}
                   >
                     <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                            isDayReadyForSubmit ? "bg-white/20" : "bg-slate-200"
-                          }`}
+                          className={`h-10 w-10 rounded-full flex items-center justify-center ${isDayReadyForSubmit ? "bg-white/20" : "bg-slate-200"
+                            }`}
                         >
                           {isDayAlreadyLogged ? (
                             <CheckCircle className="text-white h-6" />
@@ -651,30 +781,28 @@ export const PatientTasksPage: React.FC = () => {
                         </div>
                         <div className="text-left">
                           <h4
-                            className={`font-bold ${
-                              isDayReadyForSubmit
-                                ? "text-white"
-                                : "text-slate-600"
-                            }`}
+                            className={`font-bold ${isDayReadyForSubmit
+                              ? "text-white"
+                              : "text-slate-600"
+                              }`}
                           >
                             {isDayAlreadyLogged
                               ? "Day Logged"
                               : isDayReadyForSubmit
-                              ? "Ready to Submit!"
-                              : "Day in Progress"}
+                                ? "Ready to Submit!"
+                                : "Day in Progress"}
                           </h4>
                           <p
-                            className={`text-xs ${
-                              isDayReadyForSubmit
-                                ? "text-white/80"
-                                : "text-slate-400"
-                            }`}
+                            className={`text-xs ${isDayReadyForSubmit
+                              ? "text-white/80"
+                              : "text-slate-400"
+                              }`}
                           >
                             {isDayAlreadyLogged
                               ? "Routine complete."
                               : isDayReadyForSubmit
-                              ? "Click the button to save."
-                              : `${pendingSelections.length} of ${currentDayTasks.length} tasks checked`}
+                                ? "Click the button to save."
+                                : `${pendingSelections.length} of ${currentDayTasks.length} tasks checked`}
                           </p>
                         </div>
                       </div>
@@ -731,8 +859,7 @@ export const PatientTasksPage: React.FC = () => {
             </h3>
             <p className="mt-2 max-w-md text-muted-foreground">
               {currentZone?.error ||
-                `Complete all tasks in Zone ${activeZone - 1} to unlock ${
-                  currentZone?.title || "this zone"
+                `Complete all tasks in Zone ${activeZone - 1} to unlock ${currentZone?.title || "this zone"
                 }.`}
             </p>
             {nextRequiredZone && (
@@ -748,6 +875,41 @@ export const PatientTasksPage: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <TaskFormModal
+        isOpen={isAddTaskOpen}
+        onClose={() => setIsAddTaskOpen(false)}
+        onSubmit={handleAddTaskSubmit}
+        isSubmitting={isAddingTask}
+        formData={taskFormData}
+        setFormData={setTaskFormData}
+        mode="add"
+      />
+
+      <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your custom task from your plan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteTask();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Delete Task
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 };

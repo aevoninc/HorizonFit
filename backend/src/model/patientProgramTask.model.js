@@ -6,7 +6,7 @@ const PatientProgramTaskSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: ["nutrition", "exercise", "hydration", "sleep", "mindset"],
+      enum: ["nutrition", "exercise", "hydration", "sleep", "mindset","General Health"],
     },
     
     title: { type: String, required: true },
@@ -40,7 +40,7 @@ const PatientProgramTaskSchema = new mongoose.Schema(
 
     metricRequired: {
       type: String,
-      enum: ["Weight Gain", "Weight Loss", null],
+      enum: ["Weight Gain", "Weight Loss",null],
       default: null,
     },
 

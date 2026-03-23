@@ -550,11 +550,11 @@ const getZoneTasks = asyncHandler(async (req, res) => {
   const requestedZone = parseInt(req.params.zoneNumber, 10);
   const MAX_ZONES = 5;
   const patient = await User.findById(patientId);
-  if(patient.currentZone != requestedZone){
-return res.status(403).json({
-  message: `You can only access your current zone (${patient.currentZone})`,
-  currentZone: patient.currentZone
-});
+  if (patient.currentZone != requestedZone) {
+    return res.status(403).json({
+      message: `You can only access your current zone (${patient.currentZone})`,
+      currentZone: patient.currentZone
+    });
   }
   // // 1. Basic validation
   // if (isNaN(requestedZone) || requestedZone < 1 || requestedZone > MAX_ZONES) {
@@ -623,6 +623,81 @@ return res.status(403).json({
 
 
 
+// @desc    Patient allocates tasks (self-assigned)
+// @route   POST /api/patient/allocate-tasks
+// @access  Private/Patient
+const allocateTasks = asyncHandler(async (req, res) => {
+  const patientId = req.user._id;
+  const { tasks } = req.body;
+
+  if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+    return res.status(400).json({ message: "No tasks provided for allocation." });
+  }
+
+  const tasksToInsert = [];
+
+  tasks.forEach((task) => {
+    if (task.daysApplicable && Array.isArray(task.daysApplicable) && task.daysApplicable.length > 0) {
+      task.daysApplicable.forEach((day) => {
+        tasksToInsert.push({
+          patientId,
+          title: task.title || task.name,
+          category: task.category || "General Health",
+          description: task.description,
+          zone: task.zone,
+          programWeek: task.programWeek,
+          frequency: task.frequency,
+          daysApplicable: [day],
+          timeOfDay: task.timeOfDay,
+          metricRequired: task.metricRequired || null,
+          status: "Pending",
+          dateAssigned: new Date(),
+        });
+      });
+    } else {
+      tasksToInsert.push({
+        patientId,
+        title: task.title || task.name,
+        category: task.category || "General Health",
+        description: task.description,
+        zone: task.zone,
+        programWeek: task.programWeek,
+        frequency: task.frequency,
+        daysApplicable: [],
+        timeOfDay: task.timeOfDay,
+        metricRequired: task.metricRequired || null,
+        status: "Pending",
+        dateAssigned: new Date(),
+      });
+    }
+  });
+
+  const insertedTasks = await PatientProgramTask.insertMany(tasksToInsert);
+
+  res.status(201).json({
+    message: "Tasks allocated successfully.",
+    tasksAssigned: insertedTasks.length,
+  });
+});
+
+// @desc    Patient deletes self-assigned task
+// @route   DELETE /api/patient/tasks/:taskId
+// @access  Private/Patient
+const deleteTask = asyncHandler(async (req, res) => {
+  const patientId = req.user._id;
+  const { taskId } = req.params;
+
+  const task = await PatientProgramTask.findOne({ _id: taskId, patientId: patientId });
+
+  if (!task) {
+    return res.status(404).json({ message: "Task not found or you are not authorized to delete it." });
+  }
+
+  await task.deleteOne();
+
+  res.status(200).json({ success: true, message: "Task deleted successfully." });
+});
+
 export {
   logTrackingData,
   logTaskCompletion,
@@ -635,4 +710,6 @@ export {
   updatePassword,
   createOrderId,
   getZoneTasks,
+  allocateTasks,
+  deleteTask,
 };
