@@ -36,13 +36,26 @@ import {
   ThumbsDown,
   Frown,
 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, Trash2 } from "lucide-react";
 import { DIYTask } from "@/lib/normalPlanTypes";
 import { Button } from "../ui/button";
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { TaskFormModal, TaskFormData } from "../../pages/doctor/TaskFormModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { patientApi } from "@/lib/api";
 import { AxiosError } from "axios";
@@ -140,6 +153,7 @@ interface DIYTasksListProps {
   tasks: DIYTask[];
   onTaskToggle: (taskId: string) => void;
   zoneName: string;
+  onTaskAdded?: () => void;
 }
 
 interface ZoneState {
@@ -164,6 +178,7 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
   tasks,
   onTaskToggle,
   zoneName,
+  onTaskAdded,
 }) => {
   console.log(tasks);
   const completedCount = tasks.filter((t) => t.isCompleted).length;
@@ -187,8 +202,23 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
   const [loggingTaskId, setLoggingTaskId] = useState<string | null>(null);
   const [activeWeek, setActiveWeek] = useState<number>(1); // default to week 1
   const [activeDay, setActiveDay] = useState<number>(0); // default to Monday (index 0)
-  const [pendingSelections, setPendingSelections] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingSelections, setPendingSelections] = useState<string[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const { user } = useAuth();
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [taskFormData, setTaskFormData] = useState<TaskFormData>({
+    description: "",
+    programWeek: 1,
+    zone: 1,
+    frequency: "SpecificDays",
+    daysApplicable: ["Mon"],
+    timeOfDay: "Morning",
+  });
 
   const { toast } = useToast();
 
@@ -223,11 +253,11 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
           prev.map((z) =>
             z.zone === zoneNumber
               ? {
-                  ...z,
-                  accessible: false,
-                  loading: false,
-                  error: `Zone locked. Complete Zone ${next} first.`,
-                }
+                ...z,
+                accessible: false,
+                loading: false,
+                error: `Zone locked. Complete Zone ${next} first.`,
+              }
               : z,
           ),
         );
@@ -330,8 +360,82 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
         description: "Failed to log tasks.",
         variant: "destructive",
       });
-    } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleAddTaskSubmit = async () => {
+    if (!taskFormData.description || taskFormData.daysApplicable.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide a description and select at least one day.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsAddingTask(true);
+      const taskPayload = {
+        title: taskFormData.description,
+        category: "General Health",
+        description: taskFormData.description.trim(),
+        zone: taskFormData.zone,
+        programWeek: taskFormData.programWeek,
+        daysApplicable: taskFormData.daysApplicable,
+        frequency: taskFormData.frequency,
+        timeOfDay: taskFormData.timeOfDay,
+        metricRequired: null as any,
+      };
+
+      await patientApi.allocateTasks([taskPayload]);
+
+      toast({
+        title: "Task Added",
+        description: `Successfully added task: ${taskFormData.description}`,
+      });
+
+      setIsAddTaskOpen(false);
+      setTaskFormData(prev => ({
+        ...prev,
+        description: "",
+      }));
+
+      checkProgramCompletion();
+      fetchZoneTasks(activeZone);
+      onTaskAdded?.();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to add task.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingTask(false);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!taskToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      await patientApi.deleteTask(taskToDelete);
+      toast({
+        title: "Task Deleted",
+        description: "The task was successfully removed.",
+      });
+      setTaskToDelete(null);
+      fetchZoneTasks(activeZone);
+      onTaskAdded?.(); // Propagate change up to refetch entire progress if needed
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to delete task.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -461,60 +565,74 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
           className="space-y-6"
         >
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">My Tasks</h1>
-            <p className="mt-1 text-muted-foreground">
-              Complete your daily tasks to progress through zones
-            </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">My Tasks</h1>
+              <p className="mt-1 text-muted-foreground">
+                Complete your daily tasks to progress through zones
+              </p>
+            </div>
+            <Button variant="teal" onClick={() => {
+              setTaskFormData(prev => ({
+                ...prev,
+                zone: activeZone,
+                programWeek: activeWeek,
+                daysApplicable: [dayNames[activeDay] || "Mon"]
+              }));
+              setIsAddTaskOpen(true);
+            }}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Task
+            </Button>
           </div>
 
-{/* Week Navigation */}
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Select Week
-          </h3>
-          <div className="flex gap-2">
-            {[1, 2, 3].map((week) => (
-              <Button
-                key={week}
-                variant={activeWeek === week ? "teal" : "outline"}
-                onClick={() => {
-                  setActiveWeek(week);
-                  setActiveDay(0);
-                }}
-                className="flex-1"
-              >
-                Week {week}
-              </Button>
-            ))}
+          {/* Week Navigation */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              Select Week
+            </h3>
+            <div className="flex gap-2">
+              {[1, 2, 3].map((week) => (
+                <Button
+                  key={week}
+                  variant={activeWeek === week ? "teal" : "outline"}
+                  onClick={() => {
+                    setActiveWeek(week);
+                    setActiveDay(0);
+                  }}
+                  className="flex-1"
+                >
+                  Week {week}
+                </Button>
+              ))}
+            </div>
           </div>
-        </div>
 
 
-{/* Day Navigation */}
-<div className="space-y-2">
-  <h3 className="text-sm font-medium text-muted-foreground">Select Day</h3>
-  <ScrollArea className="w-full whitespace-nowrap">
-    <div className="flex gap-2">
-      {dayNames.map((day, index) => (
-        <Button
-          key={day}
-          variant={activeDay === index ? "teal" : "outline"}
-          onClick={() => setActiveDay(index)}
-        >
-          {day}
-        </Button>
-      ))}
-    </div>
-    <ScrollBar orientation="horizontal" />
-  </ScrollArea>
-</div>
+          {/* Day Navigation */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-muted-foreground">Select Day</h3>
+            <ScrollArea className="w-full whitespace-nowrap">
+              <div className="flex gap-2">
+                {dayNames.map((day, index) => (
+                  <Button
+                    key={day}
+                    variant={activeDay === index ? "teal" : "outline"}
+                    onClick={() => setActiveDay(index)}
+                  >
+                    {day}
+                  </Button>
+                ))}
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </div>
 
           {/* Mood Selection */}
 
           {/* Task List */}
           <AnimatePresence mode="wait">
-            { tasks ? (
+            {tasks ? (
               <motion.div
                 key={`${activeZone}-${activeWeek}-${activeDay}`}
                 initial={{ opacity: 0, y: 10 }}
@@ -548,13 +666,12 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
                             transition={{ duration: 0.2 }}
                           >
                             <Card
-                              className={`group relative overflow-hidden transition-all duration-300 border-l-4 ${
-                                isCompleted
-                                  ? "bg-slate-50/80 border-l-green-500 opacity-75"
-                                  : task.timeOfDay === "Morning"
-                                    ? "border-l-amber-400 shadow-sm hover:shadow-md"
-                                    : "border-l-indigo-400 shadow-sm hover:shadow-md"
-                              }`}
+                              className={`group relative overflow-hidden transition-all duration-300 border-l-4 ${isCompleted
+                                ? "bg-slate-50/80 border-l-green-500 opacity-75"
+                                : task.timeOfDay === "Morning"
+                                  ? "border-l-amber-400 shadow-sm hover:shadow-md"
+                                  : "border-l-indigo-400 shadow-sm hover:shadow-md"
+                                }`}
                             >
                               <CardContent className="p-5">
                                 <div className="flex items-start gap-5">
@@ -586,11 +703,10 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
                                     <div className="flex flex-wrap items-center gap-2 mb-2">
                                       {/* Time Badge */}
                                       <span
-                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                          task.timeOfDay === "Morning"
-                                            ? "bg-amber-100 text-amber-700"
-                                            : "bg-indigo-100 text-indigo-700"
-                                        }`}
+                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${task.timeOfDay === "Morning"
+                                          ? "bg-amber-100 text-amber-700"
+                                          : "bg-indigo-100 text-indigo-700"
+                                          }`}
                                       >
                                         <Calendar className="h-3 w-3" />
                                         {task.timeOfDay}
@@ -612,11 +728,10 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
 
                                     <label
                                       htmlFor={task._id}
-                                      className={`text-lg font-bold leading-tight block transition-colors ${
-                                        isCompleted
-                                          ? "text-slate-400 line-through"
-                                          : "text-slate-900"
-                                      }`}
+                                      className={`text-lg font-bold leading-tight block transition-colors ${isCompleted
+                                        ? "text-slate-400 line-through"
+                                        : "text-slate-900"
+                                        }`}
                                     >
                                       {task.description}
                                     </label>
@@ -636,6 +751,21 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
                                       </div>
                                     )}
                                   </div>
+
+                                  {/* Delete Button (Only for self-assigned tasks) */}
+                                  {task.category === "General Health" && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-destructive/50 hover:text-destructive hover:bg-destructive/10 -mt-2 -mr-2"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setTaskToDelete(task._id);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               </CardContent>
                             </Card>
@@ -658,23 +788,20 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
                                 setSelectedMood(mood.value);
                                 setHasChanges(true);
                               }}
-                              className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition-all ${
-                                isSelected
-                                  ? `border-primary bg-primary/10 ${mood.color}`
-                                  : "border-border hover:border-primary/50"
-                              }`}
+                              className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition-all ${isSelected
+                                ? `border-primary bg-primary/10 ${mood.color}`
+                                : "border-border hover:border-primary/50"
+                                }`}
                             >
                               <Icon
-                                className={`h-4 w-4 ${
-                                  isSelected ? "" : "text-muted-foreground"
-                                }`}
+                                className={`h-4 w-4 ${isSelected ? "" : "text-muted-foreground"
+                                  }`}
                               />
                               <span
-                                className={`text-sm ${
-                                  isSelected
-                                    ? "font-medium"
-                                    : "text-muted-foreground"
-                                }`}
+                                className={`text-sm ${isSelected
+                                  ? "font-medium"
+                                  : "text-muted-foreground"
+                                  }`}
                               >
                                 {mood.label}
                               </span>
@@ -708,20 +835,18 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
                       className="mt-8 pt-6 border-t border-slate-100"
                     >
                       <Card
-                        className={`overflow-hidden border-none shadow-lg transition-all duration-500 ${
-                          isDayAlreadyLogged || isDayReadyForSubmit
-                            ? "bg-gradient-to-r from-teal-500 to-emerald-600"
-                            : "bg-slate-100"
-                        }`}
+                        className={`overflow-hidden border-none shadow-lg transition-all duration-500 ${isDayAlreadyLogged || isDayReadyForSubmit
+                          ? "bg-gradient-to-r from-teal-500 to-emerald-600"
+                          : "bg-slate-100"
+                          }`}
                       >
                         <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
                           <div className="flex items-center gap-3">
                             <div
-                              className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                                isDayReadyForSubmit
-                                  ? "bg-white/20"
-                                  : "bg-slate-200"
-                              }`}
+                              className={`h-10 w-10 rounded-full flex items-center justify-center ${isDayReadyForSubmit
+                                ? "bg-white/20"
+                                : "bg-slate-200"
+                                }`}
                             >
                               {isDayAlreadyLogged ? (
                                 <CheckCircle className="text-white h-6" />
@@ -733,11 +858,10 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
                             </div>
                             <div className="text-left">
                               <h4
-                                className={`font-bold ${
-                                  isDayReadyForSubmit
-                                    ? "text-white"
-                                    : "text-slate-600"
-                                }`}
+                                className={`font-bold ${isDayReadyForSubmit
+                                  ? "text-white"
+                                  : "text-slate-600"
+                                  }`}
                               >
                                 {isDayAlreadyLogged
                                   ? "Day Logged"
@@ -746,11 +870,10 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
                                     : "Day in Progress"}
                               </h4>
                               <p
-                                className={`text-xs ${
-                                  isDayReadyForSubmit
-                                    ? "text-white/80"
-                                    : "text-slate-400"
-                                }`}
+                                className={`text-xs ${isDayReadyForSubmit
+                                  ? "text-white/80"
+                                  : "text-slate-400"
+                                  }`}
                               >
                                 {isDayAlreadyLogged
                                   ? "Routine complete."
@@ -813,8 +936,7 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
                 </h3>
                 <p className="mt-2 max-w-md text-muted-foreground">
                   {currentZone?.error ||
-                    `Complete all tasks in Zone ${activeZone - 1} to unlock ${
-                      currentZone?.title || "this zone"
+                    `Complete all tasks in Zone ${activeZone - 1} to unlock ${currentZone?.title || "this zone"
                     }.`}
                 </p>
                 {nextRequiredZone && (
@@ -831,7 +953,7 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
             )}
           </AnimatePresence>
         </motion.div>
-        {/* {tasks.map((task, index) => {
+        {/* {/* {tasks.map((task, index) => {
           const IconComponent = iconMap[task.icon] || CheckCircle2;
           const colors = categoryColors[task.category] || categoryColors.nutrition;
           
@@ -872,9 +994,42 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
                 <CheckCircle2 className="h-5 w-5 shrink-0 text-green-500" />
               )}
             </motion.div>
-          );
-        })} */}
+          ); */}
       </CardContent>
+      <TaskFormModal
+        isOpen={isAddTaskOpen}
+        onClose={() => setIsAddTaskOpen(false)}
+        onSubmit={handleAddTaskSubmit}
+        isSubmitting={isAddingTask}
+        formData={taskFormData}
+        setFormData={setTaskFormData}
+        mode="add"
+      />
+
+      <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your custom task from your plan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteTask();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Delete Task
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

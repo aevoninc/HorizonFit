@@ -12,6 +12,8 @@ import {
   updatePassword,
   createOrderId,
   getZoneTasks,
+  allocateTasks,
+  deleteTask,
 } from "../controllers/patient.controller.js";
 import express from "express";
 export const router = express.Router();
@@ -50,5 +52,10 @@ router.post("/create-order", createOrderId);
 
 router.get("/get-zone-task/:zoneNumber", getZoneTasks);
 
+// Allocate custom task
+router.post("/allocate-tasks", protect, isPatient, allocateTasks);
+
+// Delete custom task
+router.delete("/tasks/:taskId", protect, isPatient, deleteTask);
 
 export default router;
