@@ -1,3 +1,5 @@
+import dotenv from "dotenv";
+dotenv.config();
 import asyncHandler from "../utils/asyncHandler.js";
 import User from "../model/user.model.js";
 import ConsultationBooking from "../model/consultationBooking.model.js";
@@ -24,8 +26,6 @@ import {
   NORMAL_PROGRAM_BOOKING_PRICE,
 } from "../constants.js";
 import mongoose from "mongoose";
-import dotenv from "dotenv";
-dotenv.config();
 
 const newRequestConsultation = asyncHandler(async (req, res) => {
   const {
@@ -39,6 +39,7 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
     patientQuery,
   } = req.body;
 
+  console.log("Received consultation booking request:")
   // 1. Initial Validation
   if (!requestedDateTime || !paymentToken || !orderId || !razorpaySignature) {
     return res.status(400).json({
@@ -278,6 +279,7 @@ const programBooking = asyncHandler(async (req, res) => {
 
 const newCreateOrderId = asyncHandler(async (req, res) => {
   const { type, programType } = req.body;
+  console.log("Creating order for type:", type, "and programType:", programType);
   // 1. Define pricing (Source of Truth)
   const PRICES = {
     normal: NORMAL_PROGRAM_BOOKING_PRICE, // or NORMAL_PROGRAM_BOOKING_PRICE
