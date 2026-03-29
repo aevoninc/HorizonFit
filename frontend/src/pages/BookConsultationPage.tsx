@@ -28,7 +28,7 @@ const bookingSchema = z.object({
 type BookingFormData = z.infer<typeof bookingSchema>;
 
 const consultationTypes = [
-  { value: 'initial', label: 'Initial Assessment', price: 200, description: 'Comprehensive fitness evaluation' },
+  { value: 'initial', label: 'Initial Assessment', price: 1, description: 'Comprehensive fitness evaluation' },
   // { value: 'followup', label: 'Follow-up Session', price: 599, description: 'Progress review and adjustments' },
   // { value: 'nutrition', label: 'Nutrition Consultation', price: 799, description: 'Personalized diet planning' },
 ];
@@ -59,7 +59,7 @@ export const BookConsultationPage: React.FC = () => {
 
   const validateAndProceed = () => {
     const values = getValues();
-    
+
     // Validate date is in the future
     if (values.preferredDate) {
       const selectedDate = new Date(values.preferredDate);
@@ -72,11 +72,11 @@ export const BookConsultationPage: React.FC = () => {
         return;
       }
     }
-    
+
     setStep(2);
   };
 
-const handlePayment = async () => {
+  const handlePayment = async () => {
     const data = getValues();
     if (!isLoaded) {
       toast({ title: 'Payment Not Ready', variant: 'destructive' });
@@ -87,12 +87,10 @@ const handlePayment = async () => {
 
     try {
       // Step 1: Create Order ID
-      const orderResponse = await publicApi.createOrderId('consultation', {
-        consultationType: data.consultationType,
-      });
-
+      const orderResponse = await publicApi.createOrderId('consultation');
+      console.log("Order Response:", orderResponse); // Debug log
       // ✅ CORRECTED EXTRACTION: Match your Backend keys
-      const serverOrderId = orderResponse.data.orderId; 
+      const serverOrderId = orderResponse.data.orderId;
       const serverAmount = orderResponse.data.amount;
 
       if (!serverOrderId) {
@@ -101,8 +99,8 @@ const handlePayment = async () => {
 
       // Step 2: Open Razorpay
       openPayment({
-        orderId: serverOrderId, 
-        amount: serverAmount,   
+        orderId: serverOrderId,
+        amount: serverAmount,
         description: `${selectedConsultation?.label || 'Consultation'} Booking`,
         prefill: {
           name: data.name,
@@ -120,7 +118,7 @@ const handlePayment = async () => {
               patientQuery: data.patientQuery || "",
               paymentToken: response.razorpay_payment_id,
               orderId: response.razorpay_order_id,
-              razorpaySignature: response.razorpay_signature 
+              razorpaySignature: response.razorpay_signature
             });
 
             toast({ title: 'Booking Confirmed!' });
@@ -139,7 +137,7 @@ const handlePayment = async () => {
       toast({ title: 'Error', description: 'Failed to initiate payment.', variant: 'destructive' });
       setIsProcessing(false);
     }
-};
+  };
 
   const isLoading = isProcessing || paymentLoading;
 
@@ -206,7 +204,7 @@ const handlePayment = async () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(() => {})}>
+        <form onSubmit={handleSubmit(() => { })}>
           {step === 1 && (
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -264,11 +262,10 @@ const handlePayment = async () => {
                     {consultationTypes.map((type) => (
                       <label
                         key={type.value}
-                        className={`flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all ${
-                          selectedType === type.value
+                        className={`flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all ${selectedType === type.value
                             ? 'border-secondary bg-secondary/5 shadow-sm'
                             : 'border-border hover:border-secondary/50'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <RadioGroupItem value={type.value} />

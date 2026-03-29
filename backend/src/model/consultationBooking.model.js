@@ -2,15 +2,21 @@
 import mongoose from 'mongoose';
 
 const BookingSchema = new mongoose.Schema({
-    patientId: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User', 
+    patientId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         default: null
     },
-    
+
+    patientName: {
+        type: String,
+        default: null,
+        trim: true
+    },
+
     patientEmail: {
         type: String,
-        required: true, 
+        required: true,
         trim: true
     },
     mobileNumber: {
@@ -20,52 +26,57 @@ const BookingSchema = new mongoose.Schema({
     },
 
     // Store the requested date and time for the consultation
-    requestedDateTime: { type: Date, required: true }, 
+    requestedDateTime: { type: Date, required: true },
 
     // **ADD THIS:** Store the final confirmed/rescheduled time
-    confirmedDateTime: { type: Date, default: null }, 
-    
+    confirmedDateTime: { type: Date, default: null },
+
     patientQuery: { type: String, default: 'General Consultation' },
 
     // Store reason for cancellation if applicable
     cancellationReason: { type: String, default: null },
 
-    
+
     // Use a single status field to track the progress
-    status: { 
-        type: String, 
+    status: {
+        type: String,
         enum: [
-            'Awaiting Payment', 
+            'Awaiting Payment',
             'Payment Successful', // Ready for Doctor Review
-            'Confirmed', 
+            'Confirmed',
             'Rescheduled',        // Added for clarity on Doctor's update
             'Refunded',
             'Cancelled',
-        ], 
-        default: 'Awaiting Payment' 
+        ],
+        default: 'Awaiting Payment'
     },
-    
+
 
     // Reference to the payment transaction
-    transactionId: { 
+    transactionId: {
         type: String,
         default: null
     },
 
     // Reference to the Razorpay order ID
-    orderId: { 
-        type: String,
-        default: null
-    }
-
-    // Reference to the Razorpay Refund ID (Crucial for reconciliation and tracking refund status)
-    ,
-    refundId: { 
+    orderId: {
         type: String,
         default: null
     },
 
-    paymentSignature: { 
+    // Amount paid in INR (stored for refund calculations)
+    amountPaid: {
+        type: Number,
+        default: null
+    },
+
+    // Reference to the Razorpay Refund ID
+    refundId: {
+        type: String,
+        default: null
+    },
+
+    paymentSignature: {
         type: String,
         default: null
     }

@@ -304,7 +304,7 @@ const requestConsultation = asyncHandler(async (req, res) => {
   const patientId = req.user._id;
   // Get user details from the auth middleware
   let { name, email, mobileNumber } = req.user;
-  mobileNumber = "8610622587";
+
   const {
     requestedDateTime,
     paymentToken,
