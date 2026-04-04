@@ -634,43 +634,20 @@ const allocateTasks = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "No tasks provided for allocation." });
   }
 
-  const tasksToInsert = [];
-
-  tasks.forEach((task) => {
-    if (task.daysApplicable && Array.isArray(task.daysApplicable) && task.daysApplicable.length > 0) {
-      task.daysApplicable.forEach((day) => {
-        tasksToInsert.push({
-          patientId,
-          title: task.title || task.name,
-          category: task.category || "General Health",
-          description: task.description,
-          zone: task.zone,
-          programWeek: task.programWeek,
-          frequency: task.frequency,
-          daysApplicable: [day],
-          timeOfDay: task.timeOfDay,
-          metricRequired: task.metricRequired || null,
-          status: "Pending",
-          dateAssigned: new Date(),
-        });
-      });
-    } else {
-      tasksToInsert.push({
-        patientId,
-        title: task.title || task.name,
-        category: task.category || "General Health",
-        description: task.description,
-        zone: task.zone,
-        programWeek: task.programWeek,
-        frequency: task.frequency,
-        daysApplicable: [],
-        timeOfDay: task.timeOfDay,
-        metricRequired: task.metricRequired || null,
-        status: "Pending",
-        dateAssigned: new Date(),
-      });
-    }
-  });
+  const tasksToInsert = tasks.map((task) => ({
+    patientId,
+    title: task.title || task.name,
+    category: task.category || "General Health",
+    description: task.description,
+    zone: task.zone,
+    programWeek: task.programWeek,
+    frequency: task.frequency,
+    daysApplicable: task.daysApplicable || [],  // ✅ store all days in one document
+    timeOfDay: task.timeOfDay,
+    metricRequired: task.metricRequired || null,
+    status: "Pending",
+    dateAssigned: new Date(),
+  }));
 
   const insertedTasks = await PatientProgramTask.insertMany(tasksToInsert);
 
