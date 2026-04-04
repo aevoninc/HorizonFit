@@ -94,7 +94,8 @@ export const PatientDetailPage: React.FC = () => {
     weekNumber: "",
     frequency: "",
     dayOfWeek: [] as string[],
-    timeSlot: "",
+    timeOfDay: "",
+    metricRequired: "",
   });
 
   // Edit Task Dialog
@@ -155,7 +156,7 @@ export const PatientDetailPage: React.FC = () => {
       setIsSubmitting(true);
       const taskData = {
         title: newTask.name,
-        category:newTask.category,
+        category: newTask.category,
         description: newTask.name.trim(),
         zone: parseInt(newTask.zoneId),
         programWeek: parseInt(newTask.weekNumber),
@@ -169,8 +170,8 @@ export const PatientDetailPage: React.FC = () => {
         metricRequired: newTask.metricRequired || null,
       };
 
-      await doctorApi.allocateTasks(id!, [taskData]);
-
+      const response = await doctorApi.allocateTasks(id!, [taskData]);
+      console.log(response);
       toast({
         title: "Task Added",
         description: `Task "${newTask.name}" has been allocated to Zone ${newTask.zoneId}, Week ${newTask.weekNumber}.`,
@@ -179,10 +180,13 @@ export const PatientDetailPage: React.FC = () => {
       setIsAddTaskOpen(false);
       setNewTask({
         name: "",
+        category: "",
         zoneId: "",
         weekNumber: "",
         frequency: "",
         dayOfWeek: [],
+        timeOfDay: "",
+        metricRequired: "",
       });
       fetchPatientProgress();
     } catch (error: any) {
@@ -269,7 +273,7 @@ export const PatientDetailPage: React.FC = () => {
       setIsSubmitting(true);
       await doctorApi.deactivatePatient(
         id!,
-        deactivationReason.trim() || undefined
+        deactivationReason.trim() || undefined,
       );
 
       toast({
@@ -325,7 +329,7 @@ export const PatientDetailPage: React.FC = () => {
                 ? prev.dayOfWeek.filter((d) => d !== day)
                 : [...prev.dayOfWeek, day],
             }
-          : null
+          : null,
       );
     } else {
       setNewTask((prev) => ({
@@ -849,8 +853,8 @@ export const PatientDetailPage: React.FC = () => {
                           task.status === "completed"
                             ? "bg-green-100 text-green-700"
                             : task.status === "pending"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-blue-100 text-blue-700"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-blue-100 text-blue-700"
                         }`}
                       >
                         {task.status === "completed" ? (

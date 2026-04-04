@@ -110,6 +110,7 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
         bookingId: booking._id,
       }),
     ])
+    
   } catch (error) {
     console.error("Error sending consultation booking emails:", error);
   }
