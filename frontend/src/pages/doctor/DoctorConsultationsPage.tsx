@@ -62,7 +62,6 @@ const fetchConsultations = async () => {
       ? await doctorApi.getNewConsultancyRequests() 
       : await doctorApi.getConsultations();
 
-    console.log("Current Path:", location.pathname);
     console.log("Data Received:", response.data);
 
     // Standardize data extraction
@@ -263,18 +262,26 @@ const filteredConsultations = consultations.filter((consultation) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
+                
                 <Card className="card-elevated">
                   <CardContent className="p-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary/10">
-                          <User className="h-6 w-6 text-secondary" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-foreground">{consultation.patientName}</h3>
-                          <p className="text-sm text-muted-foreground">{consultation.patientEmail}</p>
-                        </div>
-                      </div>
+<div className="flex items-center gap-4">
+  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary/10">
+    <User className="h-6 w-6 text-secondary" />
+  </div>
+  <div>
+    <div className="flex items-center gap-2">
+      <h3 className="font-semibold text-foreground">{consultation.patientName}</h3>
+      {!consultation.patientId && (
+        <span className="inline-flex items-center rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700 ring-1 ring-inset ring-teal-600/20">
+          ✨ New Client
+        </span>
+      )}
+    </div>
+    <p className="text-sm text-muted-foreground">{consultation.patientEmail}</p>
+  </div>
+</div>
                       <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Calendar className="h-4 w-4" />

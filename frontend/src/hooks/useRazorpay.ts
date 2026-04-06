@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from "react";
 
 declare global {
   interface Window {
@@ -50,11 +50,11 @@ export const useRazorpay = () => {
       return;
     }
 
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
     script.onload = () => setIsLoaded(true);
-    script.onerror = () => console.error('Failed to load Razorpay script');
+    script.onerror = () => console.error("Failed to load Razorpay script");
     document.body.appendChild(script);
 
     return () => {
@@ -68,8 +68,8 @@ export const useRazorpay = () => {
     async ({
       orderId,
       amount,
-      currency = 'INR',
-      name = 'HorizonFit',
+      currency = "INR",
+      name = "HorizonFit",
       description,
       prefill,
       onSuccess,
@@ -87,7 +87,7 @@ export const useRazorpay = () => {
       onDismiss?: () => void;
     }) => {
       if (!isLoaded) {
-        onError?.(new Error('Razorpay is not loaded yet'));
+        onError?.(new Error("Razorpay is not loaded yet"));
         return;
       }
 
@@ -101,13 +101,18 @@ export const useRazorpay = () => {
           name,
           description,
           order_id: orderId,
-          handler: (response) => {
-            setIsLoading(false);
-            onSuccess(response);
+          handler: async (response) => {
+            try {
+              await onSuccess(response);
+            } catch (error) {
+              onError?.(error as Error);
+            } finally {
+              setIsLoading(false);
+            }
           },
           prefill,
           theme: {
-            color: '#E8673C',
+            color: "#E8673C",
           },
           modal: {
             ondismiss: () => {
@@ -124,7 +129,7 @@ export const useRazorpay = () => {
         onError?.(error as Error);
       }
     },
-    [isLoaded]
+    [isLoaded],
   );
 
   return { isLoaded, isLoading, openPayment };

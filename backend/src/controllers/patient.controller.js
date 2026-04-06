@@ -549,11 +549,11 @@ const getZoneTasks = asyncHandler(async (req, res) => {
   const patientId = req.user._id;
   const requestedZone = parseInt(req.params.zoneNumber, 10);
   const MAX_ZONES = 5;
-  const patient = await User.findById(patientId);
-  if (patient.currentZone != requestedZone) {
-    return res.status(403).json({
-      message: `You can only access your current zone (${patient.currentZone})`,
-      currentZone: patient.currentZone
+
+  // 1. Basic validation (optional but good practice)
+  if (isNaN(requestedZone) || requestedZone < 1 || requestedZone > MAX_ZONES) {
+    return res.status(400).json({
+      message: "Invalid zone number. Must be between 1 and 5.",
     });
   }
   // // 1. Basic validation
@@ -605,12 +605,8 @@ const getZoneTasks = asyncHandler(async (req, res) => {
     patientId: patientId,
   }).lean();
 
-  // 5. Check for tasks
-  if (!zoneTasks || zoneTasks.length === 0) {
-    return res.status(404).json({
-      message: `No tasks found for Zone ${requestedZone} for this patient. Please contact your doctor.`,
-    });
-  }
+  // 5. Check for tasks (Now return empty array instead of 404)
+  const task = zoneTasks || [];
 
   // 6. Send success response
   res.status(200).json({

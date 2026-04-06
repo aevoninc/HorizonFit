@@ -75,7 +75,7 @@ export const NormalPlanDashboard: React.FC = () => {
   const [nextRequiredZone, setNextRequiredZone] = useState<number | null>(null);
   const [programCompleted, setProgramCompleted] = useState(false);
   const [loggingTaskId, setLoggingTaskId] = useState<string | null>(null);
-  const [currentZone, setCurrentZone] = useState<number>(1);
+  const [selectedZone, setSelectedZone] = useState<number>(1);
 
 
 
@@ -92,13 +92,14 @@ export const NormalPlanDashboard: React.FC = () => {
     }
   };
 
-  const fetchProgress = useCallback(async () => {
+  const fetchProgress = useCallback(async (zoneId?: number) => {
     try {
       setLoading(true);
       const response = await normalPlanPatientApi.getProgress();
       const progressData = response.data;
 
-      const zoneToFetch = progressData.currentZone; // ✅ source of truth
+      // Use the provided zoneId, or the state selectedZone, or fallback to backend currentZone
+      const zoneToFetch = zoneId || selectedZone || progressData.currentZone;
 
       const tasksResponse = await patientApi.getZoneTasks(zoneToFetch);
       console.log(tasksResponse);
@@ -115,7 +116,9 @@ export const NormalPlanDashboard: React.FC = () => {
       );
 
       setProgress({ ...progressData, zones: updatedZones });
-      setCurrentZone(zoneToFetch); // update UI AFTER
+      if (zoneToFetch !== selectedZone) {
+        setSelectedZone(zoneToFetch);
+      }
       setCanEnterMetrics(progressData.canEnterMetrics);
       setDaysUntilNextMetrics(progressData.daysUntilNextMetrics);
     } catch (error: any) {
@@ -128,7 +131,7 @@ export const NormalPlanDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [selectedZone, toast]);
 
 
   useEffect(() => {
@@ -184,7 +187,7 @@ export const NormalPlanDashboard: React.FC = () => {
         // Update local state
         if (progress) {
           const updatedZones = progress.zones.map((zone) => {
-            if (zone.zoneNumber !== currentZone) return zone;
+            if (zone.zoneNumber !== selectedZone) return zone;
 
             const updatedVideos = zone.requiredVideos.map((v) =>
               v._id === videoId ? { ...v, isWatched: true } : v,
@@ -221,7 +224,7 @@ export const NormalPlanDashboard: React.FC = () => {
     if (!progress) return;
 
     const updatedZones = progress.zones.map((zone) => {
-      if (zone.zoneNumber !== currentZone) return zone;
+      if (zone.zoneNumber !== selectedZone) return zone;
       return { ...zone, diyTasks: updatedTasks };
     });
 
@@ -246,7 +249,7 @@ export const NormalPlanDashboard: React.FC = () => {
 
       const payload = {
         patientId,
-        zoneNumber: currentZone,
+        zoneNumber: selectedZone,
         logData: log, // wrap the log inside logData
       };
 
@@ -301,7 +304,7 @@ export const NormalPlanDashboard: React.FC = () => {
   const zones = safeProgress.zones;
 
   const currentZoneData = safeProgress.zones.find(
-    (z) => z.zoneNumber === currentZone,
+    (z) => z.zoneNumber === selectedZone,
   );
 
   const completedTasks =
@@ -384,32 +387,32 @@ export const NormalPlanDashboard: React.FC = () => {
         <ScrollArea className="w-full whitespace-nowrap">
           <div className="flex gap-3 pb-2">
             {zones.map((zone) => {
-              const isCurrent = zone.zoneNumber === currentZone;
+              const isSelected = zone.zoneNumber === selectedZone;
+              const isActualCurrentZone = zone.zoneNumber === safeProgress.currentZone;
 
               return (
                 <button
                   key={zone.zoneNumber}
-                  disabled={!isCurrent}
-                  className={`relative flex flex-col items-center gap-2 rounded-xl border p-4 min-w-[100px]
-        ${isCurrent
+                  onClick={() => fetchProgress(zone.zoneNumber)}
+                  className={`relative flex flex-col items-center gap-2 rounded-xl border p-4 min-w-[100px] transition-all
+        ${isSelected
                       ? "border-secondary bg-secondary/10 shadow-teal"
-                      : "cursor-not-allowed border-border/50 bg-muted/50 opacity-50"
+                      : "border-border/50 bg-card hover:bg-secondary/5"
                     }`}
                 >
                   <div
                     className={`flex h-10 w-10 items-center justify-center rounded-full
-          ${isCurrent ? "gradient-phoenix" : "bg-muted"}`}
+          ${isSelected ? "gradient-phoenix" : "bg-muted"}`}
                   >
-                    {isCurrent ? (
-                      <span className="font-bold text-primary-foreground">
-                        {zone.zoneNumber}
-                      </span>
-                    ) : (
-                      <Lock className="h-5 w-5 text-muted-foreground" />
+                    <span className={`font-bold ${isSelected ? "text-primary-foreground" : "text-muted-foreground"}`}>
+                      {zone.zoneNumber}
+                    </span>
+                    {isActualCurrentZone && !isSelected && (
+                      <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-secondary shadow-sm" title="Current Progress" />
                     )}
                   </div>
 
-                  <span className="text-sm font-medium text-foreground">
+                  <span className={`text-sm font-medium ${isSelected ? "text-foreground" : "text-muted-foreground"}`}>
                     {zone.zoneName}
                   </span>
                 </button>
@@ -465,7 +468,7 @@ export const NormalPlanDashboard: React.FC = () => {
 
           {/* Metrics Input */}
           <MetricsInputCard
-            currentZone={currentZone}
+            currentZone={selectedZone}
             onSubmit={handleMetricsSubmit}
             latestMetrics={safeProgress.latestMetrics}
             videosCompleted={currentZoneData?.videosCompleted}
@@ -503,25 +506,25 @@ export const NormalPlanDashboard: React.FC = () => {
         {/* Tasks Tab */}
         <TabsContent value="tasks">
           {/* {currentZoneData?.isUnlocked && currentZoneData?.diyTasks?.length ? ( */}
-            <DIYTasksList
-              tasks={currentZoneData?.diyTasks?.length ? currentZoneData.diyTasks : []}
-              onTaskToggle={(taskId) => {
-                const updatedTasks = currentZoneData.diyTasks.map((task) =>
-                  task._id === taskId
-                    ? {
-                      ...task,
-                      isCompleted: !task.isCompleted,
-                      status: !task.isCompleted ? "Completed" : "Pending",
-                    }
-                    : task,
-                );
-                handleTasksUpdate(updatedTasks);
-              }}
-              zoneName={currentZoneData?.zoneName || ""}
-              onTaskAdded={fetchProgress}
-            />
+          <DIYTasksList
+            tasks={currentZoneData?.diyTasks?.length ? currentZoneData.diyTasks : []}
+            onTaskToggle={(taskId) => {
+              const updatedTasks = currentZoneData.diyTasks.map((task) =>
+                task._id === taskId
+                  ? {
+                    ...task,
+                    isCompleted: !task.isCompleted,
+                    status: !task.isCompleted ? "Completed" : "Pending",
+                  }
+                  : task,
+              );
+              handleTasksUpdate(updatedTasks);
+            }}
+            zoneName={currentZoneData?.zoneName || ""}
+            onTaskAdded={fetchProgress}
+          />
           {/* // ) : ( */}
-            {/* <DIYTasksList
+          {/* <DIYTasksList
               tasks={[]}
               onTaskToggle={(taskId) => {
                 const updatedTasks = currentZoneData.diyTasks.map((task) =>
@@ -546,7 +549,7 @@ export const NormalPlanDashboard: React.FC = () => {
           {currentZoneData?.isUnlocked ? (
             <DailyLogCard
               tasks={currentZoneData.diyTasks}
-              currentZone={currentZone}
+              currentZone={selectedZone}
               onTasksUpdate={handleTasksUpdate}
             />
           ) : (
@@ -564,7 +567,7 @@ export const NormalPlanDashboard: React.FC = () => {
         {/* Weekly Log Tab */}
         <TabsContent value="weekly">
           <WeeklyLogForm
-            currentZone={currentZone}
+            currentZone={selectedZone}
             currentWeek={safeProgress.totalWeeksCompleted + 1}
             lastLog={safeProgress.weeklyLogs[safeProgress.weeklyLogs.length - 1]}
             latestMetrics={safeProgress.latestMetrics}

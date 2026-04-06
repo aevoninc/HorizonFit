@@ -307,10 +307,9 @@ const deleteTask = asyncHandler(async (req, res) => {
 // backend/src/controllers/doctor.controller.js
 const getConsultationRequests = asyncHandler(async (req, res) => {
   // 1. Fetch EVERY booking in the system (No doctorId filter)
-  const bookings = await ConsultationBooking.find({ patientId: { $ne: null } })
+  const bookings = await ConsultationBooking.find()
     .populate("patientId", "fullName email")
     .sort({ createdAt: -1 });
-
   // 2. Format data to match exactly what your Frontend expects
   const formattedBookings = bookings.map((b) => {
     const booking = b.toObject();
@@ -355,6 +354,12 @@ const getConsultationRequests = asyncHandler(async (req, res) => {
 const updateConsultationStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status, confirmedDateTime } = req.body;
+  console.log(id);
+  if(!id){
+        return res
+      .status(400)
+      .json({ message: "Invalid booking status provided. patient ID is missing" });
+  }
   // 1. Validation
   if (
     !["Pending", "Confirmed", "Rescheduled", "Cancelled", "Completed"].includes(
@@ -392,12 +397,6 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
 
   // 4. Send Email Notification
   try {
-    // Added 'await' here - findById is an async operation
-    if (updatedBooking.patientId == null) {
-      return res
-        .status(404)
-        .json({ message: "No Patient Id with this Booking" });
-    }
     const user = await User.findById(updatedBooking.patientId).select(
       "email name"
     );
@@ -498,7 +497,7 @@ const getDeactivatedPatients = asyncHandler(async (req, res) => {
 // @route   GET /api/doctor/get-new-consultancy-request
 // @access  Private/Doctor
 const getNewConsultancyRequest = asyncHandler(async (req, res) => {
-  const bookings = await ConsultationBooking.find({ patientId: null });
+  const bookings = await ConsultationBooking.find();
   if (bookings.length === 0) {
     return res.status(200).json({
       message: "No bookings found with null patientId.",

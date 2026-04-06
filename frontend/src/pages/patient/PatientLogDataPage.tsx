@@ -13,10 +13,8 @@ import { patientApi, TrackingEntry, PatientProgress } from '@/lib/api';
 // Updated to match your Model's enum exactly
 const metricTypes = [
   { value: 'Weight', label: 'Weight', unit: 'kg', icon: Scale },
-  { value: 'BloodSugar', label: 'Blood Sugar', unit: 'mg/dL', icon: Droplets },
-  { value: 'BloodPressure', label: 'Blood Pressure', unit: 'mmHg', icon: Activity },
-  { value: 'Activity', label: 'Activity', unit: 'steps', icon: TrendingUp },
-  // Note: 'heart_rate' isn't in your model yet. Use 'BloodPressure' or update model.
+  { value: 'BodyFat', label: 'Body Fat %', unit: '%', icon: Activity },
+  { value: 'VisceralFat', label: 'Visceral Fat', unit: 'level', icon: Heart },
 ];
 
 export const PatientLogDataPage: React.FC = () => {
