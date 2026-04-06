@@ -265,7 +265,7 @@ export const PatientNewConsultationPage: React.FC = () => {
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Check className="h-4 w-4 text-green-500" />
-                Free cancellation up to 24h before
+                Flexible rescheduling up to 24 hours prior
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Check className="h-4 w-4 text-green-500" />

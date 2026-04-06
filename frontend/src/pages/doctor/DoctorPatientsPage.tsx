@@ -192,10 +192,7 @@ const handleAddPatient = async () => {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="Weight Loss">Weight Loss</SelectItem>
-          <SelectItem value="Diabetes Management">Diabetes Management</SelectItem>
-          <SelectItem value="General Wellness">General Wellness</SelectItem>
-          <SelectItem value="Cardiac Care">Cardiac Care</SelectItem>
-          <SelectItem value="Physiotherapy">Physiotherapy</SelectItem>
+          <SelectItem value="Weight Loss">Weight Gain</SelectItem>
         </SelectContent>
       </Select>
     </div>
@@ -228,7 +225,7 @@ const handleAddPatient = async () => {
   )}
     </div>
     {/* Matrix Checkbox */}
-    <div className="flex items-center space-x-2">
+    {/* <div className="flex items-center space-x-2">
       <Checkbox
         id="assignMatrix"
         checked={newPatient.assignFixedMatrix}
@@ -239,7 +236,7 @@ const handleAddPatient = async () => {
       <Label htmlFor="assignMatrix" className="text-sm">
         Assign fixed task matrix
       </Label>
-    </div>
+    </div> */}
 
 <Button 
   variant="teal" 

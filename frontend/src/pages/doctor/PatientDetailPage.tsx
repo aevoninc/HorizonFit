@@ -120,7 +120,6 @@ export const PatientDetailPage: React.FC = () => {
       setIsLoading(true);
       const response = await doctorApi.getPatientProgress(id!);
       setPatientData(response.data);
-      console.log("Fetched patient progress:", response.data);
       setTasks(response.data.programTasks || []);
     } catch (error) {
       console.error("Failed to fetch patient progress:", error);
@@ -170,8 +169,6 @@ export const PatientDetailPage: React.FC = () => {
         metricRequired: newTask.metricRequired || null,
       };
 
-      const response = await doctorApi.allocateTasks(id!, [taskData]);
-      console.log(response);
       toast({
         title: "Task Added",
         description: `Task "${newTask.name}" has been allocated to Zone ${newTask.zoneId}, Week ${newTask.weekNumber}.`,
@@ -189,6 +186,7 @@ export const PatientDetailPage: React.FC = () => {
         metricRequired: "",
       });
       fetchPatientProgress();
+      const response = await doctorApi.allocateTasks(id!, [taskData]);
     } catch (error: any) {
       console.error("Failed to add task:", error);
       toast({

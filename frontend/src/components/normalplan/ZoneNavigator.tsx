@@ -17,8 +17,7 @@ export const ZoneNavigator: React.FC<ZoneNavigatorProps> = ({
 }) => {
   const getZoneStatus = (zone: ZoneData) => {
     if (zone.isCompleted) return 'completed';
-    if (zone.isUnlocked) return 'active';
-    return 'locked';
+    return 'active'; // Zones are never 'locked' now
   };
 
   return (
@@ -30,21 +29,19 @@ export const ZoneNavigator: React.FC<ZoneNavigatorProps> = ({
             const status = getZoneStatus(zone);
             const definition = ZONE_DEFINITIONS.find(d => d.zoneNumber === zone.zoneNumber);
             const isActive = activeZone === zone.zoneNumber;
-            
+
             return (
               <motion.button
                 key={zone.zoneNumber}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.05 }}
-                onClick={() => zone.isUnlocked && onZoneSelect(zone.zoneNumber)}
-                disabled={!zone.isUnlocked}
+                onClick={() => onZoneSelect(zone.zoneNumber)}
                 className={cn(
                   'relative flex flex-col items-center gap-2 rounded-xl border p-4 transition-all duration-200 min-w-[120px]',
                   status === 'completed' && 'border-green-300 bg-green-50/50',
                   status === 'active' && isActive && 'border-secondary bg-secondary/10 shadow-teal',
-                  status === 'active' && !isActive && 'border-border bg-card hover:border-secondary/50 hover:shadow-sm',
-                  status === 'locked' && 'cursor-not-allowed border-border/50 bg-muted/50 opacity-60'
+                  status === 'active' && !isActive && 'border-border bg-card hover:border-secondary/50 hover:shadow-sm'
                 )}
               >
                 {/* Zone Number Circle */}
@@ -53,13 +50,10 @@ export const ZoneNavigator: React.FC<ZoneNavigatorProps> = ({
                     'flex h-12 w-12 items-center justify-center rounded-full transition-all',
                     status === 'completed' && 'bg-green-500',
                     status === 'active' && isActive && 'gradient-phoenix shadow-phoenix',
-                    status === 'active' && !isActive && 'bg-secondary/20',
-                    status === 'locked' && 'bg-muted'
+                    status === 'active' && !isActive && 'bg-secondary/20'
                   )}
                 >
-                  {status === 'locked' ? (
-                    <Lock className="h-5 w-5 text-muted-foreground" />
-                  ) : status === 'completed' ? (
+                  {status === 'completed' ? (
                     <CheckCircle className="h-6 w-6 text-white" />
                   ) : isActive ? (
                     <Play className="h-5 w-5 text-white" />
@@ -70,10 +64,7 @@ export const ZoneNavigator: React.FC<ZoneNavigatorProps> = ({
 
                 {/* Zone Name */}
                 <div className="text-center">
-                  <span className={cn(
-                    'text-sm font-medium block',
-                    status === 'locked' ? 'text-muted-foreground' : 'text-foreground'
-                  )}>
+                  <span className="text-sm font-medium block text-foreground">
                     {zone.zoneName}
                   </span>
                   {!zone.videosCompleted && zone.isUnlocked && !zone.isCompleted && (
@@ -84,10 +75,10 @@ export const ZoneNavigator: React.FC<ZoneNavigatorProps> = ({
                 {/* Progress Indicator */}
                 {zone.isUnlocked && !zone.isCompleted && (
                   <div className="absolute -bottom-1 left-1/2 h-1 w-3/4 -translate-x-1/2 overflow-hidden rounded-full bg-muted">
-                    <div 
+                    <div
                       className="h-full gradient-teal"
-                      style={{ 
-                        width: `${zone.videosCompleted ? 100 : 50}%` 
+                      style={{
+                        width: `${zone.videosCompleted ? 100 : 50}%`
                       }}
                     />
                   </div>

@@ -56,7 +56,7 @@ export const PatientTasksPage: React.FC = () => {
     [1, 2, 3, 4, 5].map((zone) => ({
       zone,
       title: zoneNames[zone - 1],
-      accessible: zone === 1,
+      accessible: true,
       loading: false,
     }))
   );
@@ -148,7 +148,7 @@ export const PatientTasksPage: React.FC = () => {
       setZones((prev) =>
         prev.map((z) => ({
           ...z,
-          accessible: z.zone <= currentZone,
+          accessible: true,
         }))
       );
       setActiveZone(currentZone);
@@ -163,14 +163,14 @@ export const PatientTasksPage: React.FC = () => {
   }, [fetchZoneTasks, checkProgramCompletion]);
 
   const handleZoneClick = (zone: ZoneState) => {
-    if (!zone.accessible) {
-      toast({
-        title: "Zone Locked",
-        description: `Complete Zone ${zone.zone - 1} to unlock ${zone.title}.`,
-        variant: "destructive",
-      });
-      return;
-    }
+    // if (!zone.accessible) {
+    //   toast({
+    //     title: "Zone Locked",
+    //     description: `Complete Zone ${zone.zone - 1} to unlock ${zone.title}.`,
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
     setActiveZone(zone.zone);
     setActiveWeek(1);
     setActiveDay(0);
@@ -492,11 +492,9 @@ export const PatientTasksPage: React.FC = () => {
                 key={zone.zone}
                 onClick={() => handleZoneClick(zone)}
                 disabled={zone.loading}
-                className={`relative flex flex-col items-center gap-2 rounded-xl border p-4 transition-all duration-200 min-w-[100px] ${zone.accessible
-                  ? activeZone === zone.zone
+                className={`relative flex flex-col items-center gap-2 rounded-xl border p-4 transition-all duration-200 min-w-[100px] ${activeZone === zone.zone
                     ? "border-secondary bg-secondary/10 shadow-teal"
                     : "border-border bg-card hover:border-secondary/50 hover:shadow-sm"
-                  : "cursor-not-allowed border-border/50 bg-muted/50 opacity-60"
                   }`}
               >
                 <div
