@@ -27,14 +27,14 @@ import { doctorApi, Patient } from '@/lib/api';
 export const DoctorPatientsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newPatient, setNewPatient] = useState({ 
-    name: '', 
-    email: '', 
-    mobileNumber: '', 
+  const [newPatient, setNewPatient] = useState({
+    name: '',
+    email: '',
+    mobileNumber: '',
     assignedCategory: '', // Now used for the dropdown
-    password: '', 
+    password: '',
     confirmPassword: '',
-    assignFixedMatrix: false 
+    assignFixedMatrix: false
   });
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,13 +64,13 @@ export const DoctorPatientsPage: React.FC = () => {
     }
   };
 
-const filteredPatients = (patients ?? []).filter(
-  (patient) =>
-    patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    patient.email.toLowerCase().includes(searchQuery.toLowerCase())
-);
+  const filteredPatients = (patients ?? []).filter(
+    (patient) =>
+      patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      patient.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-const handleAddPatient = async () => {
+  const handleAddPatient = async () => {
     // Basic Validations
     if (!newPatient.name || !newPatient.email || !newPatient.assignedCategory || !newPatient.password) {
       toast({ title: 'Validation Error', description: 'Please fill all required fields.', variant: 'destructive' });
@@ -99,9 +99,9 @@ const handleAddPatient = async () => {
         setPatients((prev) => [...prev, createdPatient]);
         toast({ title: 'Success', description: 'Patient created successfully.' });
         setIsAddDialogOpen(false);
-        setNewPatient({ 
-          name: '', email: '', mobileNumber: '', assignedCategory: '', 
-          password: '', confirmPassword: '', assignFixedMatrix: false 
+        setNewPatient({
+          name: '', email: '', mobileNumber: '', assignedCategory: '',
+          password: '', confirmPassword: '', assignFixedMatrix: false
         });
       }
     } catch (error: any) {
@@ -140,92 +140,95 @@ const handleAddPatient = async () => {
               Add Patient
             </Button>
           </DialogTrigger>
-<DialogContent className="sm:max-w-2lg">
-  <DialogHeader>
-    <DialogTitle>Add New Patient</DialogTitle>
-  </DialogHeader>
-  <div className="space-y-4 pt-4">
-    {/* Full Name */}
-    <div className="space-y-2">
-      <Label htmlFor="patientName">Full Name <span className="text-destructive">*</span></Label>
-      <Input
-        id="patientName"
-        placeholder="Enter patient name"
-        value={newPatient.name}
-        onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
-      />
-    </div>
+          <DialogContent className="sm:max-w-2lg">
+            <DialogHeader>
+              <DialogTitle>Add New Patient</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              {/* Full Name */}
+              <div className="space-y-2">
+                <Label htmlFor="patientName">Full Name <span className="text-destructive">*</span></Label>
+                <Input
+                  id="patientName"
+                  placeholder="Enter patient name"
+                  value={newPatient.name}
+                  onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
+                />
+              </div>
 
-    {/* Email */}
-    <div className="space-y-2">
-      <Label htmlFor="patientEmail">Email Address <span className="text-destructive">*</span></Label>
-      <Input
-        id="patientEmail"
-        type="email"
-        placeholder="patient@example.com"
-        value={newPatient.email}
-        onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
-      />
-    </div>
+              {/* Email */}
+              <div className="space-y-2">
+                <Label htmlFor="patientEmail">Email Address <span className="text-destructive">*</span></Label>
+                <Input
+                  id="patientEmail"
+                  type="email"
+                  placeholder="patient@example.com"
+                  value={newPatient.email}
+                  onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
+                />
+              </div>
 
-    {/* Phone Number */}
-    <div className="space-y-2">
-      <Label htmlFor="patientNumber">Phone Number <span className="text-destructive">*</span></Label>
-      <Input
-        id="patientNumber"
-        type="tel"
-        placeholder="Enter phone number"
-        value={newPatient.mobileNumber}
-        onChange={(e) => setNewPatient({ ...newPatient, mobileNumber: e.target.value })}
-      />
-    </div>
+              {/* Phone Number */}
+              <div className="space-y-2">
+                <Label htmlFor="patientNumber">Phone Number <span className="text-destructive">*</span></Label>
+                <Input
+                  id="patientNumber"
+                  type="tel"
+                  placeholder="Enter phone number"
+                  value={newPatient.mobileNumber}
+                  onChange={(e) => setNewPatient({ ...newPatient, mobileNumber: e.target.value })}
+                />
+              </div>
 
-    {/* Assigned Category - Fixed Dropdown */}
-    <div className="space-y-2">
-      <Label>Assigned Category <span className="text-destructive">*</span></Label>
-      <Select 
-        value={newPatient.assignedCategory} 
-        onValueChange={(value) => setNewPatient({ ...newPatient, assignedCategory: value })}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Select a health program" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="Weight Loss">Weight Loss</SelectItem>
-          <SelectItem value="Weight Loss">Weight Gain</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
+              {/* Assigned Category - Fixed Dropdown */}
+              <div className="space-y-2">
+                <Label>Assigned Category <span className="text-destructive">*</span></Label>
+                <Select
+                  value={newPatient.assignedCategory}
+                  onValueChange={(value) => setNewPatient({ ...newPatient, assignedCategory: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a health program" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Weight Loss">Weight Loss</SelectItem>
+                    <SelectItem value="Diabetes Management">Diabetes Management</SelectItem>
+                    <SelectItem value="General Wellness">General Wellness</SelectItem>
+                    <SelectItem value="Cardiac Care">Cardiac Care</SelectItem>
+                    <SelectItem value="Physiotherapy">Physiotherapy</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-    {/* Password */}
-    <div className="space-y-2">
-      <Label htmlFor="password">Login Password <span className="text-destructive">*</span></Label>
-      <Input
-        id="password"
-        type="password"
-        placeholder="Create password"
-        value={newPatient.password}
-        onChange={(e) => setNewPatient({ ...newPatient, password: e.target.value })}
-      />
-    </div>
+              {/* Password */}
+              <div className="space-y-2">
+                <Label htmlFor="password">Login Password <span className="text-destructive">*</span></Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Create password"
+                  value={newPatient.password}
+                  onChange={(e) => setNewPatient({ ...newPatient, password: e.target.value })}
+                />
+              </div>
 
-    {/* Confirm Password */}
-    <div className="space-y-2">
-  <Label htmlFor="confirmPassword">Confirm Password <span className="text-destructive">*</span></Label>
-  <Input
-    id="confirmPassword"
-    type="password"
-    placeholder="Repeat password"
-    value={newPatient.confirmPassword}
-    onChange={(e) => setNewPatient({ ...newPatient, confirmPassword: e.target.value })}
-  />
-  {/* Real-time visual feedback (Optional) */}
-  {newPatient.confirmPassword && newPatient.password !== newPatient.confirmPassword && (
-    <p className="text-xs text-destructive">Passwords do not match</p>
-  )}
-    </div>
-    {/* Matrix Checkbox */}
-    {/* <div className="flex items-center space-x-2">
+              {/* Confirm Password */}
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password <span className="text-destructive">*</span></Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Repeat password"
+                  value={newPatient.confirmPassword}
+                  onChange={(e) => setNewPatient({ ...newPatient, confirmPassword: e.target.value })}
+                />
+                {/* Real-time visual feedback (Optional) */}
+                {newPatient.confirmPassword && newPatient.password !== newPatient.confirmPassword && (
+                  <p className="text-xs text-destructive">Passwords do not match</p>
+                )}
+              </div>
+              {/* Matrix Checkbox */}
+              {/* <div className="flex items-center space-x-2">
       <Checkbox
         id="assignMatrix"
         checked={newPatient.assignFixedMatrix}
@@ -238,20 +241,20 @@ const handleAddPatient = async () => {
       </Label>
     </div> */}
 
-<Button 
-  variant="teal" 
-  className="w-full" 
-  onClick={handleAddPatient}
-  disabled={
-    isSubmitting || 
-    !newPatient.password || 
-    newPatient.password !== newPatient.confirmPassword
-  }
->
-  {isSubmitting ? 'Adding...' : 'Add Patient'}
-</Button>
-  </div>
-</DialogContent>
+              <Button
+                variant="teal"
+                className="w-full"
+                onClick={handleAddPatient}
+                disabled={
+                  isSubmitting ||
+                  !newPatient.password ||
+                  newPatient.password !== newPatient.confirmPassword
+                }
+              >
+                {isSubmitting ? 'Adding...' : 'Add Patient'}
+              </Button>
+            </div>
+          </DialogContent>
         </Dialog>
       </div>
 
@@ -339,7 +342,7 @@ const handleAddPatient = async () => {
                       <p className="mb-4 text-sm text-muted-foreground">{patient.email}</p>
                       <p className="mb-4 text-sm text-muted-foreground">Started: {new Date(patient.programStartDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
                       <p className="mb-4 text-sm text-muted-foreground">{patient.assignedCategory}</p>
-                      
+
                       <div className="space-y-2">
                         {/* <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Progress</span>

@@ -2,912 +2,567 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle,
-  Lock,
-  Target,
   Flame,
   Loader2,
   PartyPopper,
-  ArrowRight,
-  Calendar,
-  Plus,
-  Trash2,
+  BookOpen,
+  Droplets,
+  Salad,
+  Dumbbell,
+  Moon,
+  Brain,
+  X,
+  Target,
+  Send,
+  Video,
+  Activity,
+  CalendarCheck,
+  RefreshCw,
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { useAuth } from "@/contexts/AuthContext";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { TaskFormModal, TaskFormData } from "../doctor/TaskFormModal";
-import { useToast } from "@/hooks/use-toast";
-import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { patientApi, doctorApi, ZoneTask, Task } from "@/lib/api";
-import { AxiosError } from "axios";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { patientApi, HabitCode, HABIT_CODES, ProgramStatus, HabitGuide } from "@/lib/api";
+import { normalPlanPatientApi } from "@/lib/normalPlanApi";
+import { NormalPlanProgress, BodyMetrics, WeeklyLog } from "@/lib/normalPlanTypes";
 
-interface ZoneState {
+// Components for other features
+import { ZoneNavigator } from "@/components/normalplan/ZoneNavigator";
+import { ZoneVideoPlayer } from "@/components/normalplan/ZoneVideoPlayer";
+import { MetricsInputCard } from "@/components/normalplan/MetricsInputCard";
+import { WeeklyLogForm } from "@/components/normalplan/WeeklyLogForm";
+
+// ─── Habit Config ────────────────────────────────────────────────────────────
+
+const HABIT_META: Record<HabitCode, {
+  icon: React.FC<{ className?: string }>;
+  emoji: string;
+  color: string;
+  bgGradient: string;
+  border: string;
+  description: string;
+}> = {
+  Hydration: {
+    icon: Droplets,
+    emoji: "💧",
+    color: "text-blue-500",
+    bgGradient: "from-blue-50 to-cyan-50",
+    border: "border-blue-200",
+    description: "Drink at least 3L of water",
+  },
+  Nutrition: {
+    icon: Salad,
+    emoji: "🥗",
+    color: "text-green-500",
+    bgGradient: "from-green-50 to-emerald-50",
+    border: "border-green-200",
+    description: "Follow your prescribed meal plan",
+  },
+  Exercise: {
+    icon: Dumbbell,
+    emoji: "🏋️",
+    color: "text-orange-500",
+    bgGradient: "from-orange-50 to-amber-50",
+    border: "border-orange-200",
+    description: "Complete your daily workout",
+  },
+  Sleep: {
+    icon: Moon,
+    emoji: "🌙",
+    color: "text-indigo-500",
+    bgGradient: "from-indigo-50 to-violet-50",
+    border: "border-indigo-200",
+    description: "Get 7-8 hours of quality sleep",
+  },
+  Mindset: {
+    icon: Brain,
+    emoji: "🧠",
+    color: "text-purple-500",
+    bgGradient: "from-purple-50 to-fuchsia-50",
+    border: "border-purple-200",
+    description: "Practice your mindfulness drills",
+  },
+};
+
+// ─── Guide Modal ─────────────────────────────────────────────────────────────
+
+interface GuideModalProps {
+  habitCode: HabitCode | null;
   zone: number;
-  title: string;
-  accessible: boolean;
-  data?: ZoneTask;
-  loading: boolean;
-  error?: string;
+  onClose: () => void;
 }
 
-const zoneNames = [
-  "Foundation",
-  "Progression",
-  "Endurance",
-  "Mastery",
-  "Excellence",
-];
-const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-export const PatientTasksPage: React.FC = () => {
-  const [zones, setZones] = useState<ZoneState[]>(
-    [1, 2, 3, 4, 5].map((zone) => ({
-      zone,
-      title: zoneNames[zone - 1],
-      accessible: true,
-      loading: false,
-    }))
-  );
-  const [activeZone, setActiveZone] = useState(1);
-  const [activeWeek, setActiveWeek] = useState(1);
-  const [activeDay, setActiveDay] = useState(0);
-  const [pendingSelections, setPendingSelections] = useState<string[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [nextRequiredZone, setNextRequiredZone] = useState<number | null>(null);
-  const [programCompleted, setProgramCompleted] = useState(false);
-  const [loggingTaskId, setLoggingTaskId] = useState<string | null>(null);
-
-  // Add Task Modal State
-  const { user } = useAuth();
-  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
-  const [isAddingTask, setIsAddingTask] = useState(false);
-  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [taskFormData, setTaskFormData] = useState<TaskFormData>({
-    description: "",
-    programWeek: 1,
-    zone: 1,
-    frequency: "SpecificDays",
-    daysApplicable: ["Mon"],
-    timeOfDay: "Morning",
-  });
-
+const GuideModal: React.FC<GuideModalProps> = ({ habitCode, zone, onClose }) => {
+  const [guide, setGuide] = useState<HabitGuide | null>(null);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const fetchZoneTasks = useCallback(async (zoneNumber: number) => {
-    setZones((prev) =>
-      prev.map((z) =>
-        z.zone === zoneNumber ? { ...z, loading: true, error: undefined } : z
-      )
-    );
-    try {
-      const response = await patientApi.getZoneTasks(zoneNumber);
-      console.log("Fetched zone tasks:", response.data);
-      setZones((prev) =>
-        prev.map((z) =>
-          z.zone === zoneNumber
-            ? { ...z, accessible: true, data: response.data, loading: false }
-            : z
-        )
-      );
-      setNextRequiredZone(null);
-    } catch (error) {
-      const axiosError = error as AxiosError<{
-        nextRequiredZone?: number;
-        message?: string;
-      }>;
-
-      if (axiosError.response?.status === 403) {
-        const next =
-          axiosError.response.data?.nextRequiredZone || zoneNumber - 1;
-        setNextRequiredZone(next);
-        setZones((prev) =>
-          prev.map((z) =>
-            z.zone === zoneNumber
-              ? {
-                ...z,
-                accessible: false,
-                loading: false,
-                error: `Zone locked. Complete Zone ${next} first.`,
-              }
-              : z
-          )
-        );
-      } else {
-        setZones((prev) =>
-          prev.map((z) =>
-            z.zone === zoneNumber
-              ? { ...z, loading: false, error: "Failed to load tasks" }
-              : z
-          )
-        );
-      }
-    }
-  }, []);
-
-  const checkProgramCompletion = useCallback(async () => {
-    try {
-      const response = await patientApi.getProgress();
-      if (response.data.allZonesComplete) {
-        setProgramCompleted(true);
-      }
-      // Update zone accessibility based on current zone
-      const currentZone = response.data.currentZone || 1;
-      setZones((prev) =>
-        prev.map((z) => ({
-          ...z,
-          accessible: true,
-        }))
-      );
-      setActiveZone(currentZone);
-    } catch {
-      // Silently fail - we'll rely on zone-specific fetches
-    }
-  }, []);
-
   useEffect(() => {
-    checkProgramCompletion();
-    fetchZoneTasks(1);
-  }, [fetchZoneTasks, checkProgramCompletion]);
+    if (!habitCode) return;
+    const fetch = async () => {
+      setLoading(true);
+      try {
+        const res = await patientApi.getHabitGuide(habitCode);
+        setGuide(res.data.guide);
+      } catch {
+        toast({ title: "Failed to load guide", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, [habitCode, toast]);
 
-  const handleZoneClick = (zone: ZoneState) => {
-    // if (!zone.accessible) {
-    //   toast({
-    //     title: "Zone Locked",
-    //     description: `Complete Zone ${zone.zone - 1} to unlock ${zone.title}.`,
-    //     variant: "destructive",
-    //   });
-    //   return;
-    // }
-    setActiveZone(zone.zone);
-    setActiveWeek(1);
-    setActiveDay(0);
-    if (!zone.data) {
-      fetchZoneTasks(zone.zone);
-    }
-  };
+  if (!habitCode) return null;
+  const meta = HABIT_META[habitCode];
 
-  const handleProceedToZone = () => {
-    if (nextRequiredZone) {
-      setActiveZone(nextRequiredZone);
-      fetchZoneTasks(nextRequiredZone);
-    }
-  };
-
-  const handleTaskToggle = (taskId: string) => {
-    setPendingSelections(
-      (prev) =>
-        prev.includes(taskId)
-          ? prev.filter((id) => id !== taskId) // Uncheck
-          : [...prev, taskId] // Check
-    );
-  };
-  const handleSubmitDay = async () => {
-    // Check which tasks actually need submitting
-    const tasksToSubmit = currentDayTasks
-      .filter(
-        (t) => t.status !== "Completed" && pendingSelections.includes(t._id)
-      )
-      .map((t) => t._id);
-
-    if (tasksToSubmit.length === 0) {
-      toast({ title: "Notice", description: "No new tasks to submit." });
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      // ONE API call instead of many
-      await patientApi.logTaskCompletion({
-        taskIds: tasksToSubmit,
-        completionDate: new Date().toISOString(),
-      });
-      console.log("Submitted tasks:", tasksToSubmit);
-      // Update local state to reflect completion
-      setZones((prev) =>
-        prev.map((zone) => {
-          if (zone.zone !== activeZone || !zone.data) return zone;
-          return {
-            ...zone,
-            data: {
-              ...zone.data,
-              task: zone.data.task.map((t: any) =>
-                tasksToSubmit.includes(t._id)
-                  ? { ...t, status: "Completed" }
-                  : t
-              ),
-            },
-          };
-        })
-      );
-
-      toast({ title: "Success!", description: "All tasks for today logged." });
-      setPendingSelections([]);
-      checkProgramCompletion();
-    } catch (error) {
-      console.error("Submission error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to log tasks. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleAddTaskSubmit = async () => {
-    if (!taskFormData.description || taskFormData.daysApplicable.length === 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please provide a description and select at least one day.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsAddingTask(true);
-      const taskPayload = {
-        title: taskFormData.description,
-        category: "General Health",
-        description: taskFormData.description.trim(),
-        zone: taskFormData.zone,
-        programWeek: taskFormData.programWeek,
-        daysApplicable: taskFormData.daysApplicable,
-        frequency: taskFormData.frequency,
-        timeOfDay: taskFormData.timeOfDay,
-        metricRequired: null as any,
-      };
-
-      await patientApi.allocateTasks([taskPayload]);
-
-      toast({
-        title: "Task Added",
-        description: `Successfully added task: ${taskFormData.description}`,
-      });
-
-      setIsAddTaskOpen(false);
-
-      // Optionally reset form
-      setTaskFormData(prev => ({
-        ...prev,
-        description: "",
-      }));
-
-      // Refresh both program completion and current zone
-      checkProgramCompletion();
-      fetchZoneTasks(activeZone);
-
-    } catch (error: any) {
-      console.error("Failed to add task:", error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to add task. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsAddingTask(false);
-    }
-  };
-
-  const handleDeleteTask = async () => {
-    if (!taskToDelete) return;
-
-    try {
-      setIsDeleting(true);
-      await patientApi.deleteTask(taskToDelete);
-      toast({
-        title: "Task Deleted",
-        description: "The task was successfully removed.",
-      });
-      setTaskToDelete(null);
-      fetchZoneTasks(activeZone);
-      checkProgramCompletion();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to delete task.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const currentZone = zones.find((z) => z.zone === activeZone);
-  // Extract the flat task array from your backend response
-  const allTasks = currentZone?.data?.task || [];
-
-  // Filter tasks for the selected week
-  const currentWeekTasks = allTasks.filter((t) => t.programWeek === activeWeek);
-
-  // Filter tasks for the selected day based on 'daysApplicable'
-  const dayName = dayNames[activeDay]; // e.g., "Mon"
-  const currentDayTasks = currentWeekTasks.filter((t) =>
-    t.daysApplicable?.includes(dayName)
-  );
-  // 1. Checks if the DB already has them as completed
-  const isDayAlreadyLogged =
-    currentDayTasks.length > 0 &&
-    currentDayTasks.every((task) => task.status === "Completed");
-
-  // 2. Checks if the user has locally checked everything that ISN'T completed yet
-  const isDayReadyForSubmit =
-    currentDayTasks.length > 0 &&
-    currentDayTasks.every(
-      (task) =>
-        task.status === "Completed" || pendingSelections.includes(task._id)
-    );
-
-  const getDayCompletionStatus = (
-    zone: number,
-    week: number,
-    dayIndex: number
-  ) => {
-    const zoneData = zones.find((z) => z.zone === zone);
-    const tasks = zoneData?.data?.task || [];
-    const dayName = dayNames[dayIndex];
-
-    // Filter the flat list to find tasks for this specific week and day
-    const dayTasks = tasks.filter(
-      (t) => t.programWeek === week && t.daysApplicable?.includes(dayName)
-    );
-
-    if (dayTasks.length === 0) return "empty";
-
-    // Backend uses 'status', so we check for 'completed'
-    const allCompleted = dayTasks.every((t) => t.status === "Completed");
-    const someCompleted = dayTasks.some((t) => t.status === "Completed");
-
-    if (allCompleted) return "Completed";
-    if (someCompleted) return "partial";
-    return "pending";
-  };
-
-  const calculateProgress = () => {
-    let total = 0;
-    let completed = 0;
-
-    zones.forEach((zone) => {
-      // Look for the 'task' array directly in zone.data
-      const tasks = zone.data?.task || [];
-      total += tasks.length;
-      completed += tasks.filter((t) => t.status === "Completed").length;
-    });
-
-    return { total, completed };
-  };
-
-  const { total: totalTasks, completed: completedTasks } = calculateProgress();
-
-  // Program Completed Screen
-  if (programCompleted) {
-    return (
+  return (
+    <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex min-h-[60vh] flex-col items-center justify-center text-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+        onClick={e => { if (e.target === e.currentTarget) onClose(); }}
       >
         <motion.div
-          animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.1, 1] }}
-          transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
-          className="mb-6"
+          initial={{ opacity: 0, scale: 0.92, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.92, y: 20 }}
+          className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden"
         >
-          <PartyPopper className="h-24 w-24 text-primary" />
+          <div className={`bg-gradient-to-r ${meta.bgGradient} px-6 py-5 flex items-center justify-between border-b ${meta.border}`}>
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">{meta.emoji}</span>
+              <div>
+                <h2 className="text-xl font-bold text-foreground">{habitCode}</h2>
+                <p className="text-sm text-muted-foreground">Zone {zone} Guidance</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="rounded-full p-1 text-muted-foreground hover:bg-black/10 transition-colors">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="p-6 max-h-[60vh] overflow-y-auto">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-secondary" />
+              </div>
+            ) : guide ? (
+              <div className="prose prose-sm max-w-none">
+                <p className="text-foreground leading-relaxed whitespace-pre-wrap">{guide.content}</p>
+              </div>
+            ) : (
+              <div className="text-center py-10">
+                <BookOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <p className="font-medium text-foreground">Your guide will be available soon.</p>
+                <p className="text-sm text-muted-foreground mt-1">Our team is preparing your personalized instructions.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="px-6 pb-5">
+            <Button variant="outline" className="w-full h-11" onClick={onClose}>Close</Button>
+          </div>
         </motion.div>
-        <h1 className="text-4xl font-bold text-gradient-phoenix mb-4">
-          Congratulations!
-        </h1>
-        <p className="text-xl text-muted-foreground mb-2">
-          You've completed the entire 15-week program!
-        </p>
-        <p className="text-muted-foreground max-w-md">
-          You've shown incredible dedication and commitment. Your transformation
-          journey has been remarkable. Keep up the amazing work!
-        </p>
-        <div className="mt-8 flex gap-4">
-          <Button variant="teal" onClick={() => setProgramCompleted(false)}>
-            View Tasks
-          </Button>
-        </div>
       </motion.div>
+    </AnimatePresence>
+  );
+};
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export const PatientTasksPage: React.FC = () => {
+  const { toast } = useToast();
+
+  const [programStatus, setProgramStatus] = useState<ProgramStatus>({
+    currentZone: 1,
+    currentDay: 1,
+    totalDaysInZone: 21,
+    started: false,
+  });
+  
+  const [localSelections, setLocalSelections] = useState<Record<HabitCode, boolean>>({
+    Hydration: false,
+    Nutrition: false,
+    Exercise: false,
+    Sleep: false,
+    Mindset: false,
+  });
+
+  const [submittedToday, setSubmittedToday] = useState(false);
+  const [loadingPage, setLoadingPage] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [guideHabit, setGuideHabit] = useState<HabitCode | null>(null);
+  const [mood, setMood] = useState<string>("good");
+  const [notes, setNotes] = useState<string>("");
+  const [selectedViewerZone, setSelectedViewerZone] = useState<number>(1);
+
+  // Normal Plan Progress (for videos, logs, etc)
+  const [npProgress, setNpProgress] = useState<NormalPlanProgress | null>(null);
+  const [canEnterMetrics, setCanEnterMetrics] = useState(false);
+  const [daysUntilNextMetrics, setDaysUntilNextMetrics] = useState(0);
+
+  const completedCount = Object.values(localSelections).filter(Boolean).length;
+  const progressPercent = (programStatus.currentDay / programStatus.totalDaysInZone) * 100;
+
+  const loadData = useCallback(async () => {
+    setLoadingPage(true);
+    try {
+      const [statusRes, habitsRes, npRes] = await Promise.all([
+        patientApi.getProgramStatus(),
+        patientApi.getTodayHabits(),
+        normalPlanPatientApi.getProgress(),
+      ]);
+      setProgramStatus(statusRes.data);
+      setSubmittedToday(habitsRes.data.submitted);
+      setNpProgress(npRes.data);
+      setCanEnterMetrics(npRes.data.canEnterMetrics);
+      setDaysUntilNextMetrics(npRes.data.daysUntilNextMetrics);
+      setSelectedViewerZone(statusRes.data.currentZone);
+      
+      const selections: any = {};
+      habitsRes.data.habits.forEach(h => {
+        selections[h.habitCode] = h.completed;
+      });
+      setLocalSelections(selections);
+    } catch {
+      toast({ title: "Failed to load dashboard", variant: "destructive" });
+    } finally {
+      setLoadingPage(false);
+    }
+  }, [toast]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handleSubmitDaily = async () => {
+    if (submittedToday) return;
+    setSubmitting(true);
+    try {
+      const completedHabits = HABIT_CODES.filter(code => localSelections[code]);
+      await patientApi.submitHabits(completedHabits, notes, mood);
+      setSubmittedToday(true);
+      toast({ title: "Awesome! Habits submitted.", description: "Keep up the momentum!" });
+      loadData(); // refresh status
+    } catch (err: any) {
+      toast({ title: "Failed to submit", description: err.response?.data?.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVideoComplete = async (videoId: string) => {
+    try {
+      await normalPlanPatientApi.markVideoWatched(videoId);
+      loadData();
+      toast({ title: "Video marked as watched!" });
+    } catch {
+      toast({ title: "Failed to update video status", variant: "destructive" });
+    }
+  };
+
+  const handleMetricsSubmit = async (metrics: Omit<BodyMetrics, 'id' | 'loggedAt'>) => {
+    try {
+      await normalPlanPatientApi.submitMetrics(metrics);
+      toast({ title: "Metrics saved successfully!" });
+      loadData();
+    } catch {
+      toast({ title: "Failed to save metrics", variant: "destructive" });
+    }
+  };
+
+  const handleWeeklyLogSubmit = async (log: Omit<WeeklyLog, 'id' | 'submittedAt'>) => {
+    try {
+      await normalPlanPatientApi.submitWeeklyLog(log);
+      toast({ title: "Weekly log submitted!", description: "Keep going!" });
+      loadData();
+    } catch {
+      toast({ title: "Failed to submit weekly log", variant: "destructive" });
+    }
+  };
+
+  if (loadingPage) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-10 w-10 animate-spin text-secondary mx-auto" />
+          <p className="text-muted-foreground">Preparing your dashboard...</p>
+        </div>
+      </div>
     );
   }
 
+  const currentViewerZoneData = npProgress?.zones.find(z => z.zoneNumber === selectedViewerZone);
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-6"
-    >
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="container max-w-5xl mx-auto space-y-8 pb-12">
+
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">My Tasks</h1>
-          <p className="mt-1 text-muted-foreground">
-            Complete your daily tasks to progress through zones
-          </p>
+          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Health Coach Dashboard</h1>
+          <p className="mt-1 text-muted-foreground">Track your habits, watch guidance, and monitor progress.</p>
         </div>
-        <Button variant="teal" onClick={() => {
-          setTaskFormData(prev => ({
-            ...prev,
-            zone: activeZone,
-            programWeek: activeWeek,
-            daysApplicable: [dayNames[activeDay] || "Mon"]
-          }));
-          setIsAddTaskOpen(true);
-        }}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Task
+        <Button variant="ghost" size="sm" onClick={loadData} className="gap-2">
+          <RefreshCw className="h-4 w-4" /> Refresh
         </Button>
       </div>
 
-      {/* Overall Progress */}
-      <Card className="card-elevated overflow-hidden">
-        <CardContent className="p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Overall Progress</p>
-              <p className="text-3xl font-bold text-foreground">
-                {completedTasks} / {totalTasks || "..."} tasks
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Flame className="h-6 w-6 text-primary" />
-              <span className="text-lg font-semibold text-foreground">
-                Zone {activeZone} • Week {activeWeek} • {dayNames[activeDay]}
-              </span>
-            </div>
-          </div>
-          <Progress
-            value={totalTasks ? (completedTasks / totalTasks) * 100 : 0}
-            className="mt-4 h-3"
-          />
-        </CardContent>
-      </Card>
+      {/* Zone Navigator */}
+      <ZoneNavigator
+        zones={npProgress?.zones || []}
+        activeZone={selectedViewerZone}
+        onZoneSelect={setSelectedViewerZone}
+      />
 
-      {/* Zone Navigation */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground">
-          Select Zone
-        </h3>
-        <ScrollArea className="w-full whitespace-nowrap">
-          <div className="flex gap-3 pb-2">
-            {zones.map((zone) => (
-              <button
-                key={zone.zone}
-                onClick={() => handleZoneClick(zone)}
-                disabled={zone.loading}
-                className={`relative flex flex-col items-center gap-2 rounded-xl border p-4 transition-all duration-200 min-w-[100px] ${activeZone === zone.zone
-                    ? "border-secondary bg-secondary/10 shadow-teal"
-                    : "border-border bg-card hover:border-secondary/50 hover:shadow-sm"
-                  }`}
-              >
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full ${zone.accessible
-                    ? activeZone === zone.zone
-                      ? "gradient-phoenix"
-                      : "bg-secondary/20"
-                    : "bg-muted"
-                    }`}
-                >
-                  {zone.loading ? (
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  ) : !zone.accessible ? (
-                    <Lock className="h-5 w-5 text-muted-foreground" />
-                  ) : activeZone === zone.zone ? (
-                    <span className="font-bold text-primary-foreground">
-                      {zone.zone}
-                    </span>
-                  ) : (
-                    <span className="font-bold text-secondary">
-                      {zone.zone}
-                    </span>
-                  )}
+      {/* Main Tabs */}
+      <Tabs defaultValue="habits" className="space-y-6">
+        <TabsList className="grid grid-cols-4 w-full h-14 bg-muted/50 p-1 rounded-2xl">
+          <TabsTrigger value="habits" className="rounded-xl gap-2 font-bold data-[state=active]:shadow-lg">
+            <Target className="h-4 w-4" /> Habits
+          </TabsTrigger>
+          <TabsTrigger value="videos" className="rounded-xl gap-2 font-bold data-[state=active]:shadow-lg">
+            <Video className="h-4 w-4" /> Videos
+          </TabsTrigger>
+          <TabsTrigger value="metrics" className="rounded-xl gap-2 font-bold data-[state=active]:shadow-lg">
+            <Activity className="h-4 w-4" /> Metrics
+          </TabsTrigger>
+          <TabsTrigger value="weekly" className="rounded-xl gap-2 font-bold data-[state=active]:shadow-lg">
+            <CalendarCheck className="h-4 w-4" /> Weekly Log
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ─── Habits Tab ─────────────────────────────────────────────────── */}
+        <TabsContent value="habits" className="space-y-6 focus-visible:outline-none">
+          {/* Zone + Day Stat Card */}
+          <Card className="card-elevated overflow-hidden border-none shadow-2xl">
+            <CardContent className="p-0">
+              <div className="bg-gradient-to-br from-indigo-600 to-violet-700 px-8 py-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 text-white">
+                <div className="flex items-center gap-5">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-inner">
+                    <Flame className="h-8 w-8 text-amber-300" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-widest font-bold text-white/70">Current Phase</p>
+                    <div className="flex items-baseline gap-2">
+                      <h2 className="text-4xl font-black">Zone {programStatus.currentZone}</h2>
+                      <span className="text-lg font-medium text-white/80">Day {programStatus.currentDay}/21</span>
+                    </div>
+                  </div>
                 </div>
-                <span className="text-sm font-medium text-foreground">
-                  {zone.title}
-                </span>
-              </button>
-            ))}
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
-      </div>
 
-      {/* Week Navigation */}
-      {currentZone?.accessible && currentZone.data && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Select Week
-          </h3>
-          <div className="flex gap-2">
-            {[1, 2, 3].map((week) => (
-              <Button
-                key={week}
-                variant={activeWeek === week ? "teal" : "outline"}
-                onClick={() => {
-                  setActiveWeek(week);
-                  setActiveDay(0);
-                }}
-                className="flex-1"
-              >
-                Week {week}
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Day Navigation */}
-      {currentZone?.accessible && currentZone.data && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Select Day
-          </h3>
-          <ScrollArea className="w-full whitespace-nowrap">
-            <div className="flex gap-2 pb-2">
-              {dayNames.map((day, index) => {
-                const status = getDayCompletionStatus(
-                  activeZone,
-                  activeWeek,
-                  index
-                );
-                return (
-                  <button
-                    key={day}
-                    onClick={() => setActiveDay(index)}
-                    className={`relative flex flex-col items-center gap-1 rounded-lg border px-4 py-3 transition-all duration-200 min-w-[60px] ${activeDay === index
-                      ? "border-secondary bg-secondary/10 shadow-sm"
-                      : "border-border bg-card hover:border-secondary/50"
-                      }`}
-                  >
-                    <span className="text-sm font-medium text-foreground">
-                      {day}
-                    </span>
-                    <div
-                      className={`h-2 w-2 rounded-full ${status === "Completed"
-                        ? "bg-green-500"
-                        : status === "partial"
-                          ? "bg-yellow-500"
-                          : status === "pending"
-                            ? "bg-red-400"
-                            : "bg-muted"
-                        }`}
+                <div className="flex flex-col gap-2 min-w-[200px]">
+                  <div className="flex justify-between text-xs font-bold text-white/80">
+                    <span>PROGRESS</span>
+                    <span>{Math.round(progressPercent)}%</span>
+                  </div>
+                  <div className="h-3 w-full rounded-full bg-white/20 overflow-hidden backdrop-blur-sm border border-white/10">
+                    <motion.div
+                      className="h-full rounded-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.5)]"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progressPercent}%` }}
+                      transition={{ duration: 0.8, ease: "circOut" }}
                     />
-                  </button>
+                  </div>
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {submittedToday && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    className="bg-emerald-500 px-8 py-3 flex items-center gap-3 overflow-hidden text-white"
+                  >
+                    <CheckCircle className="h-5 w-5" />
+                    <span className="text-sm font-bold uppercase tracking-wider">Today's session completed!</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Daily Checklist</h3>
+            <div className="grid gap-3">
+              {HABIT_CODES.map((code, idx) => {
+                const meta = HABIT_META[code];
+                const isSelected = localSelections[code];
+                
+                return (
+                  <motion.div
+                    key={code}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <Card className={`group relative transition-all duration-300 border-2 overflow-hidden ${
+                      isSelected ? `${meta.border} bg-gradient-to-r ${meta.bgGradient} ring-2 ring-emerald-500/20` : "border-transparent bg-white hover:border-muted-foreground/20"
+                    }`}>
+                      <CardContent className="p-4 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 flex-1">
+                          <Checkbox
+                            id={`habit-${code}`}
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                              if (submittedToday) return;
+                              setLocalSelections(prev => ({ ...prev, [code]: !!checked }));
+                            }}
+                            disabled={submittedToday}
+                            className="h-7 w-7 rounded-lg border-2 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 transition-all scale-110"
+                          />
+                          
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-xl ${isSelected ? 'bg-white shadow-sm' : 'bg-muted/50'}`}>
+                              <span className="text-xl">{meta.emoji}</span>
+                            </div>
+                            <div>
+                              <label htmlFor={`habit-${code}`} className={`font-bold text-lg leading-none cursor-pointer ${submittedToday ? 'opacity-50' : ''}`}>
+                                {code}
+                              </label>
+                              <p className="text-xs text-muted-foreground mt-1">{meta.description}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-2 text-xs font-bold text-muted-foreground hover:bg-black/5 rounded-full"
+                          onClick={() => setGuideHabit(code)}
+                        >
+                          <BookOpen className="h-3.5 w-3.5" />
+                          View Guide
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
                 );
               })}
             </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </div>
-      )}
+          </div>
 
-      {/* Task List */}
-      <AnimatePresence mode="wait">
-        {currentZone?.loading ? (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-16"
-          >
-            <Loader2 className="h-12 w-12 animate-spin text-secondary" />
-            <p className="mt-4 text-muted-foreground">Loading tasks...</p>
-          </motion.div>
-        ) : currentZone?.accessible && currentZone.data ? (
-          <motion.div
-            key={`${activeZone}-${activeWeek}-${activeDay}`}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="space-y-4"
-          >
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">
-                {dayNames[activeDay]}'s Tasks
-              </h2>
-              <p className="text-xs text-secondary font-medium">
-                Focus: {currentDayTasks[0]?.metricRequired || "General Health"}
-              </p>
-            </div>
-
-            {currentDayTasks && currentDayTasks.length > 0 ? (
-              <>
-                {/* 1. The Scrollable List of Tasks */}
-                <div className="space-y-3">
-                  {currentDayTasks.map((task, index) => {
-                    const isCompleted = task.status === "Completed";
-                    const isLogging = loggingTaskId === task._id;
-                    return (
-                      <motion.div
-                        key={task._id}
-                        layout
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <Card
-                          className={`group relative overflow-hidden transition-all duration-300 border-l-4 ${isCompleted
-                            ? "bg-slate-50/80 border-l-green-500 opacity-75"
-                            : task.timeOfDay === "Morning"
-                              ? "border-l-amber-400 shadow-sm hover:shadow-md"
-                              : "border-l-indigo-400 shadow-sm hover:shadow-md"
-                            }`}
+          {!submittedToday ? (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="card-elevated">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">How are you feeling?</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex justify-between items-center gap-2">
+                      {[
+                        { val: 'terrible', label: '😫' },
+                        { val: 'bad', label: '🙁' },
+                        { val: 'okay', label: '😐' },
+                        { val: 'good', label: '🙂' },
+                        { val: 'great', label: '😁' }
+                      ].map((m) => (
+                        <button
+                          key={m.val}
+                          onClick={() => setMood(m.val)}
+                          className={`flex-1 aspect-square rounded-2xl text-2xl transition-all ${
+                            mood === m.val ? 'bg-secondary text-white scale-110 shadow-lg' : 'bg-muted/50 hover:bg-muted grayscale opacity-60'
+                          }`}
                         >
-                          <CardContent className="p-5">
-                            <div className="flex items-start gap-5">
-                              {/* Checkbox Section */}
-                              <div className="flex flex-col items-center gap-2">
-                                {isLogging ? (
-                                  <Loader2 className="mt-1 h-6 w-6 animate-spin text-secondary" />
-                                ) : (
-                                  <Checkbox
-                                    id={task._id}
-                                    className="h-6 w-6 rounded-full border-2 transition-transform group-hover:scale-110"
-                                    checked={
-                                      task.status === "Completed" ||
-                                      pendingSelections.includes(task._id)
-                                    }
-                                    onCheckedChange={() =>
-                                      handleTaskToggle(task._id)
-                                    }
-                                    disabled={
-                                      task.status === "Completed" ||
-                                      isSubmitting
-                                    }
-                                  />
-                                )}
-                              </div>
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
 
-                              {/* Content Section */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex flex-wrap items-center gap-2 mb-2">
-                                  {/* Time Badge */}
-                                  <span
-                                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${task.timeOfDay === "Morning"
-                                      ? "bg-amber-100 text-amber-700"
-                                      : "bg-indigo-100 text-indigo-700"
-                                      }`}
-                                  >
-                                    <Calendar className="h-3 w-3" />
-                                    {task.timeOfDay}
-                                  </span>
+                <Card className="card-elevated">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Any notes for today?</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <textarea
+                      placeholder="How was your workout? Any challenges?"
+                      className="w-full h-24 rounded-xl border-2 border-muted bg-muted/20 p-3 text-sm focus:border-secondary outline-none transition-all resize-none"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
 
-                                  {/* Zone/Week Badge */}
-                                  <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider">
-                                    ZONE {task.zone} • WEEK {task.programWeek}
-                                  </span>
-
-                                  {isCompleted && (
-                                    <span className="flex items-center gap-1 text-green-600 text-[10px] font-bold uppercase tracking-wider">
-                                      <CheckCircle className="h-3 w-3" />
-                                      Done
-                                    </span>
-                                  )}
-                                </div>
-
-                                <label
-                                  htmlFor={task._id}
-                                  className={`text-lg font-bold leading-tight block transition-colors ${isCompleted
-                                    ? "text-slate-400 line-through"
-                                    : "text-slate-900"
-                                    }`}
-                                >
-                                  {task.description}
-                                </label>
-
-                                {/* Patient Insight Section */}
-                                {!isCompleted && (
-                                  <div className="mt-3 flex items-start gap-2 bg-blue-50/50 p-2 rounded-lg border border-blue-100">
-                                    <Target className="h-4 w-4 text-blue-500 mt-0.5" />
-                                    <div className="text-[11px] text-blue-700 leading-relaxed">
-                                      <strong>
-                                        Goal: {task.metricRequired}
-                                      </strong>{" "}
-                                      — Completing this helps improve your
-                                      metabolic rate. Aim for consistency to
-                                      unlock Zone {task.zone + 1}.
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Delete Button (Only for self-assigned tasks) */}
-                              {task.category === "General Health" && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-destructive/50 hover:text-destructive hover:bg-destructive/10 -mt-2 -mr-2"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setTaskToDelete(task._id);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-
-                {/* 2. The Submit Block (Placed inside the same branch) */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-8 pt-6 border-t border-slate-100"
-                >
-                  <Card
-                    className={`overflow-hidden border-none shadow-lg transition-all duration-500 ${isDayAlreadyLogged || isDayReadyForSubmit
-                      ? "bg-gradient-to-r from-teal-500 to-emerald-600"
-                      : "bg-slate-100"
-                      }`}
-                  >
-                    <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`h-10 w-10 rounded-full flex items-center justify-center ${isDayReadyForSubmit ? "bg-white/20" : "bg-slate-200"
-                            }`}
-                        >
-                          {isDayAlreadyLogged ? (
-                            <CheckCircle className="text-white h-6" />
-                          ) : isDayReadyForSubmit ? (
-                            <Target className="text-white h-6 animate-bounce" /> // Replaces spinner when ready
-                          ) : (
-                            <Loader2 className="text-slate-400 animate-spin" /> // Only spins while tasks are missing
-                          )}
-                        </div>
-                        <div className="text-left">
-                          <h4
-                            className={`font-bold ${isDayReadyForSubmit
-                              ? "text-white"
-                              : "text-slate-600"
-                              }`}
-                          >
-                            {isDayAlreadyLogged
-                              ? "Day Logged"
-                              : isDayReadyForSubmit
-                                ? "Ready to Submit!"
-                                : "Day in Progress"}
-                          </h4>
-                          <p
-                            className={`text-xs ${isDayReadyForSubmit
-                              ? "text-white/80"
-                              : "text-slate-400"
-                              }`}
-                          >
-                            {isDayAlreadyLogged
-                              ? "Routine complete."
-                              : isDayReadyForSubmit
-                                ? "Click the button to save."
-                                : `${pendingSelections.length} of ${currentDayTasks.length} tasks checked`}
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        disabled={
-                          isSubmitting ||
-                          isDayAlreadyLogged ||
-                          !isDayReadyForSubmit // Button unlocks as soon as local checks = total tasks
-                        }
-                        onClick={handleSubmitDay}
-                        className={
-                          isDayReadyForSubmit && !isDayAlreadyLogged
-                            ? "bg-white text-emerald-600 hover:bg-white/90"
-                            : "bg-slate-200 text-slate-400"
-                        }
-                      >
-                        {isSubmitting ? (
-                          <Loader2 className="mr-2 animate-spin" />
-                        ) : isDayAlreadyLogged ? (
-                          "Day Logged"
-                        ) : (
-                          "Submit All Tasks"
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              </>
-            ) : (
-              <Card className="card-elevated">
-                <CardContent className="py-12 text-center">
-                  <Target className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                  <p className="text-lg font-medium text-foreground">
-                    No tasks for this day
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Enjoy your rest day!
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-16 text-center"
-          >
-            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-              <Lock className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-xl font-semibold text-foreground">
-              Zone Locked
-            </h3>
-            <p className="mt-2 max-w-md text-muted-foreground">
-              {currentZone?.error ||
-                `Complete all tasks in Zone ${activeZone - 1} to unlock ${currentZone?.title || "this zone"
-                }.`}
-            </p>
-            {nextRequiredZone && (
               <Button
-                variant="phoenix"
-                className="mt-4"
-                onClick={handleProceedToZone}
+                size="lg"
+                className="w-full h-16 text-xl font-black rounded-3xl gradient-phoenix shadow-xl hover:shadow-2xl transition-all active:scale-[0.98]"
+                onClick={handleSubmitDaily}
+                disabled={submitting}
               >
-                Proceed to Zone {nextRequiredZone}
-                <ArrowRight className="ml-2 h-4 w-4" />
+                {submitting ? <Loader2 className="mr-3 h-6 w-6 animate-spin" /> : <Send className="mr-3 h-6 w-6" />}
+                SUBMIT TODAY ({completedCount}/5)
               </Button>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          ) : (
+            <Card className="rounded-3xl bg-emerald-50 border-2 border-emerald-100 p-8 text-center space-y-3">
+              <CheckCircle className="h-12 w-12 text-emerald-500 mx-auto" />
+              <h3 className="text-2xl font-black text-emerald-900">Great Job Today!</h3>
+              <p className="text-emerald-700 font-medium tracking-tight">Your habits are locked in. Tomorrow will be Day {programStatus.currentDay + 1}.</p>
+            </Card>
+          )}
+        </TabsContent>
 
-      <TaskFormModal
-        isOpen={isAddTaskOpen}
-        onClose={() => setIsAddTaskOpen(false)}
-        onSubmit={handleAddTaskSubmit}
-        isSubmitting={isAddingTask}
-        formData={taskFormData}
-        setFormData={setTaskFormData}
-        mode="add"
-      />
+        {/* ─── Videos Tab ─────────────────────────────────────────────────── */}
+        <TabsContent value="videos" className="focus-visible:outline-none">
+          <ZoneVideoPlayer
+            videos={currentViewerZoneData?.requiredVideos || []}
+            zoneName={currentViewerZoneData?.zoneName || `Zone ${selectedViewerZone}`}
+            isZoneLocked={false}
+            onVideoComplete={handleVideoComplete}
+          />
+        </TabsContent>
 
-      <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete your custom task from your plan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={(e) => {
-                e.preventDefault();
-                handleDeleteTask();
-              }}
-              disabled={isDeleting}
-            >
-              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Delete Task
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* ─── Metrics Tab ────────────────────────────────────────────────── */}
+        <TabsContent value="metrics" className="focus-visible:outline-none space-y-6">
+          <MetricsInputCard
+            currentZone={programStatus.currentZone}
+            latestMetrics={npProgress?.latestMetrics || null}
+            videosCompleted={currentViewerZoneData?.videosCompleted || false}
+            canEnterMetrics={canEnterMetrics}
+            daysUntilNextEntry={daysUntilNextMetrics}
+            onWatchVideos={() => {}} // Could switch tab here
+            onSubmit={handleMetricsSubmit}
+          />
+          {npProgress?.recommendations && (
+            <Card className="card-elevated bg-secondary/5 border-secondary/20 border-l-4 border-l-secondary">
+              <CardHeader>
+                <CardTitle className="text-lg">Personalized Recommendations</CardTitle>
+                <p className="text-sm text-muted-foreground">{npProgress.recommendations.generalAdvices}</p>
+              </CardHeader>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ─── Weekly Tab ─────────────────────────────────────────────────── */}
+        <TabsContent value="weekly" className="focus-visible:outline-none">
+          <WeeklyLogForm
+            currentZone={selectedViewerZone}
+            currentWeek={npProgress?.totalWeeksCompleted ? npProgress.totalWeeksCompleted + 1 : 1}
+            lastLog={npProgress?.weeklyLogs ? npProgress.weeklyLogs[npProgress.weeklyLogs.length - 1] : undefined}
+            latestMetrics={npProgress?.latestMetrics || null}
+            completedTasks={0} // This is the old task logic, can be 0 or calculated
+            totalTasks={0}
+            canSubmit={true}
+            onSubmit={handleWeeklyLogSubmit}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Modals */}
+      {guideHabit && (
+        <GuideModal
+          habitCode={guideHabit}
+          zone={programStatus.currentZone}
+          onClose={() => setGuideHabit(null)}
+        />
+      )}
     </motion.div>
   );
 };

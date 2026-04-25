@@ -85,13 +85,7 @@ export const AppRoutes = () => {
 
         <Route
           path="tasks"
-          element={
-            planTier === "normal" ? (
-              <NormalPlanDashboard />
-            ) : (
-              <PatientTasksPage />
-            )
-          }
+          element={<PatientTasksPage />}
         />
 
         <Route path="progress" element={<PatientProgressPage />} />

@@ -197,12 +197,52 @@ export interface ProgramBookingData {
   email: string;
   mobileNumber: string;
   password: string;
-  assignedCategory: "Weight Loss" | "Weight Gain"; // The fitness goal
-  planTier: ProgramTier;                           // 'normal' | 'premium'
+  assignedCategory: "Weight Loss" | "Weight Gain";
+  planTier: ProgramTier;
   programStartDate?: string;
   paymentToken: string;
   orderId: string;
   razorpaySignature: string;
+}
+
+export type HabitCode = 'Hydration' | 'Nutrition' | 'Exercise' | 'Sleep' | 'Mindset';
+export const HABIT_CODES: HabitCode[] = ['Hydration', 'Nutrition', 'Exercise', 'Sleep', 'Mindset'];
+
+export interface TimeSlot {
+  _id: string;
+  time: string;
+  period: 'morning' | 'evening';
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface HabitStatus {
+  habitCode: HabitCode;
+  completed: boolean;
+}
+
+export interface HabitGuide {
+  _id: string;
+  habitCode: HabitCode;
+  zone: number;
+  content: string;
+  patientId?: string | null;
+}
+
+export interface ProgramStatus {
+  currentZone: number;
+  currentDay: number;
+  totalDaysInZone: number;
+  started: boolean;
+}
+
+export interface HabitLog {
+  _id: string;
+  patientId: string;
+  zone: number;
+  day: number;
+  date: string;
+  completedHabits: HabitCode[];
 }
 
 // Auth API
@@ -239,7 +279,7 @@ export const publicApi = {
     api.post('/public/verify-payment', data),
   verifyBooking: (data: { consultationId: string }) =>
     api.post('/public/verify-consultation-id', data),
-
+  getTimeSlots: () => api.get<{ slots: TimeSlot[] }>('/public/time-slots'),
 };
 
 // Doctor API
@@ -275,6 +315,22 @@ export const doctorApi = {
   assignProgram: (patientId: string, templateId: string) =>
     api.post(`/doctor/assign-program/${patientId}`, { templateId }).then(res => res.data),
 
+  // Time Slot management
+  getTimeSlots: () => api.get<{ slots: TimeSlot[] }>('/doctor/time-slots'),
+  toggleTimeSlot: (id: string, isActive: boolean) =>
+    api.patch<{ slot: TimeSlot }>(`/doctor/time-slots/${id}`, { isActive }),
+  addTimeSlot: (data: { time: string; period: 'morning' | 'evening' }) =>
+    api.post<{ slot: TimeSlot }>('/doctor/time-slots', data),
+  deleteTimeSlot: (id: string) => api.delete(`/doctor/time-slots/${id}`),
+
+  // Habit Guide
+  assignHabitGuide: (data: { habitCode: HabitCode; zone: number; content: string; patientId?: string }) =>
+    api.post<{ guide: HabitGuide }>('/doctor/habit-guide', data),
+  getHabitGuides: (params?: { zone?: number; habitCode?: HabitCode }) =>
+    api.get<{ guides: HabitGuide[] }>('/doctor/habit-guide', { params }),
+  updateHabitGuide: (id: string, content: string) =>
+    api.patch<{ guide: HabitGuide }>(`/doctor/habit-guide/${id}`, { content }),
+  deleteHabitGuide: (id: string) => api.delete(`/doctor/habit-guide/${id}`),
 };
 
 // Patient API
@@ -308,4 +364,13 @@ export const patientApi = {
   getProfile: () => api.get<PatientProfile>('/patients/getPatientProfile'),
   updatePassword: (data: { currentPassword: string; newPassword: string }) =>
     api.post('/patients/update-password', data),
+
+  // Habit Tracker
+  getProgramStatus: () => api.get<ProgramStatus>('/patients/program-status'),
+  getTodayHabits: () => api.get<{ habits: HabitStatus[]; submitted: boolean }>('/patients/habits/today'),
+  submitHabits: (completedHabits: HabitCode[], notes?: string, mood?: string) =>
+    api.post<HabitSubmissionResponse>('/patients/habits/submit', { completedHabits, notes, mood }),
+  getHabitHistory: () => api.get<{ logs: HabitLog[] }>('/patients/habits/history'),
+  getHabitGuide: (habitCode: HabitCode) =>
+    api.get<{ guide: HabitGuide | null; zone: number }>(`/patients/habits/${habitCode}/guide`),
 };

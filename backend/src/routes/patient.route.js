@@ -15,6 +15,13 @@ import {
   allocateTasks,
   deleteTask,
 } from "../controllers/patient.controller.js";
+import {
+  getTodayHabits,
+  submitHabits,
+  getHabitGuide,
+  getProgramStatus,
+  getHabitHistory,
+} from "../controllers/habitGuide.controller.js";
 import express from "express";
 export const router = express.Router();
 
@@ -57,5 +64,12 @@ router.post("/allocate-tasks", protect, isPatient, allocateTasks);
 
 // Delete custom task
 router.delete("/tasks/:taskId", protect, isPatient, deleteTask);
+
+// --- HABIT TRACKER ROUTES ---
+router.get("/program-status", protect, isPatient, getProgramStatus);
+router.get("/habits/today", protect, isPatient, getTodayHabits);
+router.post("/habits/submit", protect, isPatient, submitHabits);
+router.get("/habits/history", protect, isPatient, getHabitHistory);
+router.get("/habits/:habitCode/guide", protect, isPatient, getHabitGuide);
 
 export default router;

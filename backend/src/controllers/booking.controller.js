@@ -26,6 +26,7 @@ import {
   NORMAL_PROGRAM_BOOKING_PRICE,
 } from "../constants.js";
 import mongoose from "mongoose";
+import TimeSlot from "../model/timeSlot.model.js";
 
 const newRequestConsultation = asyncHandler(async (req, res) => {
   const {
@@ -323,4 +324,12 @@ const verifyCosultationId = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Consultation found.", booking });
 });
 
-export { newRequestConsultation, programBooking, newCreateOrderId, verifyCosultationId };
+// GET /api/v1/public/time-slots — active slots only (for patient booking page)
+const getPublicTimeSlots = asyncHandler(async (req, res) => {
+  const slots = await TimeSlot.find({ isActive: true })
+    .select("-__v -createdAt -updatedAt")
+    .sort({ period: 1, sortOrder: 1, time: 1 });
+  res.status(200).json({ success: true, slots });
+});
+
+export { newRequestConsultation, programBooking, newCreateOrderId, verifyCosultationId, getPublicTimeSlots };

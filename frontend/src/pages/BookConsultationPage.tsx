@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Flame,
   Calendar,
@@ -9,6 +9,9 @@ import {
   Check,
   Loader2,
   ShieldCheck,
+  Sun,
+  Moon,
+  Clock,
 } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -21,14 +24,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useRazorpay, RazorpayResponse } from "@/hooks/useRazorpay";
-import { publicApi } from "@/lib/api";
+import { publicApi, TimeSlot } from "@/lib/api";
 import logo from "../../public/logo.png";
 
 const bookingSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
   email: z.string().email("Please enter a valid email").max(255),
   phone: z.string().min(10, "Please enter a valid phone number").max(15),
-  preferredDate: z.string().min(1, "Please select a preferred date"),
   consultationType: z.string().min(1, "Please select a consultation type"),
   patientQuery: z.string().max(500).optional(),
 });
@@ -42,9 +44,34 @@ const consultationTypes = [
     price: 1,
     description: "Comprehensive fitness evaluation",
   },
-  // { value: 'followup', label: 'Follow-up Session', price: 599, description: 'Progress review and adjustments' },
-  // { value: 'nutrition', label: 'Nutrition Consultation', price: 799, description: 'Personalized diet planning' },
 ];
+
+const DEFAULT_SLOTS: TimeSlot[] = [
+  { _id: "def-1", time: "9:30 AM", period: "morning", isActive: true, sortOrder: 1 },
+  { _id: "def-2", time: "10:30 AM", period: "morning", isActive: true, sortOrder: 2 },
+  { _id: "def-3", time: "11:30 AM", period: "morning", isActive: true, sortOrder: 3 },
+  { _id: "def-4", time: "6:00 PM", period: "evening", isActive: true, sortOrder: 4 },
+  { _id: "def-5", time: "7:00 PM", period: "evening", isActive: true, sortOrder: 5 },
+  { _id: "def-6", time: "8:00 PM", period: "evening", isActive: true, sortOrder: 6 },
+];
+
+// ─── Slot picker helpers ─────────────────────────────────────────────────────
+
+function todayDateString() {
+  const d = new Date();
+  return d.toISOString().split("T")[0];
+}
+
+function buildISODateTime(dateStr: string, timeStr: string): string {
+  // timeStr e.g. "9:30 AM" or "6:00 PM"
+  const [time, period] = timeStr.split(" ");
+  let [hours, minutes] = time.split(":").map(Number);
+  if (period === "PM" && hours !== 12) hours += 12;
+  if (period === "AM" && hours === 12) hours = 0;
+  return `${dateStr}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export const BookConsultationPage: React.FC = () => {
   const navigate = useNavigate();
@@ -52,6 +79,12 @@ export const BookConsultationPage: React.FC = () => {
   const { isLoaded, isLoading: paymentLoading, openPayment } = useRazorpay();
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Slot state
+  const [selectedDate, setSelectedDate] = useState("");
+  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [slotsLoading, setSlotsLoading] = useState(false);
 
   const {
     register,
@@ -69,25 +102,48 @@ export const BookConsultationPage: React.FC = () => {
 
   const selectedType = watch("consultationType");
   const selectedConsultation = consultationTypes.find(
-    (t) => t.value === selectedType,
+    (t) => t.value === selectedType
   );
 
-  const validateAndProceed = () => {
-    const values = getValues();
-
-    // Validate date is in the future
-    if (values.preferredDate) {
-      const selectedDate = new Date(values.preferredDate);
-      if (selectedDate <= new Date()) {
-        toast({
-          title: "Invalid Date",
-          description: "Please select a future date.",
-          variant: "destructive",
-        });
-        return;
+  // Fetch active slots once
+  useEffect(() => {
+    const loadSlots = async () => {
+      setSlotsLoading(true);
+      try {
+        const res = await publicApi.getTimeSlots();
+        if (res.data.slots && res.data.slots.length > 0) {
+          setAvailableSlots(res.data.slots);
+        } else {
+          // If backend returns empty, use defaults
+          setAvailableSlots(DEFAULT_SLOTS);
+        }
+      } catch (error) {
+        console.error("Failed to load dynamic slots, using defaults:", error);
+        setAvailableSlots(DEFAULT_SLOTS);
+        // Optionally show toast for dev but keep it smooth for user
+      } finally {
+        setSlotsLoading(false);
       }
-    }
+    };
+    loadSlots();
+  }, [toast]);
 
+  const morningSlots = availableSlots.filter((s) => s.period === "morning");
+  const eveningSlots = availableSlots.filter((s) => s.period === "evening");
+
+  const validateAndProceed = () => {
+    if (!selectedDate) {
+      toast({ title: "Please select a date", variant: "destructive" });
+      return;
+    }
+    if (new Date(selectedDate) < new Date(todayDateString())) {
+      toast({ title: "Please select a future date", variant: "destructive" });
+      return;
+    }
+    if (!selectedSlot) {
+      toast({ title: "Please select a time slot", variant: "destructive" });
+      return;
+    }
     setStep(2);
   };
 
@@ -101,18 +157,14 @@ export const BookConsultationPage: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      // Step 1: Create Order ID
       const orderResponse = await publicApi.createOrderId("consultation");
-      console.log("Order Response:", orderResponse); // Debug log
-      // ✅ CORRECTED EXTRACTION: Match your Backend keys
       const serverOrderId = orderResponse.data.orderId;
       const serverAmount = orderResponse.data.amount;
 
-      if (!serverOrderId) {
-        throw new Error("Server did not return an Order ID");
-      }
+      if (!serverOrderId) throw new Error("Server did not return an Order ID");
 
-      // Step 2: Open Razorpay
+      const requestedDateTime = buildISODateTime(selectedDate, selectedSlot!.time);
+
       openPayment({
         orderId: serverOrderId,
         amount: serverAmount,
@@ -129,15 +181,15 @@ export const BookConsultationPage: React.FC = () => {
               name: data.name,
               email: data.email,
               mobileNumber: data.phone,
-              requestedDateTime: data.preferredDate,
+              requestedDateTime,
               patientQuery: data.patientQuery || "",
               paymentToken: response.razorpay_payment_id,
               orderId: response.razorpay_order_id,
               razorpaySignature: response.razorpay_signature,
             });
-            toast({ title: "Booking Confirmed!" });
+            toast({ title: "Booking Confirmed! 🎉" });
             navigate("/booking-success");
-          } catch (error) {
+          } catch {
             toast({ title: "Booking Failed", variant: "destructive" });
           }
         },
@@ -183,10 +235,7 @@ export const BookConsultationPage: React.FC = () => {
                 src={logo}
                 alt="HorizonFit Logo"
                 className="h-14 w-auto object-contain transition-all duration-300 group-hover:scale-105"
-                style={{
-                  // Optional: if the logo has a white background you want to blend
-                  mixBlendMode: "multiply",
-                }}
+                style={{ mixBlendMode: "multiply" }}
               />
             </div>
           </Link>
@@ -220,27 +269,17 @@ export const BookConsultationPage: React.FC = () => {
               className={`flex h-10 w-10 items-center justify-center rounded-full ${step >= 1 ? "gradient-phoenix" : "bg-muted"}`}
             >
               <span
-                className={
-                  step >= 1
-                    ? "text-primary-foreground font-semibold"
-                    : "text-muted-foreground"
-                }
+                className={step >= 1 ? "text-primary-foreground font-semibold" : "text-muted-foreground"}
               >
                 1
               </span>
             </div>
-            <div
-              className={`h-1 w-16 rounded ${step >= 2 ? "gradient-phoenix" : "bg-muted"}`}
-            />
+            <div className={`h-1 w-16 rounded ${step >= 2 ? "gradient-phoenix" : "bg-muted"}`} />
             <div
               className={`flex h-10 w-10 items-center justify-center rounded-full ${step >= 2 ? "gradient-phoenix" : "bg-muted"}`}
             >
               <span
-                className={
-                  step >= 2
-                    ? "text-primary-foreground font-semibold"
-                    : "text-muted-foreground"
-                }
+                className={step >= 2 ? "text-primary-foreground font-semibold" : "text-muted-foreground"}
               >
                 2
               </span>
@@ -249,217 +288,282 @@ export const BookConsultationPage: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit(() => {})}>
-          {step === 1 && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="grid gap-6 lg:grid-cols-2"
-            >
-              {/* Personal Info */}
-              <Card className="card-elevated">
-                <CardHeader>
-                  <CardTitle>Personal Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      placeholder="John Smith"
-                      {...register("name")}
-                    />
-                    {errors.name && (
-                      <p className="text-sm text-destructive">
-                        {errors.name.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="john@example.com"
-                      {...register("email")}
-                    />
-                    {errors.email && (
-                      <p className="text-sm text-destructive">
-                        {errors.email.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      placeholder="+91 98765 43210"
-                      {...register("phone")}
-                    />
-                    {errors.phone && (
-                      <p className="text-sm text-destructive">
-                        {errors.phone.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="preferredDate">Preferred Date & Time</Label>
-                    <Input
-                      id="preferredDate"
-                      type="datetime-local"
-                      {...register("preferredDate")}
-                    />
-                    {errors.preferredDate && (
-                      <p className="text-sm text-destructive">
-                        {errors.preferredDate.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="patientQuery">Your Query (Optional)</Label>
-                    <Textarea
-                      id="patientQuery"
-                      placeholder="Tell us about your health goals or concerns..."
-                      {...register("patientQuery")}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+          <AnimatePresence mode="wait">
+            {step === 1 && (
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="grid gap-6 lg:grid-cols-2"
+              >
+                {/* Personal Info */}
+                <Card className="card-elevated">
+                  <CardHeader>
+                    <CardTitle>Personal Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input id="name" placeholder="John Smith" {...register("name")} />
+                      {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input id="email" type="email" placeholder="john@example.com" {...register("email")} />
+                      {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input id="phone" placeholder="+91 98765 43210" {...register("phone")} />
+                      {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="patientQuery">Your Query (Optional)</Label>
+                      <Textarea
+                        id="patientQuery"
+                        placeholder="Tell us about your health goals or concerns..."
+                        {...register("patientQuery")}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Consultation Type */}
-              <Card className="card-elevated">
-                <CardHeader>
-                  <CardTitle>Select Consultation Type</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <RadioGroup
-                    value={selectedType}
-                    onValueChange={(value) =>
-                      setValue("consultationType", value)
-                    }
-                    className="space-y-3"
-                  >
-                    {consultationTypes.map((type) => (
-                      <label
-                        key={type.value}
-                        className={`flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all ${
-                          selectedType === type.value
-                            ? "border-secondary bg-secondary/5 shadow-sm"
-                            : "border-border hover:border-secondary/50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <RadioGroupItem value={type.value} />
-                          <div>
-                            <p className="font-medium text-foreground">
-                              {type.label}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {type.description}
-                            </p>
-                          </div>
+                {/* Right Column: Date + Slot + Type */}
+                <div className="space-y-6">
+                  {/* Date Picker */}
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-secondary" />
+                        Select Date
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Input
+                        id="selectedDate"
+                        type="date"
+                        min={todayDateString()}
+                        value={selectedDate}
+                        onChange={(e) => {
+                          setSelectedDate(e.target.value);
+                          setSelectedSlot(null);
+                        }}
+                        className="text-foreground"
+                      />
+                    </CardContent>
+                  </Card>
+
+                  {/* Time Slot Picker */}
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-secondary" />
+                        Select Time Slot
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                      {slotsLoading ? (
+                        <div className="flex items-center justify-center py-6">
+                          <Loader2 className="h-6 w-6 animate-spin text-secondary" />
                         </div>
-                        <span className="text-lg font-bold text-primary">
-                          ₹{type.price}
-                        </span>
-                      </label>
-                    ))}
-                  </RadioGroup>
-                  {errors.consultationType && (
-                    <p className="mt-2 text-sm text-destructive">
-                      {errors.consultationType.message}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              <div className="lg:col-span-2">
-                <Button
-                  type="button"
-                  variant="phoenix"
-                  size="lg"
-                  className="w-full"
-                  onClick={handleSubmit(validateAndProceed)}
-                >
-                  Continue to Payment
-                </Button>
-              </div>
-            </motion.div>
-          )}
-
-          {step === 2 && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-            >
-              <Card className="card-elevated mx-auto max-w-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-secondary" />
-                    Payment Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="rounded-lg bg-muted/50 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-foreground">
-                          {selectedConsultation?.label}
+                      ) : availableSlots.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          No time slots available. Please check back later.
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          {selectedConsultation?.description}
-                        </p>
-                      </div>
-                      <span className="text-2xl font-bold text-primary">
-                        ₹{selectedConsultation?.price}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 border-t border-border pt-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <ShieldCheck className="h-4 w-4 text-green-500" />
-                      Secure payment via Razorpay
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Check className="h-4 w-4 text-green-500" />
-                      Instant booking confirmation
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Check className="h-4 w-4 text-green-500" />
-                      Free cancellation up to 24h before
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => setStep(1)}
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="phoenix"
-                      className="flex-1"
-                      onClick={handlePayment}
-                      disabled={isLoading || !isLoaded}
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Processing...
-                        </>
                       ) : (
-                        <>Pay ₹{selectedConsultation?.price}</>
+                        <>
+                          {/* Morning Slots */}
+                          {morningSlots.length > 0 && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-sm font-semibold text-amber-600">
+                                <Sun className="h-4 w-4" />
+                                Morning
+                              </div>
+                              <div className="grid grid-cols-3 gap-2">
+                                {morningSlots.map((slot) => (
+                                  <button
+                                    key={slot._id}
+                                    type="button"
+                                    onClick={() => setSelectedSlot(slot)}
+                                    className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+                                      selectedSlot?._id === slot._id
+                                        ? "border-secondary bg-secondary text-white shadow-md scale-105"
+                                        : "border-border bg-card hover:border-secondary/60 hover:bg-secondary/5 text-foreground"
+                                    }`}
+                                  >
+                                    {slot.time}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Evening Slots */}
+                          {eveningSlots.length > 0 && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-sm font-semibold text-indigo-600">
+                                <Moon className="h-4 w-4" />
+                                Evening
+                              </div>
+                              <div className="grid grid-cols-3 gap-2">
+                                {eveningSlots.map((slot) => (
+                                  <button
+                                    key={slot._id}
+                                    type="button"
+                                    onClick={() => setSelectedSlot(slot)}
+                                    className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+                                      selectedSlot?._id === slot._id
+                                        ? "border-secondary bg-secondary text-white shadow-md scale-105"
+                                        : "border-border bg-card hover:border-secondary/60 hover:bg-secondary/5 text-foreground"
+                                    }`}
+                                  >
+                                    {slot.time}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedSlot && selectedDate && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="rounded-lg bg-secondary/10 border border-secondary/30 px-4 py-2.5 text-sm font-medium text-secondary"
+                            >
+                              ✅ Selected: {new Date(selectedDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })} at {selectedSlot.time}
+                            </motion.div>
+                          )}
+                        </>
                       )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Consultation Type */}
+                  <Card className="card-elevated">
+                    <CardHeader>
+                      <CardTitle>Consultation Type</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <RadioGroup
+                        value={selectedType}
+                        onValueChange={(value) => setValue("consultationType", value)}
+                        className="space-y-3"
+                      >
+                        {consultationTypes.map((type) => (
+                          <label
+                            key={type.value}
+                            className={`flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all ${
+                              selectedType === type.value
+                                ? "border-secondary bg-secondary/5 shadow-sm"
+                                : "border-border hover:border-secondary/50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <RadioGroupItem value={type.value} />
+                              <div>
+                                <p className="font-medium text-foreground">{type.label}</p>
+                                <p className="text-sm text-muted-foreground">{type.description}</p>
+                              </div>
+                            </div>
+                            <span className="text-lg font-bold text-primary">₹{type.price}</span>
+                          </label>
+                        ))}
+                      </RadioGroup>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="lg:col-span-2">
+                  <Button
+                    type="button"
+                    variant="phoenix"
+                    size="lg"
+                    className="w-full"
+                    onClick={handleSubmit(validateAndProceed)}
+                  >
+                    Continue to Payment
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {step === 2 && (
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+              >
+                <Card className="card-elevated mx-auto max-w-lg">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-secondary" />
+                      Payment Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="rounded-lg bg-muted/50 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-foreground">{selectedConsultation?.label}</p>
+                          <p className="text-sm text-muted-foreground">{selectedConsultation?.description}</p>
+                        </div>
+                        <span className="text-2xl font-bold text-primary">₹{selectedConsultation?.price}</span>
+                      </div>
+                      {selectedDate && selectedSlot && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground border-t border-border pt-3">
+                          <Calendar className="h-4 w-4 text-secondary" />
+                          <span>
+                            {new Date(selectedDate).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
+                            {" "}at{" "}
+                            <span className="font-semibold text-foreground">{selectedSlot.time}</span>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-3 border-t border-border pt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <ShieldCheck className="h-4 w-4 text-green-500" />
+                        Secure payment via Razorpay
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Check className="h-4 w-4 text-green-500" />
+                        Instant booking confirmation
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Check className="h-4 w-4 text-green-500" />
+                        Free cancellation up to 24h before
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(1)}>
+                        Back
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="phoenix"
+                        className="flex-1"
+                        onClick={handlePayment}
+                        disabled={isLoading || !isLoaded}
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>Pay ₹{selectedConsultation?.price}</>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </form>
       </div>
     </div>

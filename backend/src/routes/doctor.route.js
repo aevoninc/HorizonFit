@@ -18,7 +18,17 @@ import {
   updateTemplate,
   deleteTemplate,
   assignProgramToPatient,
+  getTimeSlotsDoctor,
+  toggleTimeSlot,
+  addTimeSlot,
+  deleteTimeSlot,
 } from "../controllers/doctor.controller.js";
+import {
+  assignHabitGuide,
+  getHabitGuides,
+  updateHabitGuide,
+  deleteHabitGuide,
+} from "../controllers/habitGuide.controller.js";
 import { protect, isDoctor } from "../middleware/auth.middleware.js";
 import express from "express";
 
@@ -84,5 +94,17 @@ router.delete("/templates/:id", deleteTemplate);
 
 // One-click assign: takes a template and creates all tasks for a patient
 router.post("/assign-program/:patientId", assignProgramToPatient);
+
+// --- TIME SLOT ROUTES ---
+router.get("/time-slots", getTimeSlotsDoctor);
+router.post("/time-slots", addTimeSlot);
+router.patch("/time-slots/:id", toggleTimeSlot);
+router.delete("/time-slots/:id", deleteTimeSlot);
+
+// --- HABIT GUIDE ROUTES ---
+router.post("/habit-guide", assignHabitGuide);
+router.get("/habit-guide", getHabitGuides);
+router.patch("/habit-guide/:id", updateHabitGuide);
+router.delete("/habit-guide/:id", deleteHabitGuide);
 
 export default router;
