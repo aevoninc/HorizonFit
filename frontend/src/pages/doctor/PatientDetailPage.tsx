@@ -1,16 +1,16 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Plus,
   Trash2,
-  Edit,
   Target,
   CheckCircle,
   UserX,
   Loader2,
-  Save,
+  BookOpen,
+  Pencil,
   X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -21,8 +21,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogDescription,
+  DialogTrigger 
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -45,14 +45,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import {
   LineChart,
@@ -65,12 +57,10 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { doctorApi, Task, PatientProgress } from "@/lib/api";
+import { doctorApi, PatientProgress, HabitCode, HabitGuide, HABIT_CODES } from "@/lib/api";
 import { AssignProgramModal } from "@/pages/doctor/AssignProgramModal";
 
-const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const zones = [1, 2, 3, 4, 5];
-const weeks = [1, 2, 3];
 
 export const PatientDetailPage: React.FC = () => {
   const { id } = useParams();
@@ -79,215 +69,133 @@ export const PatientDetailPage: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [patientData, setPatientData] = useState<PatientProgress | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
 
-  // Add Task Dialog
-  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const timeSlots = ["Morning", "Afternoon", "Evening", "Night"];
-  const metricSlots = ["Weight Loss", "Weight Gain"];
-  const categories = ["nutrition", "exercise", "hydration", "sleep", "mindset"];
-  const [newTask, setNewTask] = useState({
-    name: "",
-    category: "",
-    zoneId: "",
-    weekNumber: "",
-    frequency: "",
-    dayOfWeek: [] as string[],
-    timeOfDay: "",
-    metricRequired: "",
+  // Habit Guide state
+  const [habitGuides, setHabitGuides] = useState<HabitGuide[]>([]);
+  const [isLoadingGuides, setIsLoadingGuides] = useState(false);
+  const [isSubmittingGuide, setIsSubmittingGuide] = useState(false);
+  const [newGuide, setNewGuide] = useState({
+    habitCode: '' as HabitCode | '',
+    zone: '1',
+    content: '',
   });
-
-  // Edit Task Dialog
-  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editingGuide, setEditingGuide] = useState<HabitGuide | null>(null);
+  const [isEditGuideOpen, setIsEditGuideOpen] = useState(false);
+  const [editContent, setEditContent] = useState('');
 
   // Deactivate Dialog
   const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
-  const [deactivationReason, setDeactivationReason] = useState("");
+  const [deactivationReason, setDeactivationReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Assign Program Modal
   const [isAssignProgramOpen, setIsAssignProgramOpen] = useState(false);
-  // Fetch patient data
+  // Fetch patient data + habit guides
   useEffect(() => {
     if (id) {
       fetchPatientProgress();
+      fetchHabitGuides();
     }
   }, [id]);
+
+  const fetchHabitGuides = async () => {
+    setIsLoadingGuides(true);
+    try {
+      const res = await doctorApi.getHabitGuides();
+      setHabitGuides(res.data.guides);
+    } catch {
+      // silently fail
+    } finally {
+      setIsLoadingGuides(false);
+    }
+  };
 
   const fetchPatientProgress = async () => {
     try {
       setIsLoading(true);
       const response = await doctorApi.getPatientProgress(id!);
       setPatientData(response.data);
-      setTasks(response.data.programTasks || []);
     } catch (error) {
-      console.error("Failed to fetch patient progress:", error);
+      console.error('Failed to fetch patient progress:', error);
       toast({
-        title: "Error",
-        description: "Failed to load patient data. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to load patient data. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAddTask = async () => {
-    if (
-      !newTask.name ||
-      !newTask.category ||
-      !newTask.zoneId ||
-      !newTask.weekNumber ||
-      !newTask.frequency ||
-      newTask.dayOfWeek.length === 0
-    ) {
+  const handleAssignGuide = async () => {
+    if (!newGuide.habitCode || !newGuide.zone || !newGuide.content.trim()) {
       toast({
-        title: "Validation Error",
-        description:
-          "Please fill in all required fields including at least one day.",
-        variant: "destructive",
+        title: 'Validation Error',
+        description: 'Please fill in all fields.',
+        variant: 'destructive',
       });
       return;
     }
-
     try {
-      setIsSubmitting(true);
-      const taskData = {
-        title: newTask.name,
-        category: newTask.category,
-        description: newTask.name.trim(),
-        zone: parseInt(newTask.zoneId),
-        programWeek: parseInt(newTask.weekNumber),
-        daysApplicable: newTask.dayOfWeek,
-        frequency: newTask.frequency as
-          | "Daily"
-          | "Weekly"
-          | "SpecificDays"
-          | "OneTime",
-        timeOfDay: newTask.timeOfDay,
-        metricRequired: newTask.metricRequired || null,
-      };
-
-      toast({
-        title: "Task Added",
-        description: `Task "${newTask.name}" has been allocated to Zone ${newTask.zoneId}, Week ${newTask.weekNumber}.`,
+      setIsSubmittingGuide(true);
+      await doctorApi.assignHabitGuide({
+        habitCode: newGuide.habitCode as HabitCode,
+        zone: Number(newGuide.zone),
+        content: newGuide.content.trim(),
       });
-
-      setIsAddTaskOpen(false);
-      setNewTask({
-        name: "",
-        category: "",
-        zoneId: "",
-        weekNumber: "",
-        frequency: "",
-        dayOfWeek: [],
-        timeOfDay: "",
-        metricRequired: "",
-      });
-      fetchPatientProgress();
-      const response = await doctorApi.allocateTasks(id!, [taskData]);
+      toast({ title: 'Habit guide saved!' });
+      setNewGuide({ habitCode: '', zone: '1', content: '' });
+      fetchHabitGuides();
     } catch (error: any) {
-      console.error("Failed to add task:", error);
       toast({
-        title: "Error",
-        description:
-          error.response?.data?.message ||
-          "Failed to add task. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to save guide.',
+        variant: 'destructive',
       });
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingGuide(false);
     }
   };
 
-  const handleEditTask = async () => {
-    if (!editingTask) return;
-
+  const handleEditGuide = async () => {
+    if (!editingGuide || !editContent.trim()) return;
     try {
-      setIsSubmitting(true);
-      await doctorApi.updateTask(editingTask.id, {
-        // Send the value of editingTask.name (which holds the description)
-        // to the API field that it actually expects for the task name/description.
-        // Assuming your update API is smart, or you need to map it here:
-        // OPTION 1: If your API requires 'description' for the task name
-        // description: editingTask.name,
-
-        // OPTION 2: If your API requires 'name' for the task name (despite the fetch data showing 'description')
-        description: editingTask.name, // Stick to this unless API explicitly rejects it
-
-        zone: editingTask.zoneId,
-        programWeek: editingTask.weekNumber,
-        daysApplicable: editingTask.dayOfWeek,
-        frequency: editingTask.frequency,
-        timeOfDay: editingTask.timeOfDay,
-        metricRequired: editingTask.metricRequired,
-      });
-
-      toast({
-        title: "Task Updated",
-        description: `Task "${editingTask.name}" has been updated.`,
-      });
-
-      setIsEditTaskOpen(false);
-      setEditingTask(null);
-      fetchPatientProgress();
-    } catch (error: any) {
-      console.error("Failed to update task:", error);
-      toast({
-        title: "Error",
-        description:
-          error.response?.data?.message ||
-          "Failed to update task. Please try again.",
-        variant: "destructive",
-      });
+      setIsSubmittingGuide(true);
+      await doctorApi.updateHabitGuide(editingGuide._id, editContent.trim());
+      setHabitGuides(prev =>
+        prev.map(g => g._id === editingGuide._id ? { ...g, content: editContent.trim() } : g)
+      );
+      toast({ title: 'Guide updated' });
+      setIsEditGuideOpen(false);
+      setEditingGuide(null);
+    } catch {
+      toast({ title: 'Failed to update guide', variant: 'destructive' });
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingGuide(false);
     }
   };
 
-  const handleDeleteTask = async (taskId: string, taskName: string) => {
+  const handleDeleteGuide = async (guideId: string) => {
     try {
-      await doctorApi.deleteTask(taskId);
-      setTasks((prev) => prev.filter((t) => t._id !== taskId));
-      toast({
-        title: "Task Deleted",
-        description: `"${taskName}" has been removed.`,
-      });
-    } catch (error: any) {
-      console.error("Failed to delete task:", error);
-      toast({
-        title: "Error",
-        description:
-          error.response?.data?.message ||
-          "Failed to delete task. Please try again.",
-        variant: "destructive",
-      });
+      await doctorApi.deleteHabitGuide(guideId);
+      setHabitGuides(prev => prev.filter(g => g._id !== guideId));
+      toast({ title: 'Guide removed' });
+    } catch {
+      toast({ title: 'Failed to delete guide', variant: 'destructive' });
     }
   };
 
   const handleDeactivatePatient = async () => {
     try {
       setIsSubmitting(true);
-      await doctorApi.deactivatePatient(
-        id!,
-        deactivationReason.trim() || undefined,
-      );
-
-      toast({
-        title: "Patient Deactivated",
-        description: "The patient has been deactivated from the program.",
-      });
-
-      navigate("/doctor/patients");
+      await doctorApi.deactivatePatient(id!, deactivationReason.trim() || undefined);
+      toast({ title: 'Patient Deactivated', description: 'The patient has been deactivated from the program.' });
+      navigate('/doctor/patients');
     } catch (error: any) {
-      console.error("Failed to deactivate patient:", error);
       toast({
-        title: "Error",
-        description:
-          error.response?.data?.message ||
-          "Failed to deactivate patient. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to deactivate patient.',
+        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);
@@ -298,69 +206,17 @@ export const PatientDetailPage: React.FC = () => {
   const handleDeletePatient = async () => {
     try {
       await doctorApi.deletePatient(id!);
-
-      toast({
-        title: "Patient Deleted",
-        description: "All patient records have been removed.",
-      });
-
-      navigate("/doctor/patients");
+      toast({ title: 'Patient Deleted', description: 'All patient records have been removed.' });
+      navigate('/doctor/patients');
     } catch (error: any) {
-      console.error("Failed to delete patient:", error);
       toast({
-        title: "Error",
-        description:
-          error.response?.data?.message ||
-          "Failed to delete patient. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to delete patient.',
+        variant: 'destructive',
       });
     }
   };
 
-  const toggleDay = (day: string, isEdit = false) => {
-    if (isEdit && editingTask) {
-      setEditingTask((prev) =>
-        prev
-          ? {
-              ...prev,
-              dayOfWeek: prev.dayOfWeek.includes(day)
-                ? prev.dayOfWeek.filter((d) => d !== day)
-                : [...prev.dayOfWeek, day],
-            }
-          : null,
-      );
-    } else {
-      setNewTask((prev) => ({
-        ...prev,
-        dayOfWeek: prev.dayOfWeek.includes(day)
-          ? prev.dayOfWeek.filter((d) => d !== day)
-          : [...prev.dayOfWeek, day],
-      }));
-    }
-  };
-
-  const openEditDialog = (task) => {
-    // Mapping the API response to the local state structure
-    const taskForEdit = {
-      // Map _id from API to id expected in component logic
-      id: task._id,
-      // CRITICAL: Map 'description' from API to 'name' expected by the form
-      name: task.description,
-      // Map 'zone' from API to 'zoneId' expected by the form
-      zoneId: task.zone,
-      // Map 'programWeek' from API to 'weekNumber' expected by the form
-      weekNumber: task.programWeek,
-      // Map 'daysApplicable' from API to 'dayOfWeek' expected by the form
-      dayOfWeek: task.daysApplicable,
-      frequency: task.frequency,
-      metricRequired: task.metricRequired,
-      // Include other necessary fields if needed
-      // description: task.description, // Keep the original description
-    };
-
-    setEditingTask(taskForEdit);
-    setIsEditTaskOpen(true);
-  };
 
   if (isLoading) {
     return (
@@ -584,508 +440,177 @@ export const PatientDetailPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Task Management */}
-      <Card className="card-elevated">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">Task Allocation</CardTitle>
-          <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
-            <DialogTrigger asChild>
-              <Button variant="teal">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Task
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Allocate New Task</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-1 pt-4">
-                <div className="space-y-2">
-                  <Label>
-                    Task Name <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    placeholder="Enter task name"
-                    value={newTask.name}
-                    onChange={(e) =>
-                      setNewTask({ ...newTask, name: e.target.value })
-                    }
-                    maxLength={100}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    Category <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={newTask.category}
-                    onValueChange={(value) =>
-                      setNewTask({ ...newTask, category: value })
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="What type of task is this?" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>
-                      Select Zone <span className="text-destructive">*</span>
-                    </Label>
-                    <Select
-                      value={newTask.zoneId}
-                      onValueChange={(value) =>
-                        setNewTask({ ...newTask, zoneId: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select zone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {zones.map((zone) => (
-                          <SelectItem key={zone} value={zone.toString()}>
-                            Zone {zone}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>
-                      Select Week <span className="text-destructive">*</span>
-                    </Label>
-                    <Select
-                      value={newTask.weekNumber}
-                      onValueChange={(value) =>
-                        setNewTask({ ...newTask, weekNumber: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select week" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {weeks.map((week) => (
-                          <SelectItem key={week} value={week.toString()}>
-                            Week {week}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>
-                    Frequency <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={newTask.frequency}
-                    onValueChange={(value) =>
-                      setNewTask({ ...newTask, frequency: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select frequency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Daily">Daily</SelectItem>
-                      <SelectItem value="Weekly">Weekly</SelectItem>
-                      <SelectItem value="SpecificDays">SpecificDays</SelectItem>
-                      <SelectItem value="OneTime">OneTime</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>
-                    Time of Day <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={newTask.timeOfDay}
-                    onValueChange={(value) =>
-                      setNewTask({ ...newTask, timeOfDay: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select time slot" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {timeSlots.map((slot) => (
-                        <SelectItem key={slot} value={slot}>
-                          {slot}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* select metric required */}
-                <div className="space-y-2">
-                  <Label>
-                    Select Metric<span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={newTask.metricRequired}
-                    onValueChange={(value) =>
-                      setNewTask({ ...newTask, metricRequired: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select time slot" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {metricSlots.map((slot) => (
-                        <SelectItem key={slot} value={slot}>
-                          {slot}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>
-                    Select Day(s) <span className="text-destructive">*</span>
-                  </Label>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Select one or more days (multi-select)
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {daysOfWeek.map((day) => (
-                      <label
-                        key={day}
-                        className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition-all ${
-                          newTask.dayOfWeek.includes(day)
-                            ? "border-secondary bg-secondary text-secondary-foreground"
-                            : "border-border bg-background hover:border-secondary/50"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          className="sr-only"
-                          checked={newTask.dayOfWeek.includes(day)}
-                          onChange={() => toggleDay(day)}
-                        />
-                        {day}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <Button
-                  variant="teal"
-                  className="w-full"
-                  onClick={handleAddTask}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
-                  Allocate Task
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+      {/* Assign Habit Guide */}
+      <Card className="card-elevated" id="guide-form">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <BookOpen className="h-5 w-5 text-secondary" />
+            Assign Habit Guide Content
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Assign personalised instructions for each habit per zone. Patients see this when they tap "View Guide".
+          </p>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Task</TableHead>
-                <TableHead>Zone</TableHead>
-                <TableHead>Week</TableHead>
-                <TableHead>Frequency</TableHead>
-                <TableHead>Days</TableHead>
-                <TableHead>Time Slot</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tasks.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="text-center py-8 text-muted-foreground"
+        <CardContent className="space-y-6">
+          {/* Form */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label>Habit Code <span className="text-destructive">*</span></Label>
+              <Select
+                value={newGuide.habitCode}
+                onValueChange={v => setNewGuide({ ...newGuide, habitCode: v as HabitCode })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select habit" /></SelectTrigger>
+                <SelectContent>
+                  {HABIT_CODES.map(code => (
+                    <SelectItem key={code} value={code}>{code}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Zone <span className="text-destructive">*</span></Label>
+              <Select
+                value={newGuide.zone}
+                onValueChange={v => setNewGuide({ ...newGuide, zone: v })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select zone" /></SelectTrigger>
+                <SelectContent>
+                  {[1,2,3,4,5].map(z => (
+                    <SelectItem key={z} value={z.toString()}>Zone {z}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button
+                variant="teal"
+                className="w-full"
+                onClick={handleAssignGuide}
+                disabled={isSubmittingGuide}
+              >
+                {isSubmittingGuide ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                Save Guide
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Guide Content <span className="text-destructive">*</span></Label>
+            <Textarea
+              rows={5}
+              placeholder={`Enter detailed instructions for this habit in Zone ${newGuide.zone}...\n\nExample:\n- Warm-up: 5 min walk\n- 3 sets x 12 reps squats\n- Cool down: stretch 5 min`}
+              value={newGuide.content}
+              onChange={e => setNewGuide({ ...newGuide, content: e.target.value })}
+              maxLength={2000}
+            />
+            <p className="text-xs text-muted-foreground text-right">{newGuide?.content?.length}/2000</p>
+          </div>
+
+          {/* Existing Guides Table */}
+          <div className="border-t border-border pt-4 space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">All Assigned Guides</h3>
+            {isLoadingGuides ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-6 w-6 animate-spin text-secondary" />
+              </div>
+            ) : habitGuides?.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No habit guides assigned yet.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {habitGuides?.map(guide => (
+                  <div
+                    key={guide._id}
+                    className="flex items-start justify-between gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3"
                   >
-                    No tasks allocated yet. Click "Add Task" to allocate tasks.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                tasks.map((task) => (
-                  <TableRow key={task._id}>
-                    <TableCell className="font-medium">
-                      {task.description}
-                    </TableCell>
-                    <TableCell>Zone {task.zone}</TableCell>
-                    <TableCell>Week {task.programWeek}</TableCell>
-                    <TableCell className="capitalize">
-                      {task.frequency}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1 flex-wrap">
-                        {task.daysApplicable.map((day) => (
-                          <span
-                            key={day}
-                            className="rounded bg-muted px-1.5 py-0.5 text-xs"
-                          >
-                            {day}
-                          </span>
-                        ))}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-sm text-foreground">{guide.habitCode}</span>
+                        <span className="text-xs bg-secondary/10 text-secondary px-2 py-0.5 rounded-full">Zone {guide.zone}</span>
+                        <span className="text-[10px] text-muted-foreground ml-auto">
+                          Updated: {new Date(guide.updatedAt || Date.now()).toLocaleDateString()}
+                        </span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
-                        {task.timeOfDay || "Not set"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
-                          task.status === "completed"
-                            ? "bg-green-100 text-green-700"
-                            : task.status === "pending"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-blue-100 text-blue-700"
-                        }`}
+                      <p className="text-xs text-muted-foreground line-clamp-2">{guide.content}</p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => {
+                          setNewGuide({
+                            habitCode: guide.habitCode,
+                            zone: guide.zone.toString(),
+                            content: guide.content
+                          });
+                          // Scroll to form or just notify
+                          window.scrollTo({ top: document.getElementById('guide-form')?.offsetTop || 0, behavior: 'smooth' });
+                        }}
                       >
-                        {task.status === "completed" ? (
-                          <CheckCircle className="h-3 w-3" />
-                        ) : (
-                          <Target className="h-3 w-3" />
-                        )}
-                        {task.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditDialog(task)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Guide</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Remove the {guide.habitCode} guide for Zone {guide.zone}? Patients will no longer see this content.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteGuide(guide._id)}
+                              className="bg-destructive text-destructive-foreground"
                             >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Task</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "
-                                {task.description}"? This action cannot be
-                                undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() =>
-                                  handleDeleteTask(task._id, task.description)
-                                }
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Edit Task Dialog */}
-      <Dialog open={isEditTaskOpen} onOpenChange={setIsEditTaskOpen}>
+      {/* Edit Guide Dialog */}
+      <Dialog open={isEditGuideOpen} onOpenChange={setIsEditGuideOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit Task</DialogTitle>
+            <DialogTitle>Edit Habit Guide</DialogTitle>
+            <DialogDescription>
+              {editingGuide && `${editingGuide.habitCode} â€” Zone ${editingGuide.zone}`}
+            </DialogDescription>
           </DialogHeader>
-          {editingTask && (
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label>
-                  Task Name <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  placeholder="Enter task name"
-                  value={editingTask.name}
-                  onChange={(e) =>
-                    setEditingTask({ ...editingTask, name: e.target.value })
-                  }
-                  maxLength={100}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>
-                    Select Zone <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={editingTask.zoneId.toString()}
-                    onValueChange={(value) =>
-                      setEditingTask({
-                        ...editingTask,
-                        zoneId: parseInt(value),
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select zone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {zones.map((zone) => (
-                        <SelectItem key={zone} value={zone.toString()}>
-                          Zone {zone}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>
-                    Select Week <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={editingTask.weekNumber.toString()}
-                    onValueChange={(value) =>
-                      setEditingTask({
-                        ...editingTask,
-                        weekNumber: parseInt(value),
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select week" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {weeks.map((week) => (
-                        <SelectItem key={week} value={week.toString()}>
-                          Week {week}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>
-                  Frequency <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={editingTask.frequency}
-                  onValueChange={(value) =>
-                    setEditingTask({
-                      ...editingTask,
-                      frequency: value as Task["frequency"],
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select frequency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Daily">Daily</SelectItem>
-                    <SelectItem value="Weekly">Weekly</SelectItem>
-                    <SelectItem value="SpecificDays">SpecificDays</SelectItem>
-                    <SelectItem value="OneTime">OneTime</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  Time of Day <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={editingTask.timeOfDay}
-                  onValueChange={(value) =>
-                    setEditingTask({ ...editingTask, timeOfDay: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select time slot" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeSlots.map((slot) => (
-                      <SelectItem key={slot} value={slot}>
-                        {slot}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  Select Day(s) <span className="text-destructive">*</span>
-                </Label>
-                <div className="flex flex-wrap gap-2">
-                  {daysOfWeek.map((day) => (
-                    <label
-                      key={day}
-                      className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition-all ${
-                        editingTask.dayOfWeek.includes(day)
-                          ? "border-secondary bg-secondary text-secondary-foreground"
-                          : "border-border bg-background hover:border-secondary/50"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={editingTask.dayOfWeek.includes(day)}
-                        onChange={() => toggleDay(day, true)}
-                      />
-                      {day}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setIsEditTaskOpen(false)}
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Cancel
-                </Button>
-                <Button
-                  variant="teal"
-                  className="flex-1"
-                  onClick={handleEditTask}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="mr-2 h-4 w-4" />
-                  )}
-                  Save Changes
-                </Button>
-              </div>
+          <div className="space-y-4 pt-2">
+            <Textarea
+              rows={7}
+              value={editContent}
+              onChange={e => setEditContent(e.target.value)}
+              maxLength={2000}
+            />
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setIsEditGuideOpen(false)}>
+                <X className="mr-2 h-4 w-4" /> Cancel
+              </Button>
+              <Button variant="teal" className="flex-1" onClick={handleEditGuide} disabled={isSubmittingGuide}>
+                {isSubmittingGuide ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Save Changes
+              </Button>
             </div>
-          )}
+          </div>
         </DialogContent>
       </Dialog>
     </motion.div>

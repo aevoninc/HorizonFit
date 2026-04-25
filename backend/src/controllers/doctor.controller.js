@@ -15,6 +15,7 @@ import {
   sendTaskAssignmentEmail,
 } from "../utils/mailer.js";
 import weeklyLog from "../model/normalPlanModels/weeklyLog.model.js";
+import TimeSlot from "../model/timeSlot.model.js";
 
 
 export async function createDoctor(name,email,password,mobileNumber){
@@ -732,6 +733,50 @@ const seedWeightLossTemplate = async (req, res) => {
   // res.status(200).json({ message: "Template Seeded Successfully", template });
 };
 
+// ─── TIME SLOT MANAGEMENT ────────────────────────────────────────────────────
+
+// GET /api/v1/doctor/time-slots — all slots (doctor view)
+const getTimeSlotsDoctor = asyncHandler(async (req, res) => {
+  const slots = await TimeSlot.find().sort({ period: 1, sortOrder: 1, time: 1 });
+  res.status(200).json({ success: true, slots });
+});
+
+// PATCH /api/v1/doctor/time-slots/:id — toggle active/inactive or update
+const toggleTimeSlot = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { isActive, time, period } = req.body;
+
+  const updateFields = {};
+  if (typeof isActive === "boolean") updateFields.isActive = isActive;
+  if (time) updateFields.time = time;
+  if (period) updateFields.period = period;
+
+  const slot = await TimeSlot.findByIdAndUpdate(id, { $set: updateFields }, { new: true });
+  if (!slot) return res.status(404).json({ message: "Time slot not found" });
+  res.status(200).json({ success: true, slot });
+});
+
+// POST /api/v1/doctor/time-slots — add new slot
+const addTimeSlot = asyncHandler(async (req, res) => {
+  const { time, period } = req.body;
+  if (!time || !period) {
+    return res.status(400).json({ message: "time and period are required" });
+  }
+  if (!["morning", "evening"].includes(period)) {
+    return res.status(400).json({ message: "period must be morning or evening" });
+  }
+  const slot = await TimeSlot.create({ time, period, isActive: true });
+  res.status(201).json({ success: true, slot });
+});
+
+// DELETE /api/v1/doctor/time-slots/:id — remove slot
+const deleteTimeSlot = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const slot = await TimeSlot.findByIdAndDelete(id);
+  if (!slot) return res.status(404).json({ message: "Time slot not found" });
+  res.status(200).json({ success: true, message: "Time slot deleted" });
+});
+
 export {
   createPatient,
   getPatientList,
@@ -753,4 +798,8 @@ export {
   updateTemplate,
   deleteTemplate,
   seedWeightLossTemplate,
+  getTimeSlotsDoctor,
+  toggleTimeSlot,
+  addTimeSlot,
+  deleteTimeSlot,
 };

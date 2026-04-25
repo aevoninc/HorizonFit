@@ -39,7 +39,7 @@ const doctorNavItems: NavItem[] = [
 ];
 
 const patientNavItems: NavItem[] = [
-  { label: 'My Tasks', path: '/patient/tasks', icon: ClipboardList },
+  { label: 'Daily Habits', path: '/patient/tasks', icon: ClipboardList },
   { label: 'Horizon Guide', path: '/patient/horizon-guide', icon: BookOpen },
   { label: 'Progress History', path: '/patient/progress', icon: BarChart3 },
   { label: 'Log Data', path: '/patient/log-data', icon: Activity },
