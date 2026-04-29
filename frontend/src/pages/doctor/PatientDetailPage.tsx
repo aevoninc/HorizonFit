@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogTrigger 
+  DialogTrigger
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -58,6 +58,7 @@ import {
   Bar,
 } from "recharts";
 import { doctorApi, PatientProgress, HabitCode, HabitGuide, HABIT_CODES } from "@/lib/api";
+import { getZoneName } from "@/lib/zoneUtils";
 import { AssignProgramModal } from "@/pages/doctor/AssignProgramModal";
 
 const zones = [1, 2, 3, 4, 5];
@@ -101,7 +102,7 @@ export const PatientDetailPage: React.FC = () => {
   const fetchHabitGuides = async () => {
     setIsLoadingGuides(true);
     try {
-      const res = await doctorApi.getHabitGuides();
+      const res = await doctorApi.getHabitGuides({ patientId: id } as any);
       setHabitGuides(res.data.guides);
     } catch {
       // silently fail
@@ -142,6 +143,7 @@ export const PatientDetailPage: React.FC = () => {
         habitCode: newGuide.habitCode as HabitCode,
         zone: Number(newGuide.zone),
         content: newGuide.content.trim(),
+        patientId: id,
       });
       toast({ title: 'Habit guide saved!' });
       setNewGuide({ habitCode: '', zone: '1', content: '' });
@@ -250,9 +252,9 @@ export const PatientDetailPage: React.FC = () => {
           <p className="text-muted-foreground">{patient?.email}</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full gradient-phoenix px-4 py-1 text-sm font-semibold text-primary-foreground">
-            Zone {patient?.zone || 1}
-          </span>
+          <Badge variant="outline" className="px-4 py-1 text-sm font-semibold">
+            {getZoneName(patient?.zone || 1)}
+          </Badge>
           <span className="text-2xl font-bold text-foreground">
             {patient?.progress || 0}%
           </span>
@@ -440,150 +442,222 @@ export const PatientDetailPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Assign Habit Guide */}
-      <Card className="card-elevated" id="guide-form">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <BookOpen className="h-5 w-5 text-secondary" />
-            Assign Habit Guide Content
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Assign personalised instructions for each habit per zone. Patients see this when they tap "View Guide".
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Form */}
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Habit Code <span className="text-destructive">*</span></Label>
+      {/* ─── REDESIGNED HABIT GUIDE SECTION ─── */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* FORM SIDE */}
+        <Card className="card-elevated h-full border-secondary/20 shadow-lg shadow-secondary/5" id="guide-form">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
+              <div className="bg-secondary/10 p-2 rounded-lg">
+                <BookOpen className="h-5 w-5 text-secondary" />
+              </div>
+              Assign Habit Guide
+            </CardTitle>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Create personalised instructions for this patient. Select a zone and habit to begin.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Zone Selection (Button Group) */}
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold flex items-center justify-between">
+                Step 1: Select Zone
+                <span className="text-[10px] text-muted-foreground font-normal">Only one zone at a time</span>
+              </Label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((z) => {
+                  const hasGuidesInZone = habitGuides?.some(g => g.zone === z);
+                  const isSelected = Number(newGuide.zone) === z;
+                  return (
+                    <Button
+                      key={z}
+                      variant={isSelected ? "secondary" : "outline"}
+                      className={`flex-1 relative h-12 transition-all duration-200 ${isSelected
+                        ? "ring-2 ring-secondary/50 shadow-md scale-105"
+                        : "hover:border-secondary/50"
+                        }`}
+                      onClick={() => setNewGuide({ ...newGuide, zone: z.toString() })}
+                    >
+                      {getZoneName(z)}
+                      {hasGuidesInZone && (
+                        <div className={`absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white ${isSelected ? 'bg-white' : 'bg-secondary'}`} />
+                      )}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Habit Selection (Dropdown) */}
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Step 2: Select Habit</Label>
               <Select
                 value={newGuide.habitCode}
-                onValueChange={v => setNewGuide({ ...newGuide, habitCode: v as HabitCode })}
+                onValueChange={(v) => setNewGuide({ ...newGuide, habitCode: v as HabitCode })}
               >
-                <SelectTrigger><SelectValue placeholder="Select habit" /></SelectTrigger>
+                <SelectTrigger className="h-11 border-border/60">
+                  <SelectValue placeholder="Which habit is this for?" />
+                </SelectTrigger>
                 <SelectContent>
-                  {HABIT_CODES.map(code => (
-                    <SelectItem key={code} value={code}>{code}</SelectItem>
-                  ))}
+                  {HABIT_CODES.map((code) => {
+                    const hasGuideForThisHabitInZone = habitGuides?.some(
+                      g => g.habitCode === code && g.zone === Number(newGuide.zone)
+                    );
+                    return (
+                      <SelectItem key={code} value={code} className="py-2">
+                        <div className="flex items-center gap-2">
+                          {code}
+                          {hasGuideForThisHabitInZone && (
+                            <span className="text-[10px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-full font-medium">
+                              Already Saved
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Zone <span className="text-destructive">*</span></Label>
-              <Select
-                value={newGuide.zone}
-                onValueChange={v => setNewGuide({ ...newGuide, zone: v })}
-              >
-                <SelectTrigger><SelectValue placeholder="Select zone" /></SelectTrigger>
-                <SelectContent>
-                  {[1,2,3,4,5].map(z => (
-                    <SelectItem key={z} value={z.toString()}>Zone {z}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button
-                variant="teal"
-                className="w-full"
-                onClick={handleAssignGuide}
-                disabled={isSubmittingGuide}
-              >
-                {isSubmittingGuide ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                Save Guide
-              </Button>
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label>Guide Content <span className="text-destructive">*</span></Label>
-            <Textarea
-              rows={5}
-              placeholder={`Enter detailed instructions for this habit in Zone ${newGuide.zone}...\n\nExample:\n- Warm-up: 5 min walk\n- 3 sets x 12 reps squats\n- Cool down: stretch 5 min`}
-              value={newGuide.content}
-              onChange={e => setNewGuide({ ...newGuide, content: e.target.value })}
-              maxLength={2000}
-            />
-            <p className="text-xs text-muted-foreground text-right">{newGuide?.content?.length}/2000</p>
-          </div>
+            {/* Content Textarea */}
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Step 3: Instructions Content</Label>
+              <div className="relative">
+                <Textarea
+                  rows={8}
+                  placeholder="Enter detailed, step-by-step instructions for the patient..."
+                  className="resize-none border-border/60 focus:border-secondary/50 focus:ring-secondary/20 rounded-xl"
+                  value={newGuide.content}
+                  onChange={(e) => setNewGuide({ ...newGuide, content: e.target.value })}
+                  maxLength={2000}
+                />
+                <div className="absolute bottom-3 right-3 text-[10px] font-medium text-muted-foreground bg-white/80 px-2 py-1 rounded-md backdrop-blur-sm">
+                  {newGuide?.content?.length} / 2000
+                </div>
+              </div>
+            </div>
 
-          {/* Existing Guides Table */}
-          <div className="border-t border-border pt-4 space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">All Assigned Guides</h3>
+            <Button
+              variant="secondary"
+              className="w-full h-12 text-sm font-bold shadow-lg shadow-secondary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              onClick={handleAssignGuide}
+              disabled={isSubmittingGuide}
+            >
+              {isSubmittingGuide ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle className="mr-2 h-4 w-4" />
+              )}
+              {habitGuides?.some(g => g.habitCode === newGuide.habitCode && g.zone === Number(newGuide.zone))
+                ? "Update Existing Guide"
+                : "Save New Guide"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* LIST SIDE */}
+        <Card className="card-elevated flex flex-col h-[650px]">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-bold flex items-center justify-between">
+              Saved Guides Library
+              <div className="text-[10px] text-muted-foreground bg-muted px-2 py-1 rounded-md">
+                {habitGuides?.length} active guides
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3 pb-6">
             {isLoadingGuides ? (
-              <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-6 w-6 animate-spin text-secondary" />
+              <div className="flex flex-col items-center justify-center py-24 gap-3 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin text-secondary" />
+                <p className="text-sm animate-pulse">Fetching your guides...</p>
               </div>
             ) : habitGuides?.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No habit guides assigned yet.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {habitGuides?.map(guide => (
-                  <div
-                    key={guide._id}
-                    className="flex items-start justify-between gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-sm text-foreground">{guide.habitCode}</span>
-                        <span className="text-xs bg-secondary/10 text-secondary px-2 py-0.5 rounded-full">Zone {guide.zone}</span>
-                        <span className="text-[10px] text-muted-foreground ml-auto">
-                          Updated: {new Date(guide.updatedAt || Date.now()).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{guide.content}</p>
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => {
-                          setNewGuide({
-                            habitCode: guide.habitCode,
-                            zone: guide.zone.toString(),
-                            content: guide.content
-                          });
-                          // Scroll to form or just notify
-                          window.scrollTo({ top: document.getElementById('guide-form')?.offsetTop || 0, behavior: 'smooth' });
-                        }}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Guide</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Remove the {guide.habitCode} guide for Zone {guide.zone}? Patients will no longer see this content.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteGuide(guide._id)}
-                              className="bg-destructive text-destructive-foreground"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex flex-col items-center justify-center py-32 text-center space-y-4">
+                <div className="bg-muted p-6 rounded-full">
+                  <BookOpen className="h-10 w-10 text-muted-foreground/40" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">No guides yet</p>
+                  <p className="text-xs text-muted-foreground max-w-[200px] mx-auto">
+                    Start by filling out the form to create your first personalised instructions.
+                  </p>
+                </div>
               </div>
+            ) : (
+              habitGuides ?
+                .sort((a, b) => a.zone - b.zone)
+                  .map((guide) => (
+                    <div
+                      key={guide._id}
+                      className="group relative flex flex-col gap-3 rounded-2xl border border-border/60 bg-white p-4 transition-all hover:border-secondary/40 hover:shadow-md"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="bg-secondary text-primary-foreground text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">
+                            {getZoneName(guide.zone)}
+                          </div>
+                          <h4 className="font-bold text-sm text-foreground">
+                            {guide.habitCode}
+                          </h4>
+                        </div>
+                        <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-full hover:bg-secondary/10 hover:text-secondary"
+                            onClick={() => {
+                              setNewGuide({
+                                habitCode: guide.habitCode,
+                                zone: guide.zone.toString(),
+                                content: guide.content
+                              });
+                              window.scrollTo({ top: document.getElementById('guide-form')?.offsetTop || 0, behavior: 'smooth' });
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="rounded-2xl border-none shadow-2xl">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="text-xl">Delete this guide?</AlertDialogTitle>
+                                <AlertDialogDescription className="text-sm">
+                                  This will permanently remove the <strong>{guide.habitCode}</strong> instructions for <strong>Zone {guide.zone}</strong>. This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter className="pt-4">
+                                <AlertDialogCancel className="rounded-xl border-border">Keep it</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteGuide(guide._id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+                                >
+                                  Yes, Delete Guide
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                      <div className="relative">
+                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 bg-muted/30 p-2.5 rounded-xl border border-transparent group-hover:border-border/40 min-h-[60px]">
+                          {guide.content}
+                        </p>
+                      </div>
+                    </div>
+                  ))
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Edit Guide Dialog */}
       <Dialog open={isEditGuideOpen} onOpenChange={setIsEditGuideOpen}>

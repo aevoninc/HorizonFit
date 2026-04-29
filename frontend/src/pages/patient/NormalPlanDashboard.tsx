@@ -41,6 +41,7 @@ import { normalPlanPatientApi } from "@/lib/normalPlanApi";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { patientApi } from "@/lib/api";
 import { AxiosError } from "axios";
+import { getZoneName } from "@/lib/zoneUtils";
 
 interface ZoneState {
   zone: number;
@@ -53,10 +54,10 @@ interface ZoneState {
 
 const zoneNames = [
   "Foundation",
-  "Progression",
-  "Endurance",
+  "Momentum",
+  "Transformation",
   "Mastery",
-  "Excellence",
+  "Freedom",
 ];
 
 const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -334,7 +335,7 @@ export const NormalPlanDashboard: React.FC = () => {
           Congratulations!
         </h1>
         <p className="text-xl text-muted-foreground mb-2">
-          You've completed all 5 zones of the Normal Plan!
+          You've completed all 5 zones of the Healthy Habits Program!
         </p>
         <p className="text-muted-foreground max-w-md">
           You've built strong foundations for lifelong health. Keep applying
@@ -413,7 +414,7 @@ export const NormalPlanDashboard: React.FC = () => {
                   </div>
 
                   <span className={`text-sm font-medium ${isSelected ? "text-foreground" : "text-muted-foreground"}`}>
-                    {zone.zoneName}
+                    {getZoneName(zone.zoneNumber)}
                   </span>
                 </button>
               );

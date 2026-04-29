@@ -335,7 +335,7 @@ export const DoctorPatientsPage: React.FC = () => {
                           <User className="h-6 w-6 text-secondary" />
                         </div>
                         <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                          Zone {patient.zone}
+                          {getZoneName(patient.zone)}
                         </span>
                       </div>
                       <h3 className="mb-1 text-lg font-semibold text-foreground">{patient.name}</h3>

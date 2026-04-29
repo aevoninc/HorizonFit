@@ -43,6 +43,7 @@ const UserSchema = new mongoose.Schema(
       default: null,
     },
     currentZone: { type: Number, required: true, min: 1, max: 5, default: 1 },
+    currentDay: { type: Number, default: 1 },
     lastMetricsDate: { type: Date },
     lastWeeklyLogDate: { type: Date },
     totalWeeksCompleted: { type: Number, default: 0 },

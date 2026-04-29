@@ -130,7 +130,7 @@ export const AuthPage: React.FC = () => {
             Welcome Back
           </h1>
           <p className="mb-8 text-muted-foreground">
-            Sign in to access your personalized fitness dashboard
+            Sign in to access your personalized health dashboard
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -199,7 +199,7 @@ export const AuthPage: React.FC = () => {
                 </>
               ) : (
                 <>
-                  Sign In
+                  Client Login
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               )}
@@ -235,8 +235,7 @@ export const AuthPage: React.FC = () => {
               Your Journey Awaits
             </h2>
             <p className="mx-auto max-w-sm text-secondary-foreground/80">
-              Track your progress, complete tasks, and achieve your fitness
-              goals with personalized guidance.
+              Track your progress, complete tasks, and achieve your health transformation goals with personalized guidance.
             </p>
           </motion.div>
         </div>

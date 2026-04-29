@@ -42,7 +42,7 @@ const consultationTypes = [
     value: "initial",
     label: "Initial Assessment",
     price: 1,
-    description: "Comprehensive fitness evaluation",
+    description: "Comprehensive health evaluation",
   },
 ];
 
@@ -258,7 +258,7 @@ export const BookConsultationPage: React.FC = () => {
             Book a Consultation
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Schedule a session with our certified fitness professionals
+            Schedule a session with our certified health specialists
           </p>
         </motion.div>
 

@@ -57,9 +57,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { patientApi } from "@/lib/api";
+import { patientApi, HabitCode } from "@/lib/api";
 import { AxiosError } from "axios";
 import { ScrollArea, ScrollBar } from "../ui/scroll-area";
+import { GuideModal } from "./GuideModal";
+
+// Category mapping helper
+const categoryToHabitCode: Record<string, HabitCode> = {
+  nutrition: 'Nutrition',
+  exercise: 'Exercise',
+  hydration: 'Hydration',
+  sleep: 'Sleep',
+  mindset: 'Mindset',
+};
 
 // Icon mapping
 const iconMap: Record<string, React.ElementType> = {
@@ -167,10 +177,10 @@ interface ZoneState {
 
 const zoneNames = [
   "Foundation",
-  "Progression",
-  "Endurance",
+  "Momentum",
+  "Transformation",
   "Mastery",
-  "Excellence",
+  "Freedom",
 ];
 const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -187,7 +197,7 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
   const [zones, setZones] = useState<ZoneState[]>(
     [1, 2, 3, 4, 5].map((zone) => ({
       zone,
-      title: zoneName[zone - 1],
+      title: zoneNames[zone - 1],
       accessible: zone === 1,
       loading: false,
     })),
@@ -205,6 +215,7 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingSelections, setPendingSelections] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [guideHabit, setGuideHabit] = useState<HabitCode | null>(null);
 
   const { user } = useAuth();
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
@@ -738,16 +749,26 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
 
                                     {/* Patient Insight Section */}
                                     {!isCompleted && (
-                                      <div className="mt-3 flex items-start gap-2 bg-blue-50/50 p-2 rounded-lg border border-blue-100">
-                                        <Target className="h-4 w-4 text-blue-500 mt-0.5" />
-                                        <div className="text-[11px] text-blue-700 leading-relaxed">
-                                          <strong>
-                                            Goal: {task.metricRequired}
-                                          </strong>{" "}
-                                          — Completing this helps improve your
-                                          metabolic rate. Aim for consistency to
-                                          unlock Zone {task.zone + 1}.
+                                      <div className="mt-3 flex items-start gap-4">
+                                        <div className="flex-1 flex items-start gap-2 bg-blue-50/50 p-2 rounded-lg border border-blue-100">
+                                          <Target className="h-4 w-4 text-blue-500 mt-0.5" />
+                                          <div className="text-[11px] text-blue-700 leading-relaxed">
+                                            <strong>
+                                              Goal: {task.metricRequired || task.description}
+                                            </strong>{" "}
+                                            — Completing this helps improve your
+                                            metabolic rate.
+                                          </div>
                                         </div>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 gap-1.5 text-[10px] font-bold text-secondary hover:text-secondary hover:bg-secondary/10 px-3 rounded-full border border-secondary/20"
+                                          onClick={() => setGuideHabit(categoryToHabitCode[task.category] || null)}
+                                        >
+                                          <BookOpen className="h-3 w-3" />
+                                          View Guide
+                                        </Button>
                                       </div>
                                     )}
                                   </div>
@@ -1030,6 +1051,11 @@ export const DIYTasksList: React.FC<DIYTasksListProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <GuideModal
+        habitCode={guideHabit}
+        zone={activeZone}
+        onClose={() => setGuideHabit(null)}
+      />
     </Card>
   );
 };
