@@ -41,7 +41,13 @@ api.interceptors.request.use(
 );
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // If the response is wrapped in our ApiResponse pattern, extract the data payload
+    if (response.data && typeof response.data === 'object' && 'success' in response.data && 'data' in response.data) {
+      return { ...response, data: response.data.data };
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
@@ -227,6 +233,7 @@ export interface HabitGuide {
   zone: number;
   content: string;
   patientId?: string | null;
+  updatedAt?: string;
 }
 
 export interface ProgramStatus {
@@ -243,6 +250,10 @@ export interface HabitLog {
   day: number;
   date: string;
   completedHabits: HabitCode[];
+}
+
+export interface HabitSubmissionResponse {
+  log: HabitLog;
 }
 
 // Auth API
@@ -371,6 +382,6 @@ export const patientApi = {
   submitHabits: (completedHabits: HabitCode[], notes?: string, mood?: string) =>
     api.post<HabitSubmissionResponse>('/patients/habits/submit', { completedHabits, notes, mood }),
   getHabitHistory: () => api.get<{ logs: HabitLog[] }>('/patients/habits/history'),
-  getHabitGuide: (habitCode: HabitCode) =>
-    api.get<{ guide: HabitGuide | null; zone: number }>(`/patients/habits/${habitCode}/guide`),
+  getHabitGuide: (habitCode: HabitCode, zone?: number) =>
+    api.get<{ guide: HabitGuide | null; zone: number }>(`/patients/habits/${habitCode}/guide`, { params: { zone } }),
 };

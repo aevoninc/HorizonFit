@@ -44,7 +44,6 @@ const patientNavItems: NavItem[] = [
   { label: 'Progress History', path: '/patient/progress', icon: BarChart3 },
   { label: 'Log Data', path: '/patient/log-data', icon: Activity },
   { label: 'My Bookings', path: '/patient/bookings', icon: BookOpen },
-  { label: 'Book Consultation', path: '/patient/new-consultation', icon: Calendar },
   { label: 'Profile', path: '/patient/profile', icon: User },
 ];
 
@@ -55,13 +54,13 @@ interface DashboardSidebarProps {
   onCollapseToggle: () => void;
 }
 
-export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ 
-  isOpen, 
-  onToggle, 
-  isCollapsed, 
-  onCollapseToggle 
+export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
+  isOpen,
+  onToggle,
+  isCollapsed,
+  onCollapseToggle
 }) => {
-  const { role, logout, user,planTier } = useAuth();
+  const { role, logout, user, planTier } = useAuth();
   const location = useLocation();
   const navItems = role === 'Doctor' ? doctorNavItems : patientNavItems;
   const isPatient = role === 'Patient';
@@ -79,7 +78,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
 
   const NavItemContent = ({ item, isActive }: { item: NavItem; isActive: boolean }) => {
     const Icon = item.icon;
-    
+
     if (isCollapsed) {
       return (
         <TooltipProvider delayDuration={0}>

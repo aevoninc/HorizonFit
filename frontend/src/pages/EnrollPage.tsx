@@ -37,7 +37,7 @@ const enrollSchema = z
     phone: z.string().min(10, "Please enter a valid phone number").max(15),
     password: z.string().min(8, "Password must be at least 8 characters"),
     assignedCategory: z.enum(["Weight Loss", "Weight Gain"], {
-      errorMap: () => ({ message: "Please select a fitness goal" }),
+      errorMap: () => ({ message: "Please select a health goal" }),
     }),
     confirmPassword: z.string(),
   })
@@ -53,7 +53,7 @@ const PROGRAM_TIERS = {
     name: "Normal Program",
     price: 10000,
     features: [
-      "15 weeks of structured training",
+      "15 weeks of structured transformation",
       "Personalized task allocation",
       "Progress tracking & analytics",
       "Access to all 5 zones",
@@ -78,7 +78,7 @@ const PROGRAM_TIERS = {
 };
 
 const programBenefits = [
-  { icon: Dumbbell, text: "15 weeks of structured training" },
+  { icon: Dumbbell, text: "15 weeks of structured transformation" },
   { icon: Target, text: "Personalized task allocation" },
   { icon: Award, text: "Progress tracking & analytics" },
 ];
@@ -306,7 +306,7 @@ const handleVerifyConsultation = async () => {
             Enroll in the 15-Week Program
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Doctor-personalized fitness journey awaits you
+            Doctor-personalized health transformation awaits you
           </p>
         </motion.div>
 
@@ -398,7 +398,7 @@ const handleVerifyConsultation = async () => {
                       <div className="flex items-center gap-2">
                         <Check className="h-4 w-4 text-green-500 shrink-0" />
                         <span>
-                          Personalized assessment of your fitness level
+                          Personalized assessment of your metabolic health
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -665,7 +665,7 @@ const handleVerifyConsultation = async () => {
                       )}
                     </div>
                     <div className="space-y-2">
-                      <Label>Fitness Goal</Label>
+                      <Label>Health Goal</Label>
                       <div className="grid grid-cols-2 gap-4">
                         {Category.map((cat) => (
                           <Button

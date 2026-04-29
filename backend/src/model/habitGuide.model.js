@@ -25,14 +25,14 @@ const habitGuideSchema = new mongoose.Schema(
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: null,
+      required: true,
     },
   },
   { timestamps: true }
 );
 
 // ensure uniqueness per habitCode+zone+patientId combination
-habitGuideSchema.index({ habitCode: 1, zone: 1, patientId: 1 }, { unique: true });
+habitGuideSchema.index({ patientId: 1, zone: 1, habitCode: 1 }, { unique: true });
 
 export const HABIT_CODE_LIST = HABIT_CODES;
 export default mongoose.model("HabitGuide", habitGuideSchema);

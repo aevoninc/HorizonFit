@@ -7,18 +7,18 @@ import logo from "../../public/logo.png";
 const features = [
   {
     icon: Dumbbell,
-    title: 'Doctor-Personalized Program',
-    description: 'A medically-supervised 15-week fitness journey designed specifically for your body and goals by certified specialists.',
+    title: 'Doctor-Led Program',
+    description: 'A medically-supervised 15-week health transformation designed specifically for your metabolic needs.',
   },
   {
     icon: Calendar,
     title: 'Personal Consultations',
-    description: 'One-on-one sessions with certified fitness professionals to guide your transformation.',
+    description: 'One-on-one sessions with our certified health specialists to guide your journey.',
   },
   {
     icon: Users,
     title: 'Expert Medical Guidance',
-    description: 'Our doctors create customized workout plans based on your fitness level, health conditions, and goals.',
+    description: 'Our doctors create customized metabolic plans based on your health profile and goals.',
   },
 ];
 
@@ -30,13 +30,13 @@ const programSteps = [
   },
   {
     zone: 2,
-    title: "Progression",
+    title: "Momentum",
     description: "Increase intensity and expand your capabilities",
   },
   {
     zone: 3,
-    title: "Endurance",
-    description: "Push your limits and build lasting stamina",
+    title: "Transformation",
+    description: "Witness significant changes in your body composition and energy",
   },
   {
     zone: 4,
@@ -45,8 +45,8 @@ const programSteps = [
   },
   {
     zone: 5,
-    title: "Excellence",
-    description: "Achieve peak fitness and maintain results",
+    title: "Freedom",
+    description: "Achieve lasting results and the knowledge to maintain them for life",
   },
 ];
 
@@ -83,12 +83,9 @@ export const HomePage: React.FC = () => {
             </div>
           </Link>
           <div className="flex items-center gap-4">
-            <Link to="/auth">
-              <Button variant="ghost">Login</Button>
-            </Link>
-            <Link to="/book-consultation">
-              <Button variant="phoenix">Book Consultation</Button>
-            </Link>
+            <Button variant="ghost" asChild>
+              <Link to="/auth">Client Login</Link>
+            </Button>
           </div>
         </div>
       </nav>
@@ -98,7 +95,7 @@ export const HomePage: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-muted/50 to-background" />
         <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
         <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-secondary/10 blur-3xl" />
-        
+
         <div className="container relative mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -113,16 +110,16 @@ export const HomePage: React.FC = () => {
               className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2"
             >
               <Stethoscope className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Doctor-Supervised Fitness Program</span>
+              <span className="text-sm font-medium text-primary">Doctor-Supervised Health Program</span>
             </motion.div>
 
-            <h1 className="mb-6 text-5xl font-extrabold leading-tight tracking-tight text-foreground md:text-6xl lg:text-7xl">
-              Medically-Personalized{' '}
-              <span className="text-gradient-phoenix">Fitness Journey</span>
+            <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl md:text-6xl">
+              <span className="block">Doctor-Led Personalized</span>
+              <span className="block text-gradient-phoenix">Health Transformation</span>
             </h1>
 
             <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl">
-              Experience a revolutionary 15-week program crafted by <strong className="text-foreground">certified medical professionals</strong>. Your transformation is backed by expert doctors who understand your unique health needs.
+              Achieve your health goals with a customized 15-week metabolic transformation plan tailored to your unique biology and lifestyle.
             </p>
 
             {/* Trust Badges */}
@@ -146,10 +143,10 @@ export const HomePage: React.FC = () => {
               </div>
             </motion.div>
 
-            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <div className="flex flex-wrap justify-center gap-4">
               <Link to="/enroll">
                 <Button variant="phoenix" size="xl">
-                  Enroll Now
+                  Enroll in Program
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
@@ -202,7 +199,7 @@ export const HomePage: React.FC = () => {
           >
             <h2 className="mb-4 text-4xl font-bold text-foreground">The 15-Week Doctor-Designed Journey</h2>
             <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-              Our proven 5-zone system, designed by medical professionals, progressively builds your fitness ensuring sustainable results.
+              Our proven 5-zone system, designed by medical professionals, progressively builds your metabolic health ensuring sustainable results.
             </p>
           </motion.div>
 
@@ -251,11 +248,13 @@ export const HomePage: React.FC = () => {
                 <span className="mb-4 inline-block rounded-full bg-secondary-foreground/20 px-3 py-1 text-sm font-medium text-secondary-foreground">
                   Meet Your Specialist
                 </span>
-                <h2 className="mb-4 text-3xl font-bold text-secondary-foreground md:text-4xl">
-                  DR.M.JABAARRUL
+                <h2 className="mb-2 text-3xl font-bold text-secondary-foreground md:text-4xl">
+                  DR. M. JABAARRUL
                 </h2>
+                <p className="mb-2 text-xl font-semibold text-secondary-foreground/90">MBBS, AFIH</p>
+                <p className="mb-4 text-lg font-medium text-secondary-foreground/80 italic">Fellowship in Clinical Diabetology</p>
                 <p className="mb-6 text-secondary-foreground/80">
-                  With over 15 years of experience in sports medicine and fitness coaching, DR.M.JABAARRUL has helped thousands of clients achieve their health goals through personalized programs.
+                  With over 15 years of experience in metabolic health and clinical diabetology, DR. M. JABAARRUL has helped thousands of clients achieve their health transformation goals through personalized doctor-led programs.
                 </p>
                 <div className="mb-8 grid grid-cols-3 gap-4">
                   <div className="text-center">

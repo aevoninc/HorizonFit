@@ -1,4 +1,5 @@
 import asyncHandler from "../utils/asyncHandler.js";
+import mongoose from "mongoose";
 import ApiError from "../utils/ApiErrors.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import HabitGuide, { HABIT_CODE_LIST } from "../model/habitGuide.model.js";
@@ -13,52 +14,16 @@ function startOfDay(date) {
   return d;
 }
 
-/**
- * Calculate zone and day from programStartDate.
- * Each zone = 21 days (3 weeks × 7 days).
- */
-function calculateProgramStatus(programStartDate) {
-  if (!programStartDate) {
-    return { currentZone: 1, currentDay: 1, totalDaysInZone: 21 };
-  }
-
-  const start = startOfDay(new Date(programStartDate));
-  const today = startOfDay(new Date());
-  
-  // Calculate difference in days
-  const diffMs = today.getTime() - start.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) {
-    return { currentZone: 1, currentDay: 1, totalDaysInZone: 21, started: false };
-  }
-
-  const DAYS_PER_ZONE = 21;
-  const totalZones = 5;
-
-  const zone = Math.min(Math.floor(diffDays / DAYS_PER_ZONE) + 1, totalZones);
-  const dayInZone = (diffDays % DAYS_PER_ZONE) + 1;
-  const clampedDay = Math.min(dayInZone, DAYS_PER_ZONE);
-
-  return {
-    currentZone: zone,
-    currentDay: clampedDay,
-    totalDaysInZone: DAYS_PER_ZONE,
-    started: true
-  };
-}
-
 // ─── PATIENT CONTROLLERS ────────────────────────────────────────────────────
 
 /**
  * GET /api/v1/patients/program-status
  */
 export const getProgramStatus = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("programStartDate");
+  const user = await User.findById(req.user._id).select("currentZone currentDay");
   if (!user) throw new ApiError(404, "User not found");
 
-  const status = calculateProgramStatus(user.programStartDate);
-  return res.status(200).json(new ApiResponse(200, status, "Program status fetched"));
+  return res.status(200).json(new ApiResponse(200, { currentZone: user.currentZone, currentDay: user.currentDay }, "Program status fetched"));
 });
 
 /**
@@ -84,17 +49,17 @@ export const getTodayHabits = asyncHandler(async (req, res) => {
  */
 export const submitHabits = asyncHandler(async (req, res) => {
   const patientId = req.user._id;
-  const { completedHabits } = req.body;
+  const { completedHabits, notes, mood } = req.body;
 
   if (!Array.isArray(completedHabits)) {
     throw new ApiError(400, "completedHabits must be an array");
   }
 
   // Validate habit codes
-  const validHabits = completedHabits.filter(h => HABIT_CODE_LIST.includes(h));
+  const validHabits = completedHabits.filter((h) => HABIT_CODE_LIST.includes(h));
 
-  const user = await User.findById(patientId).select("programStartDate");
-  const { currentZone, currentDay } = calculateProgramStatus(user.programStartDate);
+  const user = await User.findById(patientId);
+  if (!user) throw new ApiError(404, "User not found");
 
   const todayStart = startOfDay(new Date());
 
@@ -104,17 +69,33 @@ export const submitHabits = asyncHandler(async (req, res) => {
     throw new ApiError(400, "You have already submitted your habits for today.");
   }
 
+  // Create HabitLog using current user state
   const log = await HabitLog.create({
     patientId,
-    zone: currentZone,
-    day: currentDay,
+    zone: user.currentZone,
+    day: user.currentDay,
     date: todayStart,
     completedHabits: validHabits,
-    notes,
-    mood
+    notes: notes || "",
+    mood: mood || "good",
   });
 
-  return res.status(200).json(new ApiResponse(200, { log }, "Habits submitted successfully"));
+  // Zone Progression Logic
+  let nextDay = user.currentDay + 1;
+  let nextZone = user.currentZone;
+
+  if (nextDay > 21) {
+    nextDay = 1;
+    nextZone = Math.min(user.currentZone + 1, 5);
+  }
+
+  user.currentDay = nextDay;
+  user.currentZone = nextZone;
+  await user.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { log, user: { currentZone: user.currentZone, currentDay: user.currentDay } }, "Habits submitted successfully"));
 });
 
 /**
@@ -132,38 +113,47 @@ export const getHabitHistory = asyncHandler(async (req, res) => {
 export const getHabitGuide = asyncHandler(async (req, res) => {
   const patientId = req.user._id;
   const { habitCode } = req.params;
+  const { zone } = req.query;
 
   if (!HABIT_CODE_LIST.includes(habitCode)) {
     throw new ApiError(400, "Invalid habitCode");
   }
 
-  const user = await User.findById(patientId).select("programStartDate");
-  const { currentZone } = calculateProgramStatus(user?.programStartDate);
+  const user = await User.findById(patientId).select("programStartDate currentZone");
 
-  // Focus on zone-level default as per new requirements
-  // (We still support patient-specific if it exists, but the logic is primarily zone-based)
-  let guide = await HabitGuide.findOne({ habitCode, zone: currentZone, patientId: null });
-
-  // If no default, try patient-specific (backwards compat)
+  // ✅ declare currentZone outside the if block so it's always in scope
+  const currentZone = user?.currentZone;
+  const targetZone = zone ? Number(zone) : currentZone;
+  const pId = new mongoose.Types.ObjectId(patientId.toString());
+  const guide = await HabitGuide.findOne({
+    habitCode: { $regex: new RegExp(`^${habitCode}$`, 'i') },
+    zone: targetZone,
+    patientId: pId
+  });
   if (!guide) {
-    guide = await HabitGuide.findOne({ habitCode, zone: currentZone, patientId });
+    return res.status(200).json({
+      success: true,
+      guide: null,
+      message: "Your guide will be available soon."
+    });
   }
 
-  if (!guide) {
-    return res.status(200).json(new ApiResponse(200, { guide: null, message: "Your guide will be available soon." }, "No guide content yet"));
-  }
-
-  return res.status(200).json(new ApiResponse(200, { guide, zone: currentZone }, "Habit guide fetched"));
+  return res.status(200).json({
+    success: true,
+    guide,
+    zone: currentZone, // ✅ now accessible
+    message: "Habit guide fetched"
+  });
 });
 
 // ─── DOCTOR CONTROLLERS ─────────────────────────────────────────────────────
 
 /**
  * POST /api/v1/doctor/habit-guide
- * Upsert guide for { zone, habitCode }
+ * Upsert guide for { zone, habitCode, patientId }
  */
 export const assignHabitGuide = asyncHandler(async (req, res) => {
-  const { habitCode, zone, content } = req.body;
+  const { habitCode, zone, content, patientId } = req.body;
 
   if (!habitCode || !HABIT_CODE_LIST.includes(habitCode)) {
     throw new ApiError(400, "Invalid or missing habitCode");
@@ -175,10 +165,14 @@ export const assignHabitGuide = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Guide content is required");
   }
 
+  if (!patientId) {
+    throw new ApiError(400, "patientId is required");
+  }
+
   const filter = {
     habitCode,
     zone: Number(zone),
-    patientId: null, // Global for that zone
+    patientId: new mongoose.Types.ObjectId(patientId),
   };
 
   const guide = await HabitGuide.findOneAndUpdate(
@@ -187,17 +181,30 @@ export const assignHabitGuide = asyncHandler(async (req, res) => {
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
-  return res.status(200).json(new ApiResponse(200, { guide }, "Habit guide assigned successfully"));
+  return res.status(200).json({
+    success: true,
+    guide,
+    message: "Habit guide assigned successfully"
+  });
 });
 
 /**
  * GET /api/v1/doctor/habit-guide
  */
 export const getHabitGuides = asyncHandler(async (req, res) => {
-  const guides = await HabitGuide.find({ patientId: null })
-    .sort({ zone: 1, habitCode: 1 });
+  const { patientId } = req.query;
 
-  return res.status(200).json(new ApiResponse(200, { guides }, "Habit guides fetched"));
+  if (!patientId) {
+    throw new ApiError(400, "patientId is required");
+  }
+
+  const guides = await HabitGuide.find({ patientId })
+    .sort({ zone: 1, habitCode: 1 });
+  return res.status(200).json({
+    success: true,
+    guides,
+    message: "Habit guides fetched"
+  });
 });
 
 /**
@@ -219,7 +226,11 @@ export const updateHabitGuide = asyncHandler(async (req, res) => {
 
   if (!guide) throw new ApiError(404, "Guide not found");
 
-  return res.status(200).json(new ApiResponse(200, { guide }, "Habit guide updated"));
+  return res.status(200).json({
+    success: true,
+    guide: guide,
+    message: "Habit guide updated"
+  });
 });
 
 /**
@@ -229,5 +240,8 @@ export const deleteHabitGuide = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const guide = await HabitGuide.findByIdAndDelete(id);
   if (!guide) throw new ApiError(404, "Guide not found");
-  return res.status(200).json(new ApiResponse(200, {}, "Habit guide deleted"));
+  return res.status(200).json({
+    success: true,
+    message: "Habit guide deleted"
+  });
 });

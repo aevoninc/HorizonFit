@@ -676,10 +676,10 @@ const getDIYTasks = async (req, res) => {
 function getZoneName(zoneNumber) {
   const names = {
     1: "Foundation",
-    2: "Adaptation",
-    3: "Momentum",
-    4: "Transformation",
-    5: "Mastery",
+    2: "Momentum",
+    3: "Transformation",
+    4: "Mastery",
+    5: "Freedom",
   };
   return names[zoneNumber] || `Zone ${zoneNumber}`;
 }
