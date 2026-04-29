@@ -585,8 +585,7 @@ export const PatientDetailPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              habitGuides ?
-                .sort((a, b) => a.zone - b.zone)
+              habitGuides?.sort((a, b) => a.zone - b.zone)
                   .map((guide) => (
                     <div
                       key={guide._id}
