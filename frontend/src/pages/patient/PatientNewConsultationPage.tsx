@@ -30,7 +30,7 @@ const consultationSchema = z.object({
 
 type ConsultationFormData = z.infer<typeof consultationSchema>;
 
-const CONSULTATION_PRICE = 599;
+const CONSULTATION_PRICE = 1;
 
 const DEFAULT_SLOTS: TimeSlot[] = [
   { _id: "def-1", time: "9:30 AM", period: "morning", isActive: true, sortOrder: 1 },
@@ -125,7 +125,7 @@ export const PatientNewConsultationPage: React.FC = () => {
       const requestedDateTime = buildISODateTime(selectedDate, selectedSlot.time);
       const orderResponse = await patientApi.createOrder();
       const { orderId, amount } = orderResponse.data; 
-
+      console.log(amount)
       openPayment({
         orderId,
         amount: amount || CONSULTATION_PRICE,

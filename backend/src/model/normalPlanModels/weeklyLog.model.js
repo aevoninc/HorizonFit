@@ -5,14 +5,20 @@ const weeklyLogSchema = new mongoose.Schema({
   weekNumber: { type: Number, required: true },
   zoneNumber: { type: Number, required: true, min: 1, max: 5 },
   metricsId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'PatientTrackingData' }],
-  compliance: { 
-    type: String, 
+  compliance: {
+    type: String,
     required: true,
     enum: ['excellent', 'good', 'fair', 'poor']
   },
   completedTasks: { type: Number, default: 0 },
   totalTasks: { type: Number, default: 0 },
   notes: { type: String },
+  metrics: {
+    weight: { type: Number },
+    bodyFatPercentage: { type: Number },
+    visceralFat: { type: Number },
+    loggedAt: { type: Date }
+  },
   submittedAt: { type: Date, default: Date.now }
 });
 

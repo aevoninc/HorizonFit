@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Calendar, 
-  Scale, 
-  CheckCircle, 
-  AlertCircle, 
+import {
+  Calendar,
+  Scale,
+  CheckCircle,
+  AlertCircle,
   FileText,
   Loader2,
   Send,
@@ -44,7 +44,7 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
 }) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  console.log("lastLog: ",lastLog)
+  console.log("lastLog: ", lastLog)
   const [formData, setFormData] = useState({
     weight: latestMetrics?.weight?.toString() || '',
     bodyFat: latestMetrics?.bodyFatPercentage?.toString() || '',
@@ -80,7 +80,7 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
         totalTasks,
         notes: formData.notes || undefined,
       });
-      
+
       toast({
         title: 'Weekly Log Submitted!',
         description: 'Your progress has been recorded.',
@@ -107,26 +107,27 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
         </CardHeader>
         <CardContent>
           <p className="text-green-600">
-            You've already submitted your log for Week {lastLog.weekNumber}. 
+            You've already submitted your log for Week {lastLog.weekNumber}.
             Your next log is due in {daysUntilDue || 7} days.
           </p>
-<div className="mt-4 grid gap-3 sm:grid-cols-3">
-  <div className="rounded-lg bg-white p-3">
-    <p className="text-xs text-muted-foreground">Weight</p>
-    {/* Use ?. and provide a fallback */}
-    <p className="font-semibold">{lastLog?.metrics?.weight ?? '--'} kg</p>
-  </div>
-  <div className="rounded-lg bg-white p-3">
-    <p className="text-xs text-muted-foreground">Compliance</p>
-    <p className="font-semibold capitalize">{lastLog?.compliance ?? '--'}</p>
-  </div>
-  <div className="rounded-lg bg-white p-3">
-    <p className="text-xs text-muted-foreground">Tasks</p>
-    <p className="font-semibold">
-      {lastLog?.completedTasks ?? 0}/{lastLog?.totalTasks ?? 0}
-    </p>
-  </div>
-</div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg bg-white p-3 border border-border/50">
+              <p className="text-xs text-muted-foreground">Weight</p>
+              <p className="font-semibold text-foreground">{lastLog?.metrics?.weight ?? '--'} kg</p>
+            </div>
+            <div className="rounded-lg bg-white p-3 border border-border/50">
+              <p className="text-xs text-muted-foreground">Body Fat</p>
+              <p className="font-semibold text-foreground">{lastLog?.metrics?.bodyFatPercentage ?? '--'}%</p>
+            </div>
+            <div className="rounded-lg bg-white p-3 border border-border/50">
+              <p className="text-xs text-muted-foreground">Visceral Fat</p>
+              <p className="font-semibold text-foreground">{lastLog?.metrics?.visceralFat ?? '--'}</p>
+            </div>
+            <div className="rounded-lg bg-white p-3 border border-border/50">
+              <p className="text-xs text-muted-foreground">Compliance</p>
+              <p className="font-semibold capitalize text-foreground">{lastLog?.compliance ?? '--'}</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     );
@@ -219,11 +220,10 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
             {COMPLIANCE_OPTIONS.map((option) => (
               <div
                 key={option.value}
-                className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-all ${
-                  formData.compliance === option.value 
-                    ? 'border-primary bg-primary/5' 
+                className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-all ${formData.compliance === option.value
+                    ? 'border-primary bg-primary/5'
                     : 'border-border hover:border-primary/50'
-                }`}
+                  }`}
               >
                 <RadioGroupItem value={option.value} id={option.value} />
                 <Label htmlFor={option.value} className="flex-1 cursor-pointer">

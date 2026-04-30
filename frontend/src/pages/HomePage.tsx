@@ -146,7 +146,7 @@ export const HomePage: React.FC = () => {
             <div className="flex flex-wrap justify-center gap-4">
               <Link to="/enroll">
                 <Button variant="phoenix" size="xl">
-                  Enroll in Program
+                   Start Your Transformation
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>

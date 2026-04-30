@@ -172,8 +172,8 @@ export const PatientTasksPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Health Coach Dashboard</h1>
-          <p className="mt-1 text-muted-foreground">Track your habits, watch guidance, and monitor progress.</p>
+          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">My Transformation Dashboard</h1>
+          <p className="mt-1 text-muted-foreground">Your journey, Your progress, Your victory.</p>
         </div>
         <Button variant="ghost" size="sm" onClick={loadData} className="gap-2">
           <RefreshCw className="h-4 w-4" /> Refresh

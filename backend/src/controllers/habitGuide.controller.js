@@ -23,7 +23,12 @@ export const getProgramStatus = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id).select("currentZone currentDay");
   if (!user) throw new ApiError(404, "User not found");
 
-  return res.status(200).json(new ApiResponse(200, { currentZone: user.currentZone, currentDay: user.currentDay }, "Program status fetched"));
+  return res.status(200).json(new ApiResponse(200, {
+    currentZone: user.currentZone,
+    currentDay: user.currentDay,
+    totalDaysInZone: 21, // Each zone is currently 21 days
+    started: true
+  }, "Program status fetched"));
 });
 
 /**

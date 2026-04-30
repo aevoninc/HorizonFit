@@ -43,6 +43,7 @@ const patientNavItems: NavItem[] = [
   { label: 'Horizon Guide', path: '/patient/horizon-guide', icon: BookOpen },
   { label: 'Progress History', path: '/patient/progress', icon: BarChart3 },
   { label: 'Log Data', path: '/patient/log-data', icon: Activity },
+  { label: 'Book Consultancy', path: '/patient/new-consultation', icon: Calendar },
   { label: 'My Bookings', path: '/patient/bookings', icon: BookOpen },
   { label: 'Profile', path: '/patient/profile', icon: User },
 ];
@@ -196,7 +197,7 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               <p className="text-sm text-sidebar-foreground/70">Welcome back,</p>
               <p className="font-semibold text-sidebar-foreground">{user?.name || 'User'}</p>
               <span className="mt-1 inline-block rounded-full bg-sidebar-foreground/10 px-2 py-0.5 text-xs text-sidebar-foreground">
-                {role}
+                {role == "Patient" ? "Wellness Client" : role}
               </span>
             </div>
           )}
