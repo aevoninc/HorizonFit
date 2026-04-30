@@ -335,14 +335,16 @@ const requestConsultation = asyncHandler(async (req, res) => {
   // 3. Save to Database
   const booking = await ConsultationBooking.create({
     patientId,
-    patientEmail: email, // Changed from 'email' to 'patientEmail' to match your schema
+    patientName: name, // Added to match schema and ensure it reflects in history
+    patientEmail: email,
     mobileNumber: mobileNumber,
     requestedDateTime,
     patientQuery: patientQuery || "General Consultation",
-    status: "Payment Successful", // Matches your schema enum
+    status: "Payment Successful",
     transactionId: paymentToken,
     orderId,
     paymentSignature: razorpaySignature,
+    amountPaid: CONSULTANCY_BOOKING_PRICE, // Added to store the paid amount
   });
 
   try {
@@ -391,8 +393,7 @@ const requestConsultation = asyncHandler(async (req, res) => {
 // @route   POST /api/patient/create-order
 // @access  Private/Patient
 const createOrderId = asyncHandler(async (req, res) => {
-  const PRICES = { consultation: 599 }; // Changed to 599 to match your frontend button
-
+  const PRICES = { consultation: CONSULTANCY_BOOKING_PRICE };
   try {
     const order = await createRazorpayOrder(PRICES.consultation);
 

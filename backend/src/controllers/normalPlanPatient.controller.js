@@ -53,7 +53,7 @@ const getNormalPlanProgress = async (req, res) => {
     });
     // Get latest metrics
     const latestMetrics = await BodyMetrics.findOne({ patientId }).sort({
-      loggedAt: -1,
+      dateRecorded: -1,
     });
 
     // Get latest recommendations
@@ -67,7 +67,7 @@ const getNormalPlanProgress = async (req, res) => {
     });
 
     // Calculate if they can enter metrics (once every 7 days)
-    const lastMetricsDate = latestMetrics?.loggedAt;
+    const lastMetricsDate = latestMetrics?.dateRecorded;
     const daysSinceLastMetrics = lastMetricsDate
       ? Math.floor(
         (Date.now() - new Date(lastMetricsDate).getTime()) /
@@ -111,7 +111,10 @@ const getNormalPlanProgress = async (req, res) => {
       patientId,
       currentZone: normalPlanPatient.currentZone || 1,
       zones,
-      latestMetrics,
+      latestMetrics: latestMetrics ? {
+        ...latestMetrics.toObject(),
+        loggedAt: latestMetrics.dateRecorded
+      } : null,
       recommendations: recommendations
         ? {
           ...recommendations.toObject(),
@@ -345,7 +348,13 @@ const submitBodyMetrics = async (req, res) => {
     res.json({
       success: true,
       // FIX: Send back the data the UI expects
-      metrics: { weight, bodyFatPercentage, visceralFat, dateRecorded },
+      metrics: {
+        weight,
+        bodyFatPercentage,
+        visceralFat,
+        loggedAt: dateRecorded, // Map for UI compatibility
+        dateRecorded
+      },
       recommendations: recs,
       nextEntryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
@@ -537,16 +546,74 @@ const getDailyLogsHistory = async (req, res) => {
 
 // Submit weekly log
 const submitWeeklyLog = async (req, res) => {
-  const { patientId, zoneNumber, logData } = req.body;
+  const { zoneNumber, logData } = req.body;
+  const patientId = req.user?._id || req.body.patientId; // Securely get ID
+
   try {
+    // Fallback: If logData is not present, assume req.body contains the fields directly
+    const actualLogData = logData || req.body;
+    const actualWeekNumber = actualLogData.weekNumber;
+    const actualZoneNumber = zoneNumber || actualLogData.zoneNumber;
+
+    if (!actualWeekNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing week number in log data.",
+      });
+    }
+
+    // 1. Validation: Prevent duplicate submission for the same week and zone
+    const existingLog = await WeeklyLog.findOne({
+      patientId,
+      zoneNumber: actualZoneNumber,
+      weekNumber: actualWeekNumber,
+    });
+
+    if (existingLog) {
+      return res.status(400).json({
+        success: false,
+        message: `You have already submitted a log for Week ${actualWeekNumber} in this zone.`,
+      });
+    }
+
+    // 2. Validation: Prevent submission if less than 6 days have passed since the last log
+    const lastLog = await WeeklyLog.findOne({ patientId }).sort({ submittedAt: -1 });
+    if (lastLog) {
+      const now = new Date();
+      const lastSubmitted = new Date(lastLog.submittedAt);
+      const diffInMs = now.getTime() - lastSubmitted.getTime();
+      const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+
+      if (diffInDays < 6) { // Enforce 6-7 day gap
+        return res.status(400).json({
+          success: false,
+          message: "You can only submit one weekly log every 7 days. Please wait for your next scheduled day.",
+          daysRemaining: Math.ceil(7 - diffInDays),
+        });
+      }
+    }
     // 1. Save the actual log entry
     const newLog = new WeeklyLog({
       patientId,
-      zoneNumber,
-      ...logData,
+      zoneNumber: actualZoneNumber,
+      ...actualLogData,
       submittedAt: new Date(),
     });
     await newLog.save();
+
+    // 4. Also save these as general tracking data for health trends
+    if (actualLogData.metrics) {
+      const { weight, bodyFatPercentage, visceralFat } = actualLogData.metrics;
+      const trackingEntries = [];
+
+      if (weight) trackingEntries.push({ patientId, type: 'Weight', value: weight, unit: 'kg', weekNumber: actualWeekNumber, dateRecorded: new Date() });
+      if (bodyFatPercentage) trackingEntries.push({ patientId, type: 'bodyFatPercentage', value: bodyFatPercentage, unit: '%', weekNumber: actualWeekNumber, dateRecorded: new Date() });
+      if (visceralFat) trackingEntries.push({ patientId, type: 'visceralFat', value: visceralFat, unit: 'scale', weekNumber: actualWeekNumber, dateRecorded: new Date() });
+
+      if (trackingEntries.length > 0) {
+        await PatientTrackingData.insertMany(trackingEntries);
+      }
+    }
 
     // 2. Find the progress tracking record for this specific zone
     let zoneProgress = await PatientZoneProgress.findOne({
