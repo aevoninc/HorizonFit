@@ -16,8 +16,9 @@ export const ZoneNavigator: React.FC<ZoneNavigatorProps> = ({
   onZoneSelect,
 }) => {
   const getZoneStatus = (zone: ZoneData) => {
-    if (zone.isCompleted) return 'completed';
-    return 'active'; // Zones are never 'locked' now
+    if (zone.zoneNumber === activeZone) return 'active';
+    if (zone.zoneNumber < activeZone) return 'completed';
+    return 'locked';
   };
 
   return (
@@ -29,6 +30,7 @@ export const ZoneNavigator: React.FC<ZoneNavigatorProps> = ({
             const status = getZoneStatus(zone);
             const definition = ZONE_DEFINITIONS.find(d => d.zoneNumber === zone.zoneNumber);
             const isActive = activeZone === zone.zoneNumber;
+            const isLocked = status === 'locked' || zone.zoneNumber !== activeZone;
 
             return (
               <motion.button
@@ -36,12 +38,18 @@ export const ZoneNavigator: React.FC<ZoneNavigatorProps> = ({
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.05 }}
-                onClick={() => onZoneSelect(zone.zoneNumber)}
+                onClick={() => {
+                  if (!isLocked) {
+                    onZoneSelect(zone.zoneNumber);
+                  }
+                }}
+                disabled={isLocked}
                 className={cn(
                   'relative flex flex-col items-center gap-2 rounded-xl border p-4 transition-all duration-200 min-w-[120px]',
-                  status === 'completed' && 'border-green-300 bg-green-50/50',
+                  status === 'completed' && 'border-green-300 bg-green-50/50 opacity-70 cursor-not-allowed',
                   status === 'active' && isActive && 'border-secondary bg-secondary/10 shadow-teal',
-                  status === 'active' && !isActive && 'border-border bg-card hover:border-secondary/50 hover:shadow-sm'
+                  status === 'active' && !isActive && 'border-border bg-card hover:border-secondary/50 hover:shadow-sm',
+                  isLocked && 'opacity-50 grayscale cursor-not-allowed border-dashed'
                 )}
               >
                 {/* Zone Number Circle */}
@@ -50,11 +58,14 @@ export const ZoneNavigator: React.FC<ZoneNavigatorProps> = ({
                     'flex h-12 w-12 items-center justify-center rounded-full transition-all',
                     status === 'completed' && 'bg-green-500',
                     status === 'active' && isActive && 'gradient-phoenix shadow-phoenix',
-                    status === 'active' && !isActive && 'bg-secondary/20'
+                    status === 'active' && !isActive && 'bg-secondary/20',
+                    isLocked && 'bg-muted text-muted-foreground'
                   )}
                 >
                   {status === 'completed' ? (
                     <CheckCircle className="h-6 w-6 text-white" />
+                  ) : isLocked ? (
+                    <Lock className="h-5 w-5" />
                   ) : isActive ? (
                     <Play className="h-5 w-5 text-white" />
                   ) : (

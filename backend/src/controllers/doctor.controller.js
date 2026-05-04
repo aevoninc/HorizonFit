@@ -18,21 +18,21 @@ import weeklyLog from "../model/normalPlanModels/weeklyLog.model.js";
 import TimeSlot from "../model/timeSlot.model.js";
 
 
-export async function createDoctor(name,email,password,mobileNumber){
+export async function createDoctor(name, email, password, mobileNumber) {
 
-    const patient = await User.create({
-      name,
-      email,
-      password,
-      mobileNumber,
-      role: "Doctor",
-      isActive: true,
-  planTier: "premium",
-  currentZone: 1,
-  status: "active"
-    });
+  const patient = await User.create({
+    name,
+    email,
+    password,
+    mobileNumber,
+    role: "Doctor",
+    isActive: true,
+    planTier: "premium",
+    currentZone: 1,
+    status: "active"
+  });
 
-    console.log("Doctor created successfully:", patient);
+  console.log("Doctor created successfully:", patient);
 };
 // @desc    Create a new Patient (Manual process done by Doctor/Admin)
 // @route   POST /api/doctor/create-patient
@@ -230,7 +230,6 @@ const getPatientProgress = asyncHandler(async (req, res) => {
   }
 
   // 2. Run queries in parallel for better performance
-  //
   const [progressData, programTasks, taskLogs, bookings] = await Promise.all([
     PatientTrackingData.find({ patientId }).sort({ dateRecorded: 1 }),
     PatientProgramTask.find({ patientId }).sort({
@@ -241,6 +240,36 @@ const getPatientProgress = asyncHandler(async (req, res) => {
     ConsultationBooking.find({ patientId }).sort({ requestedDateTime: -1 }), // Fixed field name
   ]);
 
+  // 3. Calculate weeklyProgress (weeks 1-15)
+  const weeklyProgress = [];
+  for (let week = 1; week <= 15; week++) {
+    const tasksInWeek = programTasks.filter((t) => t.programWeek === week);
+    if (tasksInWeek.length > 0) {
+      const completedInWeek = taskLogs.filter((l) =>
+        tasksInWeek.some((t) => t._id.toString() === l.taskId.toString())
+      ).length;
+      weeklyProgress.push({
+        week: `Week ${week}`,
+        completion: Math.round((completedInWeek / tasksInWeek.length) * 100),
+      });
+    }
+  }
+
+  // 4. Calculate zoneProgress (zones 1-5)
+  const zoneProgress = [];
+  for (let z = 1; z <= 5; z++) {
+    const tasksInZone = programTasks.filter((t) => t.zone === z);
+    const completedInZone = taskLogs.filter((l) =>
+      tasksInZone.some((t) => t._id.toString() === l.taskId.toString())
+    ).length;
+
+    zoneProgress.push({
+      zone: `Zone ${z}`,
+      tasks: tasksInZone.length,
+      completed: completedInZone,
+    });
+  }
+
   res.status(200).json({
     message: "Progress data retrieved successfully",
     patient,
@@ -248,6 +277,8 @@ const getPatientProgress = asyncHandler(async (req, res) => {
     programTasks: programTasks,
     taskLogs: taskLogs, // Added this to the response so frontend can show ticks/completion
     bookings: bookings,
+    weeklyProgress,
+    zoneProgress,
   });
 });
 
@@ -333,9 +364,9 @@ const getConsultationRequests = asyncHandler(async (req, res) => {
         : "N/A",
       time: booking.requestedDateTime
         ? new Date(booking.requestedDateTime).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
+          hour: "2-digit",
+          minute: "2-digit",
+        })
         : "N/A",
       status: statusMap[booking.status] || "pending", // Fallback to pending
       type: booking.patientQuery || "General Consultation",
@@ -356,8 +387,8 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status, confirmedDateTime } = req.body;
   console.log(id);
-  if(!id){
-        return res
+  if (!id) {
+    return res
       .status(400)
       .json({ message: "Invalid booking status provided. patient ID is missing" });
   }
@@ -527,9 +558,9 @@ const getNewConsultancyRequest = asyncHandler(async (req, res) => {
         : "N/A",
       time: booking.requestedDateTime
         ? new Date(booking.requestedDateTime).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
+          hour: "2-digit",
+          minute: "2-digit",
+        })
         : "N/A",
       status: statusMap[booking.status] || "pending", // Fallback to pending
       type: booking.patientQuery || "General Consultation",

@@ -16,7 +16,7 @@ import patientTaskLog from "../model/patientTaskLog.model.js";
 // Get patient's Normal Plan progress
 const getNormalPlanProgress = async (req, res) => {
   try {
-    const patientId = req.user.id;
+    const patientId = req.user._id;
 
     // Find the patient in the User collection
     let normalPlanPatient = await User.findById(patientId);
@@ -51,10 +51,35 @@ const getNormalPlanProgress = async (req, res) => {
       patientId: req.user._id,
       zone: normalPlanPatient.currentZone || 1,
     });
-    // Get latest metrics
-    const latestMetrics = await BodyMetrics.findOne({ patientId }).sort({
-      dateRecorded: -1,
-    });
+    // Get latest individual metrics to aggregate for the UI
+    const [latestWeight, latestBodyFat, latestVisceral] = await Promise.all([
+      BodyMetrics.findOne({ patientId, type: "Weight" }).sort({
+        dateRecorded: -1,
+      }),
+      BodyMetrics.findOne({ patientId, type: "bodyFatPercentage" }).sort({
+        dateRecorded: -1,
+      }),
+      BodyMetrics.findOne({ patientId, type: "visceralFat" }).sort({
+        dateRecorded: -1,
+      }),
+    ]);
+
+    const latestMetricsObject =
+      latestWeight || latestBodyFat || latestVisceral
+        ? {
+          weight: latestWeight?.value,
+          bodyFatPercentage: latestBodyFat?.value,
+          visceralFat: latestVisceral?.value,
+          loggedAt:
+            latestWeight?.dateRecorded ||
+            latestBodyFat?.dateRecorded ||
+            latestVisceral?.dateRecorded,
+          dateRecorded:
+            latestWeight?.dateRecorded ||
+            latestBodyFat?.dateRecorded ||
+            latestVisceral?.dateRecorded,
+        }
+        : null;
 
     // Get latest recommendations
     const recommendations = await RecommendationsCache.findOne({
@@ -67,11 +92,11 @@ const getNormalPlanProgress = async (req, res) => {
     });
 
     // Calculate if they can enter metrics (once every 7 days)
-    const lastMetricsDate = latestMetrics?.dateRecorded;
+    const lastMetricsDate = latestMetricsObject?.dateRecorded;
     const daysSinceLastMetrics = lastMetricsDate
       ? Math.floor(
         (Date.now() - new Date(lastMetricsDate).getTime()) /
-        (24 * 60 * 60 * 1000)
+        (24 * 60 * 60 * 1000),
       )
       : 999;
 
@@ -81,7 +106,7 @@ const getNormalPlanProgress = async (req, res) => {
     // Build the data for the 5 Zones
     const zones = [1, 2, 3, 4, 5].map((zoneNumber) => {
       const progress = zoneProgressList.find(
-        (zp) => zp.zoneNumber === zoneNumber
+        (zp) => zp.zoneNumber === zoneNumber,
       );
       const videos = allZoneVideos.filter((v) => v.zoneNumber === zoneNumber);
       const watchedVideoIds =
@@ -111,10 +136,7 @@ const getNormalPlanProgress = async (req, res) => {
       patientId,
       currentZone: normalPlanPatient.currentZone || 1,
       zones,
-      latestMetrics: latestMetrics ? {
-        ...latestMetrics.toObject(),
-        loggedAt: latestMetrics.dateRecorded
-      } : null,
+      latestMetrics: latestMetricsObject,
       recommendations: recommendations
         ? {
           ...recommendations.toObject(),
@@ -156,9 +178,9 @@ const getNormalPlanProgress = async (req, res) => {
 // Check if videos are completed before allowing metrics entry
 const checkVideoCompletion = async (req, res) => {
   try {
-    const patientId = req.user.id;
+    const patientId = req.user._id;
 
-    const normalPlanPatient = await User.findOne({ patientId });
+    const normalPlanPatient = await User.findById(patientId);
     if (!normalPlanPatient) {
       return res
         .status(404)
@@ -188,10 +210,9 @@ const checkVideoCompletion = async (req, res) => {
 // Check if patient can enter metrics this week
 const canEnterMetrics = async (req, res) => {
   try {
-    const patientId = req.user.id;
-
+    const patientId = req.user._id;
     // Check video completion first
-    const normalPlanPatient = await User.findOne({ patientId });
+    const normalPlanPatient = await User.findById(patientId);
     const zoneProgress = await PatientZoneProgress.findOne({
       patientId,
       zoneNumber: normalPlanPatient?.currentZone || 1,
@@ -213,7 +234,7 @@ const canEnterMetrics = async (req, res) => {
     if (lastMetrics) {
       const daysSince = Math.floor(
         (Date.now() - new Date(lastMetrics.loggedAt).getTime()) /
-        (24 * 60 * 60 * 1000)
+        (24 * 60 * 60 * 1000),
       );
 
       if (daysSince < 7) {
@@ -241,31 +262,31 @@ const canEnterMetrics = async (req, res) => {
 // Submit body metrics (once per week, after videos)
 const submitBodyMetrics = async (req, res) => {
   try {
-    const patientId = req.user.id;
-    const { weight, bodyFatPercentage, visceralFat } = req.body;
-
+    const patientId = req.user._id;
+    const { weight, bodyFatPercentage, visceralFat, zoneNumber } = req.body;
     // 1. Define missing dateRecorded
+    console.log(req.body);
     const dateRecorded = new Date();
 
     // Validate
     if (!weight || !bodyFatPercentage || visceralFat === undefined) {
       return res.status(400).json({ error: "All metrics are required" });
     }
-
     // Check video completion
-    const normalPlanPatient = await User.findOne({ patientId });
+    const normalPlanPatient = await User.findById(patientId);
     const zoneProgress = await PatientZoneProgress.findOne({
       patientId,
       zoneNumber: normalPlanPatient?.currentZone || 1,
     });
 
-    if (!zoneProgress?.videosCompleted) {
-      return res.status(403).json({
-        error: "Videos not completed",
-        message: "You must watch all zone videos before entering metrics.",
-      });
-    }
+    // if (!zoneProgress?.videosCompleted) {
+    //   return res.status(403).json({
+    //     error: "Videos not completed",
+    //     message: "You must watch all zone videos before entering metrics.",
+    //   });
+    // }
 
+    console.log("HI1");
     // Check weekly limit
     // IMPORTANT: Make sure the sort field matches your schema (dateRecorded or loggedAt)
     const lastMetrics = await BodyMetrics.findOne({ patientId }).sort({
@@ -275,9 +296,9 @@ const submitBodyMetrics = async (req, res) => {
     if (lastMetrics) {
       const daysSince = Math.floor(
         (Date.now() - new Date(lastMetrics.dateRecorded).getTime()) /
-        (24 * 60 * 60 * 1000)
+        (24 * 60 * 60 * 1000),
       );
-
+      console.log("HI2");
       if (daysSince < 7) {
         return res.status(403).json({
           error: "Weekly limit exceeded",
@@ -295,7 +316,7 @@ const submitBodyMetrics = async (req, res) => {
       value: weight,
       unit: "kg",
     });
-
+    console.log("weightEntry");
     const bodyFatEntry = new BodyMetrics({
       patientId,
       dateRecorded,
@@ -304,7 +325,7 @@ const submitBodyMetrics = async (req, res) => {
       value: bodyFatPercentage,
       unit: "%",
     });
-
+    console.log("bodyFatEntry");
     const visceralFatEntry = new BodyMetrics({
       patientId,
       dateRecorded,
@@ -313,7 +334,7 @@ const submitBodyMetrics = async (req, res) => {
       value: visceralFat,
       unit: "level",
     });
-
+    console.log("visceralFatEntry");
     // Save all three
     await Promise.all([
       weightEntry.save(),
@@ -328,6 +349,7 @@ const submitBodyMetrics = async (req, res) => {
       visceralFat,
     });
 
+    console.log(recs);
     // Save recommendations
     // FIX: Use weightEntry._id (or any of the 3) as the reference
     const recommendationsCache = new RecommendationsCache({
@@ -338,13 +360,14 @@ const submitBodyMetrics = async (req, res) => {
     });
 
     await recommendationsCache.save();
-
+    console.log("recommendationsCache");
     // Update last metrics date
-    await User.findOneAndUpdate(
-      { patientId },
-      { lastMetricsDate: new Date(), updatedAt: new Date() }
-    );
+    await User.findByIdAndUpdate(patientId, {
+      lastMetricsDate: new Date(),
+      updatedAt: new Date(),
+    });
 
+    console.log(weight, bodyFatPercentage, visceralFat, dateRecorded, recs);
     res.json({
       success: true,
       // FIX: Send back the data the UI expects
@@ -353,7 +376,7 @@ const submitBodyMetrics = async (req, res) => {
         bodyFatPercentage,
         visceralFat,
         loggedAt: dateRecorded, // Map for UI compatibility
-        dateRecorded
+        dateRecorded,
       },
       recommendations: recs,
       nextEntryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -369,7 +392,7 @@ const submitBodyMetrics = async (req, res) => {
 // Mark video as watched
 const markVideoWatched = async (req, res) => {
   try {
-    const patientId = req.user.id;
+    const patientId = req.user._id;
     const { videoId } = req.params;
 
     const video = await ZoneVideo.findById(videoId);
@@ -403,8 +426,8 @@ const markVideoWatched = async (req, res) => {
 
     const allWatched = allZoneVideos.every((v) =>
       zoneProgress.watchedVideos.some(
-        (wv) => wv.toString() === v._id.toString()
-      )
+        (wv) => wv.toString() === v._id.toString(),
+      ),
     );
 
     zoneProgress.videosCompleted = allWatched;
@@ -435,7 +458,6 @@ const getHorizonGuideVideos = async (req, res) => {
       query.category = category;
     }
 
-
     const videos = await HorizonGuideVideo.find(query).sort({
       category: 1,
       order: 1,
@@ -453,7 +475,7 @@ const getHorizonGuideVideos = async (req, res) => {
 // Submit daily log
 const submitDailyLog = async (req, res) => {
   try {
-    const patientId = req.user.id;
+    const patientId = req.user._id;
     const { completedTaskIds, notes, mood } = req.body;
 
     const today = new Date();
@@ -476,7 +498,7 @@ const submitDailyLog = async (req, res) => {
     }
 
     // Get current zone
-    const normalPlanPatient = await User.findOne({ patientId });
+    const normalPlanPatient = await User.findById(patientId);
 
     // Create new log
     const dailyLog = new DailyLog({
@@ -500,7 +522,7 @@ const submitDailyLog = async (req, res) => {
 // Get today's log
 const getTodayLog = async (req, res) => {
   try {
-    const patientId = req.user.id;
+    const patientId = req.user._id;
 
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -523,7 +545,7 @@ const getTodayLog = async (req, res) => {
 // Get daily logs history
 const getDailyLogsHistory = async (req, res) => {
   try {
-    const patientId = req.user.id;
+    const patientId = req.user._id;
     const { days = 30 } = req.query;
 
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -577,17 +599,21 @@ const submitWeeklyLog = async (req, res) => {
     }
 
     // 2. Validation: Prevent submission if less than 6 days have passed since the last log
-    const lastLog = await WeeklyLog.findOne({ patientId }).sort({ submittedAt: -1 });
+    const lastLog = await WeeklyLog.findOne({ patientId }).sort({
+      submittedAt: -1,
+    });
     if (lastLog) {
       const now = new Date();
       const lastSubmitted = new Date(lastLog.submittedAt);
       const diffInMs = now.getTime() - lastSubmitted.getTime();
       const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
 
-      if (diffInDays < 6) { // Enforce 6-7 day gap
+      if (diffInDays < 6) {
+        // Enforce 6-7 day gap
         return res.status(400).json({
           success: false,
-          message: "You can only submit one weekly log every 7 days. Please wait for your next scheduled day.",
+          message:
+            "You can only submit one weekly log every 7 days. Please wait for your next scheduled day.",
           daysRemaining: Math.ceil(7 - diffInDays),
         });
       }
@@ -606,9 +632,33 @@ const submitWeeklyLog = async (req, res) => {
       const { weight, bodyFatPercentage, visceralFat } = actualLogData.metrics;
       const trackingEntries = [];
 
-      if (weight) trackingEntries.push({ patientId, type: 'Weight', value: weight, unit: 'kg', weekNumber: actualWeekNumber, dateRecorded: new Date() });
-      if (bodyFatPercentage) trackingEntries.push({ patientId, type: 'bodyFatPercentage', value: bodyFatPercentage, unit: '%', weekNumber: actualWeekNumber, dateRecorded: new Date() });
-      if (visceralFat) trackingEntries.push({ patientId, type: 'visceralFat', value: visceralFat, unit: 'scale', weekNumber: actualWeekNumber, dateRecorded: new Date() });
+      if (weight)
+        trackingEntries.push({
+          patientId,
+          type: "Weight",
+          value: weight,
+          unit: "kg",
+          weekNumber: actualWeekNumber,
+          dateRecorded: new Date(),
+        });
+      if (bodyFatPercentage)
+        trackingEntries.push({
+          patientId,
+          type: "bodyFatPercentage",
+          value: bodyFatPercentage,
+          unit: "%",
+          weekNumber: actualWeekNumber,
+          dateRecorded: new Date(),
+        });
+      if (visceralFat)
+        trackingEntries.push({
+          patientId,
+          type: "visceralFat",
+          value: visceralFat,
+          unit: "scale",
+          weekNumber: actualWeekNumber,
+          dateRecorded: new Date(),
+        });
 
       if (trackingEntries.length > 0) {
         await PatientTrackingData.insertMany(trackingEntries);
@@ -666,7 +716,7 @@ const submitWeeklyLog = async (req, res) => {
             weeksInZone: 0,
             isCompleted: false,
           },
-          { upsert: true }
+          { upsert: true },
         );
       }
 
@@ -702,9 +752,9 @@ const submitWeeklyLog = async (req, res) => {
 // Get DIY tasks for current zone
 const getDIYTasks = async (req, res) => {
   try {
-    const patientId = req.user.id;
+    const patientId = req.user._id;
 
-    const normalPlanPatient = await User.findOne({ patientId });
+    const normalPlanPatient = await User.findById(patientId);
     const currentZone = normalPlanPatient?.currentZone || 1;
     const tasks = await PatientProgramTask.find({
       zone: currentZone,
