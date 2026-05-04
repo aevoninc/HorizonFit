@@ -12,6 +12,7 @@ import {
   BookOpen,
   Pencil,
   X,
+  Badge
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -464,28 +465,33 @@ export const PatientDetailPage: React.FC = () => {
                 Step 1: Select Zone
                 <span className="text-[10px] text-muted-foreground font-normal">Only one zone at a time</span>
               </Label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((z) => {
-                  const hasGuidesInZone = habitGuides?.some(g => g.zone === z);
-                  const isSelected = Number(newGuide.zone) === z;
-                  return (
-                    <Button
-                      key={z}
-                      variant={isSelected ? "secondary" : "outline"}
-                      className={`flex-1 relative h-12 transition-all duration-200 ${isSelected
-                        ? "ring-2 ring-secondary/50 shadow-md scale-105"
-                        : "hover:border-secondary/50"
-                        }`}
-                      onClick={() => setNewGuide({ ...newGuide, zone: z.toString() })}
-                    >
-                      {getZoneName(z)}
-                      {hasGuidesInZone && (
-                        <div className={`absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white ${isSelected ? 'bg-white' : 'bg-secondary'}`} />
-                      )}
-                    </Button>
-                  );
-                })}
-              </div>
+<div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+  {[1, 2, 3, 4, 5].map((z) => {
+    const hasGuidesInZone = habitGuides?.some(g => g.zone === z);
+    const isSelected = Number(newGuide.zone) === z;
+    return (
+      <Button
+        key={z}
+        variant={isSelected ? "secondary" : "outline"}
+        className={`relative h-12 text-xs font-semibold transition-all duration-200 ${
+          isSelected
+            ? "ring-2 ring-secondary/50 shadow-md scale-105"
+            : "hover:border-secondary/50"
+        }`}
+        onClick={() => setNewGuide({ ...newGuide, zone: z.toString() })}
+      >
+        <span className="truncate">{getZoneName(z)}</span>
+        {hasGuidesInZone && (
+          <div
+            className={`absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white ${
+              isSelected ? "bg-white" : "bg-secondary"
+            }`}
+          />
+        )}
+      </Button>
+    );
+  })}
+</div>
             </div>
 
             {/* Habit Selection (Dropdown) */}

@@ -5,6 +5,7 @@ import ApiResponse from "../utils/ApiResponse.js";
 import HabitGuide, { HABIT_CODE_LIST } from "../model/habitGuide.model.js";
 import HabitLog from "../model/habitLog.model.js";
 import User from "../model/user.model.js";
+import PatientZoneProgress from "../model/normalPlanModels/patientZoneProgress.model.js";
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,21 @@ export const submitHabits = asyncHandler(async (req, res) => {
   if (nextDay > 21) {
     nextDay = 1;
     nextZone = Math.min(user.currentZone + 1, 5);
+
+    // If transitioning to a new zone, ensure PatientZoneProgress is updated
+    if (nextZone > user.currentZone) {
+      await PatientZoneProgress.findOneAndUpdate(
+        { patientId, zoneNumber: nextZone },
+        { isUnlocked: true, startedAt: new Date() },
+        { upsert: true, new: true }
+      );
+
+      // Mark current zone as completed
+      await PatientZoneProgress.findOneAndUpdate(
+        { patientId, zoneNumber: user.currentZone },
+        { isCompleted: true, completedAt: new Date() }
+      );
+    }
   }
 
   user.currentDay = nextDay;
