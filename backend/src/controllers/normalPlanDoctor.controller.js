@@ -10,7 +10,7 @@ import BodyMetrics from "../model/patientTrackingData.model.js";
 import WeeklyLog from "../model/normalPlanModels/weeklyLog.model.js";
 // import Patient = require('../models/Patient');
 
-import patientTaskLog from "../model/patientTaskLog.model.js";
+import HabitLog from "../model/habitLog.model.js";
 import calculateRecommendations from "../utils/healthCalculations.js";
 
 // ==================== PATIENT MANAGEMENT ====================
@@ -43,8 +43,8 @@ const getNormalPlanPatients = async (req, res) => {
           patientId: userId,
         }).sort({ submittedAt: -1 });
 
-        // 5. Get recent activity
-        const dailyLogs = await DailyLog.find({
+        // 5. Get recent activity from HabitLog
+        const habitLogs = await HabitLog.find({
           patientId: userId,
           date: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
         });
@@ -57,24 +57,24 @@ const getNormalPlanPatients = async (req, res) => {
         const complianceRate =
           weeklyLogs.length > 0
             ? Math.round(
-                weeklyLogs.reduce((acc, log) => {
-                  const score =
-                    { excellent: 95, good: 80, fair: 60, poor: 30 }[
-                      log.compliance
-                    ] || 0;
-                  return acc + score;
-                }, 0) / weeklyLogs.length,
-              )
+              weeklyLogs.reduce((acc, log) => {
+                const score =
+                  { excellent: 95, good: 80, fair: 60, poor: 30 }[
+                  log.compliance
+                  ] || 0;
+                return acc + score;
+              }, 0) / weeklyLogs.length,
+            )
             : 0;
 
-        const lastDailyLog = await DailyLog.findOne({ patientId: userId }).sort(
+        const lastDailyLog = await HabitLog.findOne({ patientId: userId }).sort(
           { date: -1 },
         );
         const daysSinceLastLog = lastDailyLog
           ? Math.floor(
-              (Date.now() - new Date(lastDailyLog.date).getTime()) /
-                (24 * 60 * 60 * 1000),
-            )
+            (Date.now() - new Date(lastDailyLog.date).getTime()) /
+            (24 * 60 * 60 * 1000),
+          )
           : 999;
 
         return {
@@ -93,11 +93,11 @@ const getNormalPlanPatients = async (req, res) => {
           programStartDate: user.programStartDate,
           latestMetrics: latestMetrics
             ? {
-                weight: latestMetrics.value,
-                loggedAt: latestMetrics.dateRecorded,
-              }
+              weight: latestMetrics.value,
+              loggedAt: latestMetrics.dateRecorded,
+            }
             : null,
-          activeDaysThisWeek: dailyLogs.length,
+          activeDaysThisWeek: habitLogs.length,
           weeklyLogs: weeklyLogs.slice(0, 5),
         };
       }),
@@ -121,9 +121,10 @@ const getNormalPlanPatientDetail = async (req, res) => {
       });
     }
     const normalPlanPatient = await NormalPlanPatient.findOne({
+      _id: patientId,
       role: "Patient",
       planTier: "normal",
-    }).populate("patientId", "name email phone");
+    });
 
     if (!normalPlanPatient) {
       return res
@@ -145,11 +146,25 @@ const getNormalPlanPatientDetail = async (req, res) => {
       .populate("metricsId")
       .sort({ submittedAt: -1 });
 
-    // Get all daily logs (last 30 days)
-    const dailyLogs = await patientTaskLog.find({
+    // Get all daily logs from HabitLog (last 30 days)
+    const habitLogs = await HabitLog.find({
       patientId,
-      completionDate: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-    });
+      date: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+    }).sort({ date: -1 });
+
+    // Map HabitLog to what frontend expects for DailyLog
+    const dailyLogs = habitLogs.map(log => ({
+      _id: log._id,
+      patientId: log.patientId,
+      zoneNumber: log.zone,
+      completionDate: log.date, // Add this for compatibility if frontend uses it
+      date: log.date,
+      // We map completedHabits length since frontend expects completedTasks array
+      completedTasks: log.completedHabits || [],
+      notes: log.notes,
+      mood: log.mood,
+      createdAt: log.createdAt
+    }));
 
     // Get current recommendations
     const recommendations = await RecommendationsCache.findOne({
@@ -192,7 +207,7 @@ const getNormalPlanPatientDetail = async (req, res) => {
       zoneProgress,
       metricsHistory,
       weeklyLogs,
-      normalizedMetrics, 
+      normalizedMetrics,
       dailyLogs,
       recommendations,
       customTasks,
@@ -632,20 +647,20 @@ const getDailyActivityReport = async (req, res) => {
           return null; // This patient is broken/deleted, skip them
         }
 
-        const todayLog = await DailyLog.findOne({
+        const todayLog = await HabitLog.findOne({
           patientId: np.patientId._id,
           date: { $gte: today },
-        }).populate("completedTasks");
+        });
 
-        const lastLog = await DailyLog.findOne({
+        const lastLog = await HabitLog.findOne({
           patientId: np.patientId._id,
         }).sort({ date: -1 });
 
         const daysSinceLastLog = lastLog
           ? Math.floor(
-              (Date.now() - new Date(lastLog.date).getTime()) /
-                (24 * 60 * 60 * 1000),
-            )
+            (Date.now() - new Date(lastLog.date).getTime()) /
+            (24 * 60 * 60 * 1000),
+          )
           : null;
 
         return {
@@ -654,7 +669,7 @@ const getDailyActivityReport = async (req, res) => {
           email: np.patientId.email,
           currentZone: np.currentZone,
           hasLoggedToday: !!todayLog,
-          todayCompletedTasks: todayLog?.completedTasks?.length || 0,
+          todayCompletedTasks: todayLog?.completedHabits?.length || 0,
           daysSinceLastLog,
           isAtRisk: daysSinceLastLog !== null && daysSinceLastLog >= 3,
         };
@@ -690,7 +705,7 @@ const getPatientTrends = async (req, res) => {
       loggedAt: { $gte: startDate },
     }).sort({ loggedAt: 1 });
 
-    const dailyLogs = await DailyLog.aggregate([
+    const habitLogsHistory = await HabitLog.aggregate([
       {
         $match: {
           patientId: new mongoose.Types.ObjectId(patientId),
@@ -700,7 +715,7 @@ const getPatientTrends = async (req, res) => {
       {
         $group: {
           _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-          tasksCompleted: { $sum: { $size: "$completedTasks" } },
+          tasksCompleted: { $sum: { $size: "$completedHabits" } },
         },
       },
       { $sort: { _id: 1 } },
@@ -713,7 +728,7 @@ const getPatientTrends = async (req, res) => {
         bodyFatPercentage: m.bodyFatPercentage,
         visceralFat: m.visceralFat,
       })),
-      dailyActivity: dailyLogs,
+      dailyActivity: habitLogsHistory,
     });
   } catch (error) {
     console.error("Error fetching patient trends:", error);

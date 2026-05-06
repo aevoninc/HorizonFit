@@ -29,7 +29,7 @@ import { normalPlanPatientApi } from "@/lib/normalPlanApi";
 import { NormalPlanProgress, BodyMetrics, WeeklyLog } from "@/lib/normalPlanTypes";
 
 import { GuideModal, HABIT_META } from "@/components/normalplan/GuideModal";
-import { getZoneName } from "@/lib/zoneUtils";
+import { getZoneName, getZoneMotivation } from "@/lib/zoneUtils";
 
 // Components for other features
 import { ZoneNavigator } from "@/components/normalplan/ZoneNavigator";
@@ -47,6 +47,18 @@ export const PatientTasksPage: React.FC = () => {
     currentDay: 1,
     totalDaysInZone: 21,
     started: false,
+  });
+
+  const [habitDetails, setHabitDetails] = useState<Record<HabitCode, {
+    completedTasks: string[],
+    mainTicked: boolean,
+    totalTasksCount?: number // We'll try to guess or fetch this
+  }>>({
+    Hydration: { completedTasks: [], mainTicked: false },
+    Nutrition: { completedTasks: [], mainTicked: false },
+    Exercise: { completedTasks: [], mainTicked: false },
+    Sleep: { completedTasks: [], mainTicked: false },
+    Mindset: { completedTasks: [], mainTicked: false },
   });
 
   const [localSelections, setLocalSelections] = useState<Record<HabitCode, boolean>>({
@@ -92,10 +104,16 @@ export const PatientTasksPage: React.FC = () => {
       setSelectedViewerZone(statusRes.data.currentZone);
 
       const selections: any = {};
+      const details: any = {};
       habitsRes?.data?.habits?.forEach(h => {
-        selections[h.habitCode] = h.completed;
+        selections[h.habitCode] = h.completed || h.mainTicked || h.completedTasks?.length > 0;
+        details[h.habitCode] = {
+          completedTasks: h.completedTasks || [],
+          mainTicked: h.mainTicked || false,
+        };
       });
       setLocalSelections(selections);
+      setHabitDetails(details);
     } catch (err) {
       // console.log(err)
       toast({ title: err.message, variant: "destructive" });
@@ -112,7 +130,12 @@ export const PatientTasksPage: React.FC = () => {
     setSubmitting(true);
     try {
       const completedHabits = HABIT_CODES.filter(code => localSelections[code]);
-      await patientApi.submitHabits(completedHabits, notes, mood);
+      const detailsArray = HABIT_CODES.map(code => ({
+        habitCode: code,
+        completedTasks: habitDetails[code].completedTasks,
+        mainTicked: habitDetails[code].mainTicked
+      }));
+      await patientApi.submitHabits(completedHabits, detailsArray, notes, mood);
       setSubmittedToday(true);
       toast({ title: "Awesome! Habits submitted.", description: "Keep up the momentum!" });
       loadData(); // refresh status
@@ -207,58 +230,61 @@ export const PatientTasksPage: React.FC = () => {
         {/* ─── Habits Tab ─────────────────────────────────────────────────── */}
         <TabsContent value="habits" className="space-y-6 focus-visible:outline-none">
           {/* Zone + Day Stat Card */}
-<Card className="card-elevated overflow-hidden border-none shadow-2xl">
-  <CardContent className="p-0">
-    <div className="bg-gradient-to-br from-orange-500 via-amber-500 to-rose-500 px-8 py-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 text-white">
-      <div className="flex items-center gap-5">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-inner">
-          <Flame className="h-8 w-8 text-yellow-200" />
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-widest font-bold text-white/70">Current Phase</p>
-          <div className="flex flex-col">
-            <h2 className="text-4xl font-black drop-shadow-md">
-              Zone {programStatus.currentZone}: {getZoneName(programStatus.currentZone)}
-            </h2>
-            <span className="text-lg font-medium text-white/90">
-              Day {programStatus.currentDay}/21
-            </span>
-          </div>
-        </div>
-      </div>
+          <Card className="card-elevated overflow-hidden border-none shadow-2xl">
+            <CardContent className="p-0">
+              <div className="bg-gradient-to-br from-orange-500 via-amber-500 to-rose-500 px-8 py-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 text-white">
+                <div className="flex items-center gap-5">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 shadow-inner">
+                    <Flame className="h-8 w-8 text-yellow-200" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-widest font-bold text-white/70">Current Phase</p>
+                    <div className="flex flex-col">
+                      <h2 className="text-4xl font-black drop-shadow-md">
+                        Zone {programStatus.currentZone}: {getZoneName(programStatus.currentZone)}
+                      </h2>
+                      <p className="text-white/80 font-medium italic mt-1">
+                        "{getZoneMotivation(programStatus.currentZone)}"
+                      </p>
+                      <span className="text-lg font-medium text-white/90">
+                        Day {programStatus.currentDay}/21
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-      <div className="flex flex-col gap-2 min-w-[200px]">
-        <div className="flex justify-between text-xs font-bold text-white/80">
-          <span>PROGRESS</span>
-          <span>{Math.round(progressPercent)}%</span>
-        </div>
-        <div className="h-3 w-full rounded-full bg-white/20 overflow-hidden backdrop-blur-sm border border-white/10">
-          <motion.div
-            className="h-full rounded-full bg-white shadow-[0_0_20px_rgba(255,255,255,0.6)]"
-            initial={{ width: 0 }}
-            animate={{ width: `${progressPercent}%` }}
-            transition={{ duration: 0.8, ease: "circOut" }}
-          />
-        </div>
-      </div>
-    </div>
+                <div className="flex flex-col gap-2 min-w-[200px]">
+                  <div className="flex justify-between text-xs font-bold text-white/80">
+                    <span>PROGRESS</span>
+                    <span>{Math.round(progressPercent)}%</span>
+                  </div>
+                  <div className="h-3 w-full rounded-full bg-white/20 overflow-hidden backdrop-blur-sm border border-white/10">
+                    <motion.div
+                      className="h-full rounded-full bg-white shadow-[0_0_20px_rgba(255,255,255,0.6)]"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progressPercent}%` }}
+                      transition={{ duration: 0.8, ease: "circOut" }}
+                    />
+                  </div>
+                </div>
+              </div>
 
-    <AnimatePresence>
-      {submittedToday && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
-          className="bg-gradient-to-r from-orange-600 to-rose-500 px-8 py-3 flex items-center gap-3 overflow-hidden text-white"
-        >
-          <CheckCircle className="h-5 w-5 text-yellow-200" />
-          <span className="text-sm font-bold uppercase tracking-wider">
-            Today's session completed! 🔥
-          </span>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  </CardContent>
-</Card>
+              <AnimatePresence>
+                {submittedToday && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    className="bg-gradient-to-r from-orange-600 to-rose-500 px-8 py-3 flex items-center gap-3 overflow-hidden text-white"
+                  >
+                    <CheckCircle className="h-5 w-5 text-yellow-200" />
+                    <span className="text-sm font-bold uppercase tracking-wider">
+                      Today's session completed! 🔥
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </CardContent>
+          </Card>
 
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Daily Checklist</h3>
@@ -284,6 +310,10 @@ export const PatientTasksPage: React.FC = () => {
                             onCheckedChange={(checked) => {
                               if (submittedToday) return;
                               setLocalSelections(prev => ({ ...prev, [code]: !!checked }));
+                              setHabitDetails(prev => ({
+                                ...prev,
+                                [code]: { ...prev[code], mainTicked: !!checked }
+                              }));
                             }}
                             disabled={submittedToday}
                             className="h-7 w-7 rounded-lg border-2 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 transition-all scale-110"
@@ -297,7 +327,14 @@ export const PatientTasksPage: React.FC = () => {
                               <label htmlFor={`habit-${code}`} className={`font-bold text-lg leading-none cursor-pointer ${submittedToday ? 'opacity-50' : ''}`}>
                                 {code}
                               </label>
-                              <p className="text-xs text-muted-foreground mt-1">{meta.description}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-xs text-muted-foreground">{meta.description}</p>
+                                {habitDetails[code]?.completedTasks?.length > 0 && (
+                                  <span className="text-[10px] font-bold bg-secondary/10 text-secondary px-1.5 py-0.5 rounded-full">
+                                    {habitDetails[code].completedTasks.length} tasks done
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -370,7 +407,7 @@ export const PatientTasksPage: React.FC = () => {
                 disabled={submitting}
               >
                 {submitting ? <Loader2 className="mr-3 h-6 w-6 animate-spin" /> : <Send className="mr-3 h-6 w-6" />}
-                SUBMIT TODAY ({completedCount}/5)
+                COMPLETE SESSION
               </Button>
             </motion.div>
           ) : (
@@ -433,6 +470,25 @@ export const PatientTasksPage: React.FC = () => {
         <GuideModal
           habitCode={guideHabit}
           zone={programStatus.currentZone}
+          completedTasks={habitDetails[guideHabit].completedTasks}
+          onToggleTask={(taskName) => {
+            if (submittedToday) return;
+            setHabitDetails(prev => {
+              const current = prev[guideHabit].completedTasks;
+              const updated = current.includes(taskName)
+                ? current.filter(t => t !== taskName)
+                : [...current, taskName];
+
+              // If any tasks are ticked, the main checkbox should also reflect completion/partial status
+              const isAnyTicked = updated.length > 0;
+              setLocalSelections(s => ({ ...s, [guideHabit]: isAnyTicked || habitDetails[guideHabit].mainTicked }));
+
+              return {
+                ...prev,
+                [guideHabit]: { ...prev[guideHabit], completedTasks: updated }
+              };
+            });
+          }}
           onClose={() => setGuideHabit(null)}
         />
       )}

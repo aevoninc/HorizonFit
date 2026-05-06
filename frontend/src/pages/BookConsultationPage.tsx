@@ -85,6 +85,8 @@ export const BookConsultationPage: React.FC = () => {
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [bookedTimes, setBookedTimes] = useState<string[]>([]);
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   const {
     register,
@@ -127,6 +129,53 @@ export const BookConsultationPage: React.FC = () => {
     };
     loadSlots();
   }, [toast]);
+
+  // Fetch booked slots when date changes
+  useEffect(() => {
+    if (!selectedDate) return;
+    const fetchBookedSlots = async () => {
+      setBookingLoading(true);
+      try {
+        const res = await publicApi.getBookedSlots(selectedDate);
+        setBookedTimes(res.data.bookedTimes);
+      } catch (error) {
+        console.error("Failed to fetch booked slots:", error);
+      } finally {
+        setBookingLoading(false);
+      }
+    };
+    fetchBookedSlots();
+  }, [selectedDate]);
+
+  const isToday = selectedDate === todayDateString();
+
+  const getSlotState = (slot: TimeSlot) => {
+    if (!selectedDate) return "available";
+    const slotISO = buildISODateTime(selectedDate, slot.time);
+    const slotDate = new Date(slotISO);
+    const slotTime = slotDate.getTime();
+
+    // 1. Check if it's already booked (Rule 2)
+    const isBooked = bookedTimes.some((bt) => {
+      const bDate = new Date(bt);
+      return (
+        bDate.getFullYear() === slotDate.getFullYear() &&
+        bDate.getMonth() === slotDate.getMonth() &&
+        bDate.getDate() === slotDate.getDate() &&
+        bDate.getHours() === slotDate.getHours() &&
+        bDate.getMinutes() === slotDate.getMinutes()
+      );
+    });
+    if (isBooked) return "taken";
+
+    // 2. Check if it's in the past or "too close" (Rule 1)
+    if (isToday) {
+      const now = Date.now();
+      const fiveHoursInMs = 5 * 60 * 60 * 1000;
+      if (slotTime < now + fiveHoursInMs) return "past";
+    }
+    return "available";
+  };
 
   const morningSlots = availableSlots.filter((s) => s.period === "morning");
   const eveningSlots = availableSlots.filter((s) => s.period === "evening");
@@ -287,7 +336,7 @@ export const BookConsultationPage: React.FC = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(() => {})}>
+        <form onSubmit={handleSubmit(() => { })}>
           <AnimatePresence mode="wait">
             {step === 1 && (
               <motion.div
@@ -375,52 +424,94 @@ export const BookConsultationPage: React.FC = () => {
                         <>
                           {/* Morning Slots */}
                           {morningSlots.length > 0 && (
-                            <div className="space-y-2">
+                            <div className="relative space-y-2">
+                              {bookingLoading && (
+                                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-[1px] rounded-lg">
+                                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                </div>
+                              )}
                               <div className="flex items-center gap-2 text-sm font-semibold text-amber-600">
                                 <Sun className="h-4 w-4" />
                                 Morning
                               </div>
                               <div className="grid grid-cols-3 gap-2">
-                                {morningSlots.map((slot) => (
-                                  <button
-                                    key={slot._id}
-                                    type="button"
-                                    onClick={() => setSelectedSlot(slot)}
-                                    className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-                                      selectedSlot?._id === slot._id
-                                        ? "border-secondary bg-secondary text-white shadow-md scale-105"
-                                        : "border-border bg-card hover:border-secondary/60 hover:bg-secondary/5 text-foreground"
-                                    }`}
-                                  >
-                                    {slot.time}
-                                  </button>
-                                ))}
+                                {morningSlots.map((slot) => {
+                                  const state = getSlotState(slot);
+                                  const isSelected = selectedSlot?._id === slot._id;
+                                  return (
+                                    <button
+                                      key={slot._id}
+                                      type="button"
+                                      disabled={state !== "available"}
+                                      onClick={() => setSelectedSlot(slot)}
+                                      className={`relative rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-200 ${state === "taken" || state === "past"
+                                          ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60 border-transparent"
+                                          : isSelected
+                                            ? "border-secondary bg-secondary text-white shadow-md scale-105"
+                                            : "border-border bg-card hover:border-secondary/60 hover:bg-secondary/5 text-foreground"
+                                        }`}
+                                    >
+                                      {slot.time}
+                                      {state === "past" && (
+                                        <span className="absolute -top-2 -right-1 bg-amber-500 text-[10px] text-white px-1.5 py-0.5 rounded-full shadow-sm">
+                                          Past
+                                        </span>
+                                      )}
+                                      {state === "taken" && (
+                                        <span className="absolute -top-2 -right-1 bg-destructive text-[10px] text-white px-1.5 py-0.5 rounded-full shadow-sm">
+                                          Taken
+                                        </span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
 
                           {/* Evening Slots */}
                           {eveningSlots.length > 0 && (
-                            <div className="space-y-2">
+                            <div className="relative space-y-2">
+                              {bookingLoading && (
+                                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-[1px] rounded-lg">
+                                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                </div>
+                              )}
                               <div className="flex items-center gap-2 text-sm font-semibold text-indigo-600">
                                 <Moon className="h-4 w-4" />
                                 Evening
                               </div>
                               <div className="grid grid-cols-3 gap-2">
-                                {eveningSlots.map((slot) => (
-                                  <button
-                                    key={slot._id}
-                                    type="button"
-                                    onClick={() => setSelectedSlot(slot)}
-                                    className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-                                      selectedSlot?._id === slot._id
-                                        ? "border-secondary bg-secondary text-white shadow-md scale-105"
-                                        : "border-border bg-card hover:border-secondary/60 hover:bg-secondary/5 text-foreground"
-                                    }`}
-                                  >
-                                    {slot.time}
-                                  </button>
-                                ))}
+                                {eveningSlots.map((slot) => {
+                                  const state = getSlotState(slot);
+                                  const isSelected = selectedSlot?._id === slot._id;
+                                  return (
+                                    <button
+                                      key={slot._id}
+                                      type="button"
+                                      disabled={state !== "available"}
+                                      onClick={() => setSelectedSlot(slot)}
+                                      className={`relative rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-200 ${state === "taken" || state === "past"
+                                          ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60 border-transparent"
+                                          : isSelected
+                                            ? "border-secondary bg-secondary text-white shadow-md scale-105"
+                                            : "border-border bg-card hover:border-secondary/60 hover:bg-secondary/5 text-foreground"
+                                        }`}
+                                    >
+                                      {slot.time}
+                                      {state === "past" && (
+                                        <span className="absolute -top-2 -right-1 bg-amber-500 text-[10px] text-white px-1.5 py-0.5 rounded-full shadow-sm">
+                                          Past
+                                        </span>
+                                      )}
+                                      {state === "taken" && (
+                                        <span className="absolute -top-2 -right-1 bg-destructive text-[10px] text-white px-1.5 py-0.5 rounded-full shadow-sm">
+                                          Taken
+                                        </span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -453,11 +544,10 @@ export const BookConsultationPage: React.FC = () => {
                         {consultationTypes.map((type) => (
                           <label
                             key={type.value}
-                            className={`flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all ${
-                              selectedType === type.value
+                            className={`flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all ${selectedType === type.value
                                 ? "border-secondary bg-secondary/5 shadow-sm"
                                 : "border-border hover:border-secondary/50"
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center gap-3">
                               <RadioGroupItem value={type.value} />
@@ -566,6 +656,6 @@ export const BookConsultationPage: React.FC = () => {
           </AnimatePresence>
         </form>
       </div>
-    </div>
+    </div >
   );
 };

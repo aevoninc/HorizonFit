@@ -225,6 +225,8 @@ export interface TimeSlot {
 export interface HabitStatus {
   habitCode: HabitCode;
   completed: boolean;
+  completedTasks: string[];
+  mainTicked: boolean;
 }
 
 export interface HabitGuide {
@@ -232,6 +234,7 @@ export interface HabitGuide {
   habitCode: HabitCode;
   zone: number;
   content: string;
+  tasks: { taskName: string; _id?: string }[];
   patientId?: string | null;
   updatedAt?: string;
 }
@@ -250,6 +253,11 @@ export interface HabitLog {
   day: number;
   date: string;
   completedHabits: HabitCode[];
+  habitDetails?: {
+    habitCode: HabitCode;
+    completedTasks: string[];
+    mainTicked: boolean;
+  }[];
 }
 
 export interface HabitSubmissionResponse {
@@ -291,6 +299,7 @@ export const publicApi = {
   verifyBooking: (data: { consultationId: string }) =>
     api.post('/public/verify-consultation-id', data),
   getTimeSlots: () => api.get<{ slots: TimeSlot[] }>('/public/time-slots'),
+  getBookedSlots: (date: string) => api.get<{ bookedTimes: string[] }>('/public/booked-slots', { params: { date } }),
 };
 
 // Doctor API
@@ -379,8 +388,13 @@ export const patientApi = {
   // Habit Tracker
   getProgramStatus: () => api.get<ProgramStatus>('/patients/program-status'),
   getTodayHabits: () => api.get<{ habits: HabitStatus[]; submitted: boolean }>('/patients/habits/today'),
-  submitHabits: (completedHabits: HabitCode[], notes?: string, mood?: string) =>
-    api.post<HabitSubmissionResponse>('/patients/habits/submit', { completedHabits, notes, mood }),
+  submitHabits: (
+    completedHabits: HabitCode[],
+    habitDetails?: { habitCode: HabitCode; completedTasks: string[]; mainTicked: boolean }[],
+    notes?: string,
+    mood?: string
+  ) =>
+    api.post<HabitSubmissionResponse>('/patients/habits/submit', { completedHabits, habitDetails, notes, mood }),
   getHabitHistory: () => api.get<{ logs: HabitLog[] }>('/patients/habits/history'),
   getHabitGuide: (habitCode: HabitCode, zone?: number) =>
     api.get<{ guide: HabitGuide | null; zone: number }>(`/patients/habits/${habitCode}/guide`, { params: { zone } }),
