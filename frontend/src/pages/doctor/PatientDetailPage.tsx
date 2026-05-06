@@ -80,6 +80,7 @@ export const PatientDetailPage: React.FC = () => {
     habitCode: '' as HabitCode | '',
     zone: '1',
     content: '',
+    tasks: [] as { taskName: string }[],
   });
   const [editingGuide, setEditingGuide] = useState<HabitGuide | null>(null);
   const [isEditGuideOpen, setIsEditGuideOpen] = useState(false);
@@ -138,16 +139,27 @@ export const PatientDetailPage: React.FC = () => {
       });
       return;
     }
+
+    if (newGuide.tasks.length < 2 || newGuide.tasks.length > 5) {
+      toast({
+        title: 'Task Error',
+        description: 'Please add between 2 and 5 tasks.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setIsSubmittingGuide(true);
       await doctorApi.assignHabitGuide({
         habitCode: newGuide.habitCode as HabitCode,
         zone: Number(newGuide.zone),
         content: newGuide.content.trim(),
+        tasks: newGuide.tasks,
         patientId: id,
       });
       toast({ title: 'Habit guide saved!' });
-      setNewGuide({ habitCode: '', zone: '1', content: '' });
+      setNewGuide({ habitCode: '', zone: '1', content: '', tasks: [] });
       fetchHabitGuides();
     } catch (error: any) {
       toast({
@@ -158,6 +170,28 @@ export const PatientDetailPage: React.FC = () => {
     } finally {
       setIsSubmittingGuide(false);
     }
+  };
+
+  const handleAddTask = () => {
+    if (newGuide.tasks.length >= 5) return;
+    setNewGuide(prev => ({
+      ...prev,
+      tasks: [...prev.tasks, { taskName: '' }]
+    }));
+  };
+
+  const handleRemoveTask = (index: number) => {
+    setNewGuide(prev => ({
+      ...prev,
+      tasks: prev.tasks.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleTaskChange = (index: number, value: string) => {
+    setNewGuide(prev => ({
+      ...prev,
+      tasks: prev.tasks.map((t, i) => i === index ? { taskName: value } : t)
+    }));
   };
 
   const handleEditGuide = async () => {
@@ -465,33 +499,31 @@ export const PatientDetailPage: React.FC = () => {
                 Step 1: Select Zone
                 <span className="text-[10px] text-muted-foreground font-normal">Only one zone at a time</span>
               </Label>
-<div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-  {[1, 2, 3, 4, 5].map((z) => {
-    const hasGuidesInZone = habitGuides?.some(g => g.zone === z);
-    const isSelected = Number(newGuide.zone) === z;
-    return (
-      <Button
-        key={z}
-        variant={isSelected ? "secondary" : "outline"}
-        className={`relative h-12 text-xs font-semibold transition-all duration-200 ${
-          isSelected
-            ? "ring-2 ring-secondary/50 shadow-md scale-105"
-            : "hover:border-secondary/50"
-        }`}
-        onClick={() => setNewGuide({ ...newGuide, zone: z.toString() })}
-      >
-        <span className="truncate">{getZoneName(z)}</span>
-        {hasGuidesInZone && (
-          <div
-            className={`absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white ${
-              isSelected ? "bg-white" : "bg-secondary"
-            }`}
-          />
-        )}
-      </Button>
-    );
-  })}
-</div>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {[1, 2, 3, 4, 5].map((z) => {
+                  const hasGuidesInZone = habitGuides?.some(g => g.zone === z);
+                  const isSelected = Number(newGuide.zone) === z;
+                  return (
+                    <Button
+                      key={z}
+                      variant={isSelected ? "secondary" : "outline"}
+                      className={`relative h-12 text-xs font-semibold transition-all duration-200 ${isSelected
+                        ? "ring-2 ring-secondary/50 shadow-md scale-105"
+                        : "hover:border-secondary/50"
+                        }`}
+                      onClick={() => setNewGuide({ ...newGuide, zone: z.toString() })}
+                    >
+                      <span className="truncate">{getZoneName(z)}</span>
+                      {hasGuidesInZone && (
+                        <div
+                          className={`absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white ${isSelected ? "bg-white" : "bg-secondary"
+                            }`}
+                        />
+                      )}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Habit Selection (Dropdown) */}
@@ -544,6 +576,48 @@ export const PatientDetailPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Tasks Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Step 4: Checklist Tasks (2-5)</Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddTask}
+                  disabled={newGuide.tasks.length >= 5}
+                  className="h-8 text-[10px]"
+                >
+                  <Plus className="mr-1 h-3 w-3" /> Add Task
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {newGuide.tasks.map((task, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <Input
+                      placeholder={`Task ${idx + 1}`}
+                      value={task.taskName}
+                      onChange={(e) => handleTaskChange(idx, e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveTask(idx)}
+                      className="h-9 w-9 text-destructive hover:bg-destructive/10"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                {newGuide.tasks.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground italic text-center py-2 bg-muted/30 rounded-lg border border-dashed">
+                    No tasks added yet. Patients will see these as checkboxes.
+                  </p>
+                )}
+              </div>
+            </div>
+
             <Button
               variant="secondary"
               className="w-full h-12 text-sm font-bold shadow-lg shadow-secondary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
@@ -592,73 +666,79 @@ export const PatientDetailPage: React.FC = () => {
               </div>
             ) : (
               habitGuides?.sort((a, b) => a.zone - b.zone)
-                  .map((guide) => (
-                    <div
-                      key={guide._id}
-                      className="group relative flex flex-col gap-3 rounded-2xl border border-border/60 bg-white p-4 transition-all hover:border-secondary/40 hover:shadow-md"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="bg-secondary text-primary-foreground text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">
-                            {getZoneName(guide.zone)}
-                          </div>
-                          <h4 className="font-bold text-sm text-foreground">
-                            {guide.habitCode}
-                          </h4>
+                .map((guide) => (
+                  <div
+                    key={guide._id}
+                    className="group relative flex flex-col gap-3 rounded-2xl border border-border/60 bg-white p-4 transition-all hover:border-secondary/40 hover:shadow-md"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="bg-secondary text-primary-foreground text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">
+                          {getZoneName(guide.zone)}
                         </div>
-                        <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-full hover:bg-secondary/10 hover:text-secondary"
-                            onClick={() => {
-                              setNewGuide({
-                                habitCode: guide.habitCode,
-                                zone: guide.zone.toString(),
-                                content: guide.content
-                              });
-                              window.scrollTo({ top: document.getElementById('guide-form')?.offsetTop || 0, behavior: 'smooth' });
-                            }}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent className="rounded-2xl border-none shadow-2xl">
-                              <AlertDialogHeader>
-                                <AlertDialogTitle className="text-xl">Delete this guide?</AlertDialogTitle>
-                                <AlertDialogDescription className="text-sm">
-                                  This will permanently remove the <strong>{guide.habitCode}</strong> instructions for <strong>Zone {guide.zone}</strong>. This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter className="pt-4">
-                                <AlertDialogCancel className="rounded-xl border-border">Keep it</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteGuide(guide._id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
-                                >
-                                  Yes, Delete Guide
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
+                        <h4 className="font-bold text-sm text-foreground">
+                          {guide.habitCode}
+                        </h4>
+                        {guide.tasks?.length > 0 && (
+                          <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full font-medium">
+                            {guide.tasks.length} tasks
+                          </span>
+                        )}
                       </div>
-                      <div className="relative">
-                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 bg-muted/30 p-2.5 rounded-xl border border-transparent group-hover:border-border/40 min-h-[60px]">
-                          {guide.content}
-                        </p>
+                      <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-full hover:bg-secondary/10 hover:text-secondary"
+                          onClick={() => {
+                            setNewGuide({
+                              habitCode: guide.habitCode,
+                              zone: guide.zone.toString(),
+                              content: guide.content,
+                              tasks: guide.tasks || []
+                            });
+                            window.scrollTo({ top: document.getElementById('guide-form')?.offsetTop || 0, behavior: 'smooth' });
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="rounded-2xl border-none shadow-2xl">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="text-xl">Delete this guide?</AlertDialogTitle>
+                              <AlertDialogDescription className="text-sm">
+                                This will permanently remove the <strong>{guide.habitCode}</strong> instructions for <strong>Zone {guide.zone}</strong>. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter className="pt-4">
+                              <AlertDialogCancel className="rounded-xl border-border">Keep it</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteGuide(guide._id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
+                              >
+                                Yes, Delete Guide
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
-                  ))
+                    <div className="relative">
+                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 bg-muted/30 p-2.5 rounded-xl border border-transparent group-hover:border-border/40 min-h-[60px]">
+                        {guide.content}
+                      </p>
+                    </div>
+                  </div>
+                ))
             )}
           </CardContent>
         </Card>

@@ -9,6 +9,7 @@ import {
     Brain,
     X,
     Loader2,
+    CheckCircle 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -68,10 +69,18 @@ export const HABIT_META: Record<HabitCode, {
 interface GuideModalProps {
     habitCode: HabitCode | null;
     zone: number;
+    completedTasks: string[];
+    onToggleTask: (taskName: string) => void;
     onClose: () => void;
 }
 
-export const GuideModal: React.FC<GuideModalProps> = ({ habitCode, zone, onClose }) => {
+export const GuideModal: React.FC<GuideModalProps> = ({
+    habitCode,
+    zone,
+    completedTasks,
+    onToggleTask,
+    onClose
+}) => {
     const [guide, setGuide] = useState<HabitGuide | null>(null);
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
@@ -81,9 +90,7 @@ export const GuideModal: React.FC<GuideModalProps> = ({ habitCode, zone, onClose
         const fetch = async () => {
             setLoading(true);
             try {
-                // Pass the zone prop to ensure we get the guide for the zone being viewed
                 const res = await patientApi.getHabitGuide(habitCode, zone);
-                console.log(res)
                 setGuide(res.data.guide);
             } catch {
                 toast({ title: "Failed to load guide", variant: "destructive" });
@@ -92,10 +99,13 @@ export const GuideModal: React.FC<GuideModalProps> = ({ habitCode, zone, onClose
             }
         };
         fetch();
-    }, [habitCode, toast]);
+    }, [habitCode, zone, toast]);
 
     if (!habitCode) return null;
     const meta = HABIT_META[habitCode];
+
+    const totalTasks = guide?.tasks?.length || 0;
+    const doneCount = completedTasks.length;
 
     return (
         <AnimatePresence>
@@ -125,15 +135,52 @@ export const GuideModal: React.FC<GuideModalProps> = ({ habitCode, zone, onClose
                         </button>
                     </div>
 
-                    <div className="p-6 max-h-[60vh] overflow-y-auto">
+                    <div className="p-6 max-h-[60vh] overflow-y-auto space-y-6">
                         {loading ? (
                             <div className="flex items-center justify-center py-12">
                                 <Loader2 className="h-8 w-8 animate-spin text-secondary" />
                             </div>
                         ) : guide ? (
-                            <div className="prose prose-sm max-w-none">
-                                <p className="text-foreground leading-relaxed whitespace-pre-wrap">{guide.content}</p>
-                            </div>
+                            <>
+                                {guide.tasks && guide.tasks.length > 0 && (
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Action Checklist</h3>
+                                            <span className="text-xs font-bold bg-secondary/10 text-secondary px-2 py-1 rounded-full">
+                                                {doneCount}/{totalTasks} DONE
+                                            </span>
+                                        </div>
+                                        <div className="grid gap-2">
+                                            {guide.tasks.map((task, idx) => {
+                                                const isDone = completedTasks.includes(task.taskName);
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer ${isDone ? 'border-emerald-500/30 bg-emerald-50/30' : 'border-muted bg-white hover:border-muted-foreground/20'
+                                                            }`}
+                                                        onClick={() => onToggleTask(task.taskName)}
+                                                    >
+                                                        <div className={`h-5 w-5 rounded-md border-2 flex items-center justify-center transition-all ${isDone ? 'bg-emerald-500 border-emerald-500' : 'border-muted-foreground/30'
+                                                            }`}>
+                                                            {isDone && <CheckCircle className="h-3.5 w-3.5 text-white" />}
+                                                        </div>
+                                                        <span className={`text-sm font-medium ${isDone ? 'text-emerald-900 line-through opacity-60' : 'text-foreground'}`}>
+                                                            {task.taskName}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Understanding {habitCode}</h3>
+                                    <div className="prose prose-sm max-w-none text-foreground leading-relaxed whitespace-pre-wrap bg-muted/20 p-4 rounded-xl border border-border/50">
+                                        {guide.content}
+                                    </div>
+                                </div>
+                            </>
                         ) : (
                             <div className="text-center py-10">
                                 <BookOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -144,7 +191,7 @@ export const GuideModal: React.FC<GuideModalProps> = ({ habitCode, zone, onClose
                     </div>
 
                     <div className="px-6 pb-5">
-                        <Button variant="outline" className="w-full h-11" onClick={onClose}>Close</Button>
+                        <Button variant="secondary" className="w-full h-11" onClick={onClose}>Finish Reading</Button>
                     </div>
                 </motion.div>
             </motion.div>

@@ -26,6 +26,23 @@ const habitLogSchema = new mongoose.Schema(
       enum: HABIT_CODES,
       default: [],
     },
+    habitDetails: [
+      {
+        habitCode: {
+          type: String,
+          enum: HABIT_CODES,
+          required: true,
+        },
+        completedTasks: {
+          type: [String],
+          default: [],
+        },
+        mainTicked: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

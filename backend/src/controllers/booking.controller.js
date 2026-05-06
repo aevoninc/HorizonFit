@@ -48,6 +48,15 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
     });
   }
 
+  // 1.1 Past Date Validation
+  const appointmentTime = new Date(requestedDateTime).getTime();
+  const now = Date.now();
+  if (appointmentTime < now + 10 * 60 * 1000) { // 10 min buffer for server processing
+    return res.status(400).json({
+      message: "The requested appointment time is in the past or too soon. Please select a future time slot.",
+    });
+  }
+
   // 2. Security Check (Signature Verification)
   // This proves the payment was successful without needing to call 'capture' again
   const generated_signature = crypto
@@ -111,7 +120,7 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
         bookingId: booking._id,
       }),
     ])
-    
+
   } catch (error) {
     console.error("Error sending consultation booking emails:", error);
   }
@@ -324,6 +333,31 @@ const verifyCosultationId = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Consultation found.", booking });
 });
 
+// GET /api/v1/public/booked-slots?date=YYYY-MM-DD
+const getBookedSlots = asyncHandler(async (req, res) => {
+  const { date } = req.query;
+  if (!date) {
+    return res.status(400).json({ message: "Date parameter is required." });
+  }
+
+  // Create start and end of day in UTC/Server time
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const bookings = await ConsultationBooking.find({
+    requestedDateTime: { $gte: startOfDay, $lte: endOfDay },
+    status: { $in: ["Confirmed", "Payment Successful", "Rescheduled"] },
+  }).select("requestedDateTime");
+
+  // Send back the raw dates, frontend will handle matching
+  const bookedTimes = bookings.map((b) => b.requestedDateTime);
+
+  res.status(200).json({ success: true, bookedTimes });
+});
+
 // GET /api/v1/public/time-slots — active slots only (for patient booking page)
 const getPublicTimeSlots = asyncHandler(async (req, res) => {
   const slots = await TimeSlot.find({ isActive: true })
@@ -332,4 +366,11 @@ const getPublicTimeSlots = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, slots });
 });
 
-export { newRequestConsultation, programBooking, newCreateOrderId, verifyCosultationId, getPublicTimeSlots };
+export {
+  newRequestConsultation,
+  programBooking,
+  newCreateOrderId,
+  verifyCosultationId,
+  getPublicTimeSlots,
+  getBookedSlots,
+};

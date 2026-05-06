@@ -27,6 +27,15 @@ const habitGuideSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    tasks: [
+      {
+        taskName: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

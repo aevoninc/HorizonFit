@@ -8,6 +8,7 @@ import {
     newCreateOrderId,
     verifyCosultationId,
     getPublicTimeSlots,
+    getBookedSlots,
 } from "../controllers/booking.controller.js"
 
 // Public Route - No authentication required
@@ -16,5 +17,6 @@ router.post("/program-booking", programBooking);
 router.post("/create-order-id", newCreateOrderId);
 router.post("/verify-consultation-id", verifyCosultationId);
 router.get("/time-slots", getPublicTimeSlots);
+router.get("/booked-slots", getBookedSlots);
 
 export default router;

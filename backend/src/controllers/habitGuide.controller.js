@@ -41,10 +41,15 @@ export const getTodayHabits = asyncHandler(async (req, res) => {
 
   const log = await HabitLog.findOne({ patientId, date: todayStart });
 
-  const habits = HABIT_CODE_LIST.map((code) => ({
-    habitCode: code,
-    completed: log ? log.completedHabits.includes(code) : false,
-  }));
+  const habits = HABIT_CODE_LIST.map((code) => {
+    const detail = log?.habitDetails?.find((d) => d.habitCode === code);
+    return {
+      habitCode: code,
+      completed: log ? log.completedHabits.includes(code) : false,
+      completedTasks: detail ? detail.completedTasks : [],
+      mainTicked: detail ? detail.mainTicked : false,
+    };
+  });
 
   return res.status(200).json(new ApiResponse(200, { habits, submitted: !!log }, "Today's habits fetched"));
 });
@@ -55,14 +60,7 @@ export const getTodayHabits = asyncHandler(async (req, res) => {
  */
 export const submitHabits = asyncHandler(async (req, res) => {
   const patientId = req.user._id;
-  const { completedHabits, notes, mood } = req.body;
-
-  if (!Array.isArray(completedHabits)) {
-    throw new ApiError(400, "completedHabits must be an array");
-  }
-
-  // Validate habit codes
-  const validHabits = completedHabits.filter((h) => HABIT_CODE_LIST.includes(h));
+  const { completedHabits, habitDetails, notes, mood } = req.body;
 
   const user = await User.findById(patientId);
   if (!user) throw new ApiError(404, "User not found");
@@ -75,13 +73,52 @@ export const submitHabits = asyncHandler(async (req, res) => {
     throw new ApiError(400, "You have already submitted your habits for today.");
   }
 
-  // Create HabitLog using current user state
+  // Determine fully completed habits based on habitDetails if provided
+  let finalCompletedHabits = Array.isArray(completedHabits) ? completedHabits : [];
+  let finalHabitDetails = Array.isArray(habitDetails) ? habitDetails : [];
+
+  if (finalHabitDetails.length > 0) {
+    // Fetch guides for current zone to verify task completion
+    const guides = await HabitGuide.find({
+      patientId,
+      zone: user.currentZone,
+    });
+
+    const calculatedCompletedHabits = [];
+    for (const detail of finalHabitDetails) {
+      const guide = guides.find((g) => g.habitCode === detail.habitCode);
+      if (guide) {
+        const totalTasks = guide.tasks.length;
+        const doneTasks = detail.completedTasks.length;
+
+        // Full completion = all tasks ticked
+        if (totalTasks > 0 && doneTasks === totalTasks) {
+          calculatedCompletedHabits.push(detail.habitCode);
+        }
+      } else {
+        // If no guide exists, we might rely on the main checkbox or legacy behavior
+        if (detail.mainTicked) {
+          // This is a bit ambiguous if no guide exists, but let's assume it doesn't count as "Full" unless tasks are defined and done
+          // However, if the user explicitly sent it in completedHabits, we keep it.
+        }
+      }
+    }
+
+    // Merge calculated with explicitly provided (legacy)
+    finalCompletedHabits = [...new Set([...finalCompletedHabits, ...calculatedCompletedHabits])];
+  }
+
+  // Validate habit codes
+  const validHabits = finalCompletedHabits.filter((h) => HABIT_CODE_LIST.includes(h));
+
+  // Create HabitLog
   const log = await HabitLog.create({
     patientId,
     zone: user.currentZone,
     day: user.currentDay,
     date: todayStart,
     completedHabits: validHabits,
+    habitDetails: finalHabitDetails,
     notes: notes || "",
     mood: mood || "good",
   });
@@ -174,7 +211,7 @@ export const getHabitGuide = asyncHandler(async (req, res) => {
  * Upsert guide for { zone, habitCode, patientId }
  */
 export const assignHabitGuide = asyncHandler(async (req, res) => {
-  const { habitCode, zone, content, patientId } = req.body;
+  const { habitCode, zone, content, patientId, tasks } = req.body;
 
   if (!habitCode || !HABIT_CODE_LIST.includes(habitCode)) {
     throw new ApiError(400, "Invalid or missing habitCode");
@@ -190,6 +227,14 @@ export const assignHabitGuide = asyncHandler(async (req, res) => {
     throw new ApiError(400, "patientId is required");
   }
 
+  // Validate tasks if provided
+  let validatedTasks = [];
+  if (tasks && Array.isArray(tasks)) {
+    validatedTasks = tasks
+      .filter((t) => t.taskName && t.taskName.trim())
+      .map((t) => ({ taskName: t.taskName.trim() }));
+  }
+
   const filter = {
     habitCode,
     zone: Number(zone),
@@ -198,7 +243,7 @@ export const assignHabitGuide = asyncHandler(async (req, res) => {
 
   const guide = await HabitGuide.findOneAndUpdate(
     filter,
-    { ...filter, content: content.trim() },
+    { ...filter, content: content.trim(), tasks: validatedTasks },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 
