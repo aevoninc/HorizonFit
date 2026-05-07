@@ -1,46 +1,27 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, Award, Target, Calendar, Loader2 } from "lucide-react";
+import { TrendingUp, Award, Target, Calendar, Loader2, CheckCircle2,Badge  } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  AreaChart,
-  Area,
-} from "recharts";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { patientApi, PatientProgress, TrackingEntry } from "@/lib/api";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, AreaChart, Area, Legend } from "recharts";
+import { patientApi, HabitLog, TrackingEntry } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { Progress } from "@/components/ui/progress";
 
 export const PatientProgressPage: React.FC = () => {
   const { toast } = useToast();
-  const [progressData, setProgressData] = useState<PatientProgress | null>(
-    null
-  );
+  const [habitLogs, setHabitLogs] = useState<HabitLog[]>([]);
+  const [trackingData, setTrackingData] = useState<TrackingEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTrend, setSelectedTrend] = useState("Weight");
 
   useEffect(() => {
-    const fetchProgress = async () => {
+    const fetchData = async () => {
       try {
-        const response = await patientApi.getProgress();
-        console.log("Fetched patient progress data:", response.data);
-        setProgressData(response.data);
+        const [habitRes, progressRes] = await Promise.all([
+          patientApi.getHabitHistory(),
+          patientApi.getProgress()
+        ]);
+        setHabitLogs(habitRes.data.logs || []);
+        // Note: trackingData mapping to match Trend Chart needs
+        setTrackingData(progressRes.data.trackingData || []);
       } catch (error) {
         toast({
           title: "Error",
@@ -52,7 +33,7 @@ export const PatientProgressPage: React.FC = () => {
       }
     };
 
-    fetchProgress();
+    fetchData();
   }, [toast]);
 
   if (loading) {
@@ -63,90 +44,73 @@ export const PatientProgressPage: React.FC = () => {
     );
   }
 
-  // 1. Get the actual arrays from your response
-  const masterTasksArray = progressData?.masterTasks || [];
-  const taskLogsArray = progressData?.taskLogs || [];
-  const trackingData = progressData?.trackingData || [];
+  // 1. Calculate Core Stats
+  const totalDaysSubmitted = habitLogs.length;
+  const totalHabitsCompleted = habitLogs.reduce((acc, log) => acc + (log.completedHabits?.length || 0), 0);
+  const avgHabitsPerDay = totalDaysSubmitted > 0 ? (totalHabitsCompleted / totalDaysSubmitted).toFixed(1) : "0";
+  const overallCompliance = totalDaysSubmitted > 0 ? Math.round((totalHabitsCompleted / (totalDaysSubmitted * 5)) * 100) : 0;
 
-  // 1. Get unique weeks from the masterTasks (e.g., [1, 2, 3])
-  const availableWeeks = [
-    ...new Set(masterTasksArray.map((t) => t.programWeek)),
-  ].sort((a, b) => a - b);
+  // 2. Day-by-Day Habit Completion (Last 7 Days)
+  const habitChartData = [...habitLogs]
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(-7)
+    .map(log => ({
+      date: new Date(log.date).toLocaleDateString("en-US", { weekday: "short" }),
+      count: log.completedHabits?.length || 0
+    }));
 
-  // 2. Calculate completion percentage for each week
-  const weeklyProgress = availableWeeks.map((weekNum) => {
-    // Find all tasks assigned to this specific week
-    const tasksInThisWeek = masterTasksArray.filter(
-      (t) => t.programWeek === weekNum
-    );
-    const totalTasksInWeek = tasksInThisWeek.length;
-
-    // Find how many of those tasks have a matching entry in taskLogs
-    const completedTasksInWeek = tasksInThisWeek.filter((task) =>
-      taskLogsArray.some((log) => log.taskId === task._id)
-    ).length;
-
-    // Calculate percentage (handle division by zero just in case)
-    const percentage =
-      totalTasksInWeek > 0
-        ? Math.round((completedTasksInWeek / totalTasksInWeek) * 100)
-        : 0;
-
-    return {
-      week: `Week ${weekNum}`,
-      completion: percentage,
-    };
-  });
-
-  // 2. Calculate real counts
-  const totalTasks = masterTasksArray.length;
-  const completedTasks = taskLogsArray.length;
-
-  // 3. Calculate real compliance
-  const overallCompliance =
-    totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-  // 4. Group data for the Pie Chart
-  const complianceData = [
-    { name: "Completed", value: completedTasks, color: "hsl(16, 85%, 55%)" },
-    {
-      name: "Pending",
-      value: Math.max(0, totalTasks - completedTasks),
-      color: "hsl(var(--muted))",
-    },
-  ];
-
+  // 3. Zone Progress Chart (% of days with 5/5)
   const zones = [1, 2, 3, 4, 5];
-  const zoneProgress = zones.map((zoneNum) => {
-    const tasksInZone = masterTasksArray.filter(
-      (t) => t.zone === zoneNum
-    ).length;
-    const completedInZone = masterTasksArray.filter(
-      (t) =>
-        t.zone === zoneNum && taskLogsArray.some((log) => log.taskId === t._id)
-    ).length;
-
+  const zoneProgressData = zones.map(zoneNum => {
+    const logsInZone = habitLogs.filter(l => l.zone === zoneNum);
+    const perfectDays = logsInZone.filter(l => (l.completedHabits?.length || 0) === 5).length;
+    const completionRate = logsInZone.length > 0 ? Math.round((perfectDays / logsInZone.length) * 100) : 0;
+    
     return {
       zone: `Zone ${zoneNum}`,
-      tasks: tasksInZone,
-      completed: completedInZone,
+      rate: completionRate,
+      logs: logsInZone.length
     };
   });
-  // Process tracking data for health trends chart
-  const healthTrends = trackingData
-    .filter((entry: TrackingEntry) => entry.type === selectedTrend) // FIXED: Match your new Model key and Enum case
-    .slice(-7) // Get the last 7 entries
-    .map((entry: TrackingEntry) => ({
-      // Format the date for the X-axis
-      date: new Date(entry.dateRecorded || entry.date).toLocaleDateString(
-        "en-US",
-        {
-          month: "short",
-          day: "numeric",
-        }
-      ),
-      value: entry.value,
-    }));
+
+  // 4. Weekly Completion Trend
+  // We'll group logs by their program week: (zone-1)*3 + ceil(day/7)
+  const weeklyDataMap: Record<number, { total: number; count: number }> = {};
+  habitLogs.forEach(log => {
+      const weekInZone = Math.ceil((log.day || 1) / 7);
+      const programWeek = ((log.zone || 1) - 1) * 3 + weekInZone;
+      
+      if (!weeklyDataMap[programWeek]) {
+          weeklyDataMap[programWeek] = { total: 0, count: 0 };
+      }
+      weeklyDataMap[programWeek].total += (log.completedHabits?.length || 0);
+      weeklyDataMap[programWeek].count += 1;
+  });
+
+  const weeklyTrendData = Object.entries(weeklyDataMap)
+    .map(([week, stats]) => ({
+      week: `Week ${week}`,
+      avg: Math.round((stats.total / (stats.count * 5)) * 100)
+    }))
+    .sort((a, b) => parseInt(a.week.split(' ')[1]) - parseInt(b.week.split(' ')[1]));
+
+  // 5. Health Metrics Trend Processing
+  // Group by date to show multiple metrics in one chart
+  const metricsTrendMap: Record<string, any> = {};
+  trackingData.forEach(entry => {
+    const d = entry.dateRecorded || entry.date;
+    const dateStr = d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "N/A";
+    if (!metricsTrendMap[dateStr]) {
+      metricsTrendMap[dateStr] = { date: dateStr, rawDate: d ? new Date(d) : new Date(0) };
+    }
+    // Normalize type names
+    const type = entry.type || entry.metricType;
+    if (type === "Weight") metricsTrendMap[dateStr].weight = entry.value;
+    if (type === "bodyFatPercentage" || type === "Body Fat") metricsTrendMap[dateStr].bodyFat = entry.value;
+  });
+
+  const healthTrendData = Object.values(metricsTrendMap).sort((a, b) => a.rawDate.getTime() - b.rawDate.getTime());
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -154,63 +118,60 @@ export const PatientProgressPage: React.FC = () => {
       className="space-y-8"
     >
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Progress History</h1>
-        <p className="mt-1 text-muted-foreground">
-          Track your fitness journey and achievements
-        </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Habit Progress</h1>
+          <p className="mt-1 text-muted-foreground">
+            Analysis of your consistent habits and program compliance
+          </p>
+        </div>
+        <Badge variant="secondary" className="px-4 py-1 text-sm">
+          {totalDaysSubmitted} Active Days
+        </Badge>
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="card-elevated">
+        <Card className="card-elevated border-l-4 border-l-primary">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl gradient-phoenix shadow-phoenix">
                 <Award className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {overallCompliance}%
-                </p>
-                <p className="text-sm text-muted-foreground">Compliance Rate</p>
+                <p className="text-2xl font-bold text-foreground">{overallCompliance}%</p>
+                <p className="text-sm text-muted-foreground">Overall Compliance</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="card-elevated">
+        <Card className="card-elevated border-l-4 border-l-secondary">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl gradient-teal shadow-teal">
-                <Target className="h-6 w-6 text-secondary-foreground" />
+                <CheckCircle2 className="h-6 w-6 text-secondary-foreground" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {completedTasks}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Out of {totalTasks} total
-                </p>
+                <p className="text-2xl font-bold text-foreground">{totalHabitsCompleted}</p>
+                <p className="text-sm text-muted-foreground">Total Habits Done</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="card-elevated">
+        <Card className="card-elevated border-l-4 border-l-secondary/50">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/10">
                 <TrendingUp className="h-6 w-6 text-secondary" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">
-                  Zone {progressData?.currentZone || 1}
-                </p>
-                <p className="text-sm text-muted-foreground">Current Zone</p>
+                <p className="text-2xl font-bold text-foreground">{avgHabitsPerDay}</p>
+                <p className="text-sm text-muted-foreground">Avg Habits / Day</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="card-elevated">
+        <Card className="card-elevated border-l-4 border-l-primary/50">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
@@ -218,265 +179,201 @@ export const PatientProgressPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
-                  {weeklyProgress.length || 0}
+                  {weeklyTrendData.length}
                 </p>
-                <p className="text-sm text-muted-foreground">Weeks Active</p>
+                <p className="text-sm text-muted-foreground">Weeks Completed</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Master Tasks Progress Bar */}
-      <Card className="card-elevated">
-        <CardHeader>
-          <CardTitle className="text-lg">Overall Task Completion</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">
-                {completedTasks} of {totalTasks} tasks completed
-              </span>
-              <span className="font-medium text-foreground">
-                {overallCompliance}%
-              </span>
-            </div>
-            <Progress value={overallCompliance} className="h-4" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Charts Row */}
+      {/* Main Charts Row */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Weekly Completion Trend */}
+        {/* Day-by-Day Habit Chart */}
         <Card className="card-elevated">
           <CardHeader>
-            <CardTitle className="text-lg">Weekly Completion Trend</CardTitle>
+            <CardTitle className="text-lg">Daily Habit Performance (Last 7 Logs)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-72">
-              {weeklyProgress.length > 0 ? (
+              {habitChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={weeklyProgress}>
+                  <BarChart data={habitChartData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="date" fontSize={11} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 5]} fontSize={11} axisLine={false} tickLine={false} />
+                    <Tooltip 
+                      cursor={{fill: 'hsl(var(--muted)/0.2)'}}
+                      contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
+                    />
+                    <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={32}>
+                      {habitChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.count === 5 ? "hsl(var(--secondary))" : "hsl(var(--primary))"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-muted-foreground italic">
+                  No habit data recorded yet
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Weekly Trend */}
+        <Card className="card-elevated">
+          <CardHeader>
+            <CardTitle className="text-lg">Weekly Compliance (%)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72">
+              {weeklyTrendData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={weeklyTrendData}>
                     <defs>
-                      <linearGradient
-                        id="completionGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor="hsl(var(--secondary))"
-                          stopOpacity={0.3}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="hsl(var(--secondary))"
-                          stopOpacity={0}
-                        />
+                      <linearGradient id="colorAvg" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--secondary))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--secondary))" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="hsl(var(--border))"
-                    />
-                    <XAxis
-                      dataKey="week"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <YAxis
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="completion"
-                      stroke="hsl(var(--secondary))"
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="week" fontSize={11} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 100]} fontSize={11} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="avg" 
+                      stroke="hsl(var(--secondary))" 
                       strokeWidth={3}
-                      fill="url(#completionGradient)"
+                      fillOpacity={1} 
+                      fill="url(#colorAvg)" 
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex h-full items-center justify-center text-muted-foreground">
-                  No weekly data available yet
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Compliance Pie Chart */}
-        <Card className="card-elevated">
-          <CardHeader>
-            <CardTitle className="text-lg">Task Compliance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={complianceData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={70}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {complianceData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-4 flex justify-center gap-6">
-              {complianceData.map((item) => (
-                <div key={item.name} className="flex items-center gap-2">
-                  <div
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="text-sm text-muted-foreground">
-                    {item.name}: {item.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Zone Progress & Health Trends */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Zone Progress */}
-        <Card className="card-elevated">
-          <CardHeader>
-            <CardTitle className="text-lg">Zone Progress</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {zoneProgress.map((zone) => {
-              const percent =
-                zone.tasks > 0
-                  ? Math.round((zone.completed / zone.tasks) * 100)
-                  : 0;
-              return (
-                <div key={zone.zone} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium text-foreground">
-                      {zone.zone}
-                    </span>
-                    <span className="text-muted-foreground">{percent}%</span>
-                  </div>
-                  <div className="h-3 overflow-hidden rounded-full bg-muted">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${percent}%` }}
-                      transition={{ duration: 0.8, delay: 0.1 }}
-                      className={`h-full rounded-full ${
-                        percent === 100 ? "gradient-phoenix" : "gradient-teal"
-                      }`}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-
-        {/* Health Trends */}
-        <Card className="card-elevated">
-          <CardHeader>
-            <CardTitle className="text-lg">
-              Health Trends ({selectedTrend})
-            </CardTitle>
-            <Select 
-      value={selectedTrend} 
-      onValueChange={(value) => setSelectedTrend(value)}
-    >
-      <SelectTrigger className="w-[180px]">
-        <SelectValue placeholder="Select Metric" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="Weight">Weight (kg)</SelectItem>
-        <SelectItem value="BloodSugar">Blood Sugar (mg/dL)</SelectItem>
-        <SelectItem value="BloodPressure">Blood Pressure (mmHg)</SelectItem>
-        <SelectItem value="Activity">Activity (Steps)</SelectItem>
-      </SelectContent>
-    </Select>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              {healthTrends.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={healthTrends}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="hsl(var(--border))"
-                    />
-                    <XAxis
-                      dataKey="date"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <YAxis
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                      domain={["auto", "auto"]}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={3}
-                      dot={{
-                        fill: "hsl(var(--primary))",
-                        strokeWidth: 2,
-                        r: 4,
-                      }}
-                      activeDot={{
-                        r: 6,
-                        stroke: "hsl(var(--primary))",
-                        strokeWidth: 2,
-                      }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex h-full items-center justify-center text-muted-foreground">
-                  No health data logged yet. Start logging your metrics!
+                <div className="flex h-full items-center justify-center text-muted-foreground italic">
+                  Complete your first week to see trends
                 </div>
               )}
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Health Metrics Trend Section */}
+      <Card className="card-elevated border-t-4 border-t-primary">
+          <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                  <CardTitle className="text-lg">Health Metrics Trend</CardTitle>
+                  <p className="text-sm text-muted-foreground">Tracking your physical transformation</p>
+              </div>
+              <div className="flex items-center gap-4 text-xs font-medium">
+                  <div className="flex items-center gap-1.5">
+                      <div className="h-3 w-3 rounded-full bg-primary" />
+                      <span>Weight (kg)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                      <div className="h-3 w-3 rounded-full bg-secondary" />
+                      <span>Body Fat (%)</span>
+                  </div>
+              </div>
+          </CardHeader>
+          <CardContent>
+              <div className="h-80">
+                  {healthTrendData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={healthTrendData}>
+                              <defs>
+                                  <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
+                                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                                  </linearGradient>
+                                  <linearGradient id="colorFat" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="5%" stopColor="hsl(var(--secondary))" stopOpacity={0.1}/>
+                                      <stop offset="95%" stopColor="hsl(var(--secondary))" stopOpacity={0}/>
+                                  </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                              <XAxis dataKey="date" fontSize={11} axisLine={false} tickLine={false} />
+                              <YAxis fontSize={11} axisLine={false} tickLine={false} />
+                              <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }} />
+                              <Area 
+                                  type="monotone" 
+                                  dataKey="weight" 
+                                  name="Weight (kg)"
+                                  stroke="hsl(var(--primary))" 
+                                  strokeWidth={3}
+                                  fillOpacity={1} 
+                                  fill="url(#colorWeight)" 
+                                  connectNulls
+                              />
+                              <Area 
+                                  type="monotone" 
+                                  dataKey="bodyFat" 
+                                  name="Body Fat (%)"
+                                  stroke="hsl(var(--secondary))" 
+                                  strokeWidth={3}
+                                  fillOpacity={1} 
+                                  fill="url(#colorFat)" 
+                                  connectNulls
+                              />
+                          </AreaChart>
+                      </ResponsiveContainer>
+                  ) : (
+                      <div className="flex h-full items-center justify-center text-muted-foreground italic">
+                          Start logging your weekly metrics to see your transformation trend
+                      </div>
+                  )}
+              </div>
+          </CardContent>
+      </Card>
+
+      {/* Zone Success Chart */}
+      <Card className="card-elevated">
+        <CardHeader>
+          <CardTitle className="text-lg">Zone Success Rate (% of "Perfect Days" - 5/5 Habits)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 sm:grid-cols-5">
+            {zoneProgressData.map((zone) => (
+              <div key={zone.zone} className="flex flex-col items-center gap-3">
+                <div className="relative flex h-24 w-24 items-center justify-center">
+                  <svg className="h-full w-full" viewBox="0 0 100 100">
+                    <circle
+                      className="text-muted/20 stroke-current"
+                      strokeWidth="8"
+                      fill="transparent"
+                      r="40"
+                      cx="50"
+                      cy="50"
+                    />
+                    <motion.circle
+                      className="text-secondary stroke-current"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      fill="transparent"
+                      r="40"
+                      cx="50"
+                      cy="50"
+                      initial={{ strokeDasharray: "0 251" }}
+                      animate={{ strokeDasharray: `${(zone.rate / 100) * 251} 251` }}
+                      transition={{ duration: 1.5, ease: "easeOut" }}
+                    />
+                  </svg>
+                  <span className="absolute text-lg font-bold">{zone.rate}%</span>
+                </div>
+                <div className="text-center">
+                  <p className="font-semibold text-sm">{zone.zone}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase">{zone.logs} Logs</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 };

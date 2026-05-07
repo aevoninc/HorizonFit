@@ -62,7 +62,7 @@ export const MetricsInputCard: React.FC<MetricsInputCardProps> = ({
     parseFloat(visceralFat) >= 1 && parseFloat(visceralFat) <= 59;
 
   // Video Lock - Must watch videos first
-  if (videosCompleted) {
+  if (!videosCompleted) {
     return (
       <Card className="card-elevated border-amber-200 bg-amber-50/50">
         <CardHeader>

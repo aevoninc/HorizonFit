@@ -53,19 +53,13 @@ const getNormalPlanPatients = async (req, res) => {
           patientId: userId,
         }).sort({ submittedAt: -1 });
 
-        // Calculate compliance rate
-        const complianceRate =
-          weeklyLogs.length > 0
-            ? Math.round(
-              weeklyLogs.reduce((acc, log) => {
-                const score =
-                  { excellent: 95, good: 80, fair: 60, poor: 30 }[
-                  log.compliance
-                  ] || 0;
-                return acc + score;
-              }, 0) / weeklyLogs.length,
-            )
-            : 0;
+        // Calculate compliance rate based on submissions / days elapsed
+        const totalPossibleDays = (user.currentZone - 1) * 21 + (user.currentDay || 0);
+        const totalLogsCount = await HabitLog.countDocuments({ patientId: userId });
+        
+        const complianceRate = totalPossibleDays > 0 
+          ? Math.round((totalLogsCount / totalPossibleDays) * 100) 
+          : 0;
 
         const lastDailyLog = await HabitLog.findOne({ patientId: userId }).sort(
           { date: -1 },
@@ -77,19 +71,32 @@ const getNormalPlanPatients = async (req, res) => {
           )
           : 999;
 
+        // Dynamic status logic
+        let status = user.status || "active";
+        if (status === "active") {
+          if (daysSinceLastLog >= 4 && daysSinceLastLog <= 7) {
+            status = "at-risk";
+          } else if (daysSinceLastLog > 7) {
+            status = "inactive";
+          }
+        }
+
         return {
           id: userId,
           name: user.name,
           email: user.email,
           mobile: user.mobileNumber,
           currentZone: planProgress?.currentZone || 1,
+          currentDay: user.currentDay || 1,
+          currentZoneWeek: Math.ceil((user.currentDay || 1) / 7),
           totalWeeksCompleted:
             planProgress?.totalWeeksCompleted || user.totalWeeksCompleted || 0,
           lastLogDate: latestWeeklyLog?.submittedAt || null,
           lastDailyLogDate: lastDailyLog?.date || null,
           daysSinceLastDailyLog: daysSinceLastLog,
           complianceRate,
-          status: user.status || "active",
+          totalActiveDays: totalLogsCount,
+          status,
           programStartDate: user.programStartDate,
           latestMetrics: latestMetrics
             ? {

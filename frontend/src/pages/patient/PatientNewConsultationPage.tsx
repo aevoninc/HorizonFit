@@ -195,6 +195,7 @@ export const PatientNewConsultationPage: React.FC = () => {
         },
         onSuccess: async (response: RazorpayResponse) => {
           try {
+            setIsProcessing(false);
             await patientApi.requestConsultation({
               requestedDateTime,
               patientQuery: formData.patientQuery,
@@ -210,6 +211,7 @@ export const PatientNewConsultationPage: React.FC = () => {
 
             navigate("/patient/bookings");
           } catch (error) {
+            setIsProcessing(false);
             toast({
               title: "Booking Failed",
               description: "Payment succeeded but booking failed. Please contact support.",

@@ -12,6 +12,7 @@ import {
   createRazorpayOrder,
 } from "../utils/payment.js";
 import {
+  sendConsultationBookingEmail,
   sendConsultationUpdateEmail,
   sendPasswordResetEmail,
   sendPatientWelcomeEmail,
@@ -350,33 +351,33 @@ const requestConsultation = asyncHandler(async (req, res) => {
   try {
     await Promise.allSettled([
       // 1. Email to Doctor
-      sendConsultationUpdateEmail({
+      sendConsultationBookingEmail({
         recipient: DOCTOR_EMAIL,
-        personName: `Dr. ${DOCTOR_NAME}`, // Use the doctor's name
-        doctor: name, // The Patient's name (from req.body)
-        status: "Confirmed",
-        dateTime: requestedDateTime,
-        bookingId: booking._id,
+        personName: `Dr. ${DOCTOR_NAME}`,
+        otherPartyName: name,
+        date: requestedDateTime,
+        time: new Date(requestedDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        recipientRole: 'doctor'
       }),
 
       // 2. Email to Admin
-      sendConsultationUpdateEmail({
+      sendConsultationBookingEmail({
         recipient: ADMIN_MAIL,
         personName: "Admin",
-        doctor: name, // Patient's name for admin reference
-        status: "Confirmed",
-        dateTime: requestedDateTime,
-        bookingId: booking._id,
+        otherPartyName: name,
+        date: requestedDateTime,
+        time: new Date(requestedDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        recipientRole: 'admin'
       }),
 
       // 3. Email to Patient
-      sendConsultationUpdateEmail({
-        recipient: email, // The user's email from req.body
-        personName: name, // The user's name from req.body
-        doctor: DOCTOR_NAME,
-        status: "Confirmed",
-        dateTime: requestedDateTime,
-        bookingId: booking._id,
+      sendConsultationBookingEmail({
+        recipient: email,
+        personName: name,
+        otherPartyName: `Dr. ${DOCTOR_NAME}`,
+        date: requestedDateTime,
+        time: new Date(requestedDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        recipientRole: 'patient'
       }),
     ]);
   } catch (emailError) {

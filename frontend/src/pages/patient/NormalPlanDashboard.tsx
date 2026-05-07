@@ -576,6 +576,7 @@ export const NormalPlanDashboard: React.FC = () => {
             totalTasks={totalTasks}
             onSubmit={handleWeeklyLogSubmit}
             canSubmit={!!canSubmitLog}
+            allLogs={safeProgress.weeklyLogs}
           />
         </TabsContent>
       </Tabs>

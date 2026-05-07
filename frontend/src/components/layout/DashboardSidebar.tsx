@@ -31,8 +31,8 @@ interface NavItem {
 const doctorNavItems: NavItem[] = [
   { label: 'Manage Patients', path: '/doctor/patients', icon: Users },
   { label: 'Program Templates', path: '/doctor/templates', icon: FileText },
-  { label: 'Normal Plan Videos', path: '/doctor/normal-plan-videos', icon: BookOpen },
-  { label: 'Normal Plan Monitor', path: '/doctor/normal-plan-monitor', icon: Activity },
+  { label: 'Zone Videos', path: '/doctor/normal-plan-videos', icon: BookOpen },
+  { label: 'Client Monitor', path: '/doctor/normal-plan-monitor', icon: Activity },
   { label: 'Consultations', path: '/doctor/consultations', icon: Calendar },
   { label: 'Completed Patients', path: '/doctor/completed-patients', icon: CheckCircle },
   { label: 'Deactivated Patients', path: '/doctor/deactivated-patients', icon: UserX },

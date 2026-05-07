@@ -6,7 +6,7 @@ import DIYTaskTemplate from "../model/normalPlanModels/diyTaskTemplate.model.js"
 import HorizonGuideVideo from "../model/normalPlanModels/horizonfitGuide.model.js";
 import RecommendationsCache from "../model/normalPlanModels/recommendationsCache.model.js";
 import ZoneVideo from "../model/normalPlanModels/zoneVideo.model.js";
-import BodyMetrics from "../model/patientTrackingData.model.js";
+import PatientTrackingData from "../model/patientTrackingData.model.js";
 import WeeklyLog from "../model/normalPlanModels/weeklyLog.model.js";
 import calculateRecommendations from "../utils/healthCalculations.js";
 import PatientProgramTask from "../model/patientProgramTask.model.js";
@@ -53,13 +53,13 @@ const getNormalPlanProgress = async (req, res) => {
     });
     // Get latest individual metrics to aggregate for the UI
     const [latestWeight, latestBodyFat, latestVisceral] = await Promise.all([
-      BodyMetrics.findOne({ patientId, type: "Weight" }).sort({
+      PatientTrackingData.findOne({ patientId, type: "Weight" }).sort({
         dateRecorded: -1,
       }),
-      BodyMetrics.findOne({ patientId, type: "bodyFatPercentage" }).sort({
+      PatientTrackingData.findOne({ patientId, type: "bodyFatPercentage" }).sort({
         dateRecorded: -1,
       }),
-      BodyMetrics.findOne({ patientId, type: "visceralFat" }).sort({
+      PatientTrackingData.findOne({ patientId, type: "visceralFat" }).sort({
         dateRecorded: -1,
       }),
     ]);
@@ -227,7 +227,7 @@ const canEnterMetrics = async (req, res) => {
     }
 
     // Check weekly limit
-    const lastMetrics = await BodyMetrics.findOne({ patientId }).sort({
+    const lastMetrics = await PatientTrackingData.findOne({ patientId }).sort({
       loggedAt: -1,
     });
 
@@ -265,7 +265,6 @@ const submitBodyMetrics = async (req, res) => {
     const patientId = req.user._id;
     const { weight, bodyFatPercentage, visceralFat, zoneNumber } = req.body;
     // 1. Define missing dateRecorded
-    console.log(req.body);
     const dateRecorded = new Date();
 
     // Validate
@@ -286,10 +285,9 @@ const submitBodyMetrics = async (req, res) => {
     //   });
     // }
 
-    console.log("HI1");
     // Check weekly limit
     // IMPORTANT: Make sure the sort field matches your schema (dateRecorded or loggedAt)
-    const lastMetrics = await BodyMetrics.findOne({ patientId }).sort({
+    const lastMetrics = await PatientTrackingData.findOne({ patientId }).sort({
       dateRecorded: -1,
     });
 
@@ -298,7 +296,6 @@ const submitBodyMetrics = async (req, res) => {
         (Date.now() - new Date(lastMetrics.dateRecorded).getTime()) /
         (24 * 60 * 60 * 1000),
       );
-      console.log("HI2");
       if (daysSince < 7) {
         return res.status(403).json({
           error: "Weekly limit exceeded",
@@ -308,7 +305,7 @@ const submitBodyMetrics = async (req, res) => {
       }
     }
 
-    const weightEntry = new BodyMetrics({
+    const weightEntry = new PatientTrackingData({
       patientId,
       dateRecorded,
       weekNumber: 1,
@@ -316,8 +313,7 @@ const submitBodyMetrics = async (req, res) => {
       value: weight,
       unit: "kg",
     });
-    console.log("weightEntry");
-    const bodyFatEntry = new BodyMetrics({
+    const bodyFatEntry = new PatientTrackingData({
       patientId,
       dateRecorded,
       weekNumber: 1,
@@ -325,8 +321,7 @@ const submitBodyMetrics = async (req, res) => {
       value: bodyFatPercentage,
       unit: "%",
     });
-    console.log("bodyFatEntry");
-    const visceralFatEntry = new BodyMetrics({
+    const visceralFatEntry = new PatientTrackingData({
       patientId,
       dateRecorded,
       weekNumber: 1,
@@ -334,7 +329,6 @@ const submitBodyMetrics = async (req, res) => {
       value: visceralFat,
       unit: "level",
     });
-    console.log("visceralFatEntry");
     // Save all three
     await Promise.all([
       weightEntry.save(),
@@ -349,7 +343,6 @@ const submitBodyMetrics = async (req, res) => {
       visceralFat,
     });
 
-    console.log(recs);
     // Save recommendations
     // FIX: Use weightEntry._id (or any of the 3) as the reference
     const recommendationsCache = new RecommendationsCache({
@@ -360,7 +353,6 @@ const submitBodyMetrics = async (req, res) => {
     });
 
     await recommendationsCache.save();
-    console.log("recommendationsCache");
     // Update last metrics date
     await User.findByIdAndUpdate(patientId, {
       lastMetricsDate: new Date(),
@@ -576,7 +568,6 @@ const submitWeeklyLog = async (req, res) => {
     const actualLogData = logData || req.body;
     const actualWeekNumber = actualLogData.weekNumber;
     const actualZoneNumber = zoneNumber || actualLogData.zoneNumber;
-
     if (!actualWeekNumber) {
       return res.status(400).json({
         success: false,
@@ -618,16 +609,8 @@ const submitWeeklyLog = async (req, res) => {
         });
       }
     }
-    // 1. Save the actual log entry
-    const newLog = new WeeklyLog({
-      patientId,
-      zoneNumber: actualZoneNumber,
-      ...actualLogData,
-      submittedAt: new Date(),
-    });
-    await newLog.save();
-
-    // 4. Also save these as general tracking data for health trends
+    // 1. Process and save individual tracking data first to get IDs
+    const trackingEntryIds = [];
     if (actualLogData.metrics) {
       const { weight, bodyFatPercentage, visceralFat } = actualLogData.metrics;
       const trackingEntries = [];
@@ -661,9 +644,31 @@ const submitWeeklyLog = async (req, res) => {
         });
 
       if (trackingEntries.length > 0) {
-        await PatientTrackingData.insertMany(trackingEntries);
+        const savedEntries = await PatientTrackingData.insertMany(trackingEntries);
+        savedEntries.forEach(entry => trackingEntryIds.push(entry._id));
       }
     }
+
+    // 2. Save the official weekly log entry
+    const newLog = new WeeklyLog({
+      ...actualLogData,
+      patientId,
+      zoneNumber: actualZoneNumber,
+      metricsId: trackingEntryIds, // Link to individual records
+      submittedAt: new Date(),
+    });
+
+    // Ensure the metrics object is also populated (redundancy for direct access)
+    if (actualLogData.metrics) {
+      newLog.metrics = {
+        weight: actualLogData.metrics.weight,
+        bodyFatPercentage: actualLogData.metrics.bodyFatPercentage,
+        visceralFat: actualLogData.metrics.visceralFat,
+        loggedAt: new Date(),
+      };
+    }
+
+    await newLog.save();
 
     // 2. Find the progress tracking record for this specific zone
     let zoneProgress = await PatientZoneProgress.findOne({
