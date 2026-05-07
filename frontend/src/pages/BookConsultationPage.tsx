@@ -239,6 +239,7 @@ export const BookConsultationPage: React.FC = () => {
             toast({ title: "Booking Confirmed! 🎉" });
             navigate("/booking-success");
           } catch {
+            setIsProcessing(false);
             toast({ title: "Booking Failed", variant: "destructive" });
           }
         },
@@ -246,13 +247,13 @@ export const BookConsultationPage: React.FC = () => {
         onDismiss: () => setIsProcessing(false),
       });
     } catch (error) {
+      setIsProcessing(false);
       console.error("Order Creation Error:", error);
       toast({
         title: "Error",
         description: "Failed to initiate payment.",
         variant: "destructive",
       });
-      setIsProcessing(false);
     }
   };
 

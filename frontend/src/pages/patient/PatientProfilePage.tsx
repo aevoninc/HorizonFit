@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { patientApi, PatientProfile } from '@/lib/api';
+import { patientApi, PatientProfile, ProgramStatus, HabitLog } from '@/lib/api';
+import { getZoneName } from '@/lib/zoneUtils';
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(6, 'Password must be at least 6 characters'),
@@ -27,6 +28,8 @@ export const PatientProfilePage: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [profile, setProfile] = useState<PatientProfile | null>(null);
+  const [programStatus, setProgramStatus] = useState<ProgramStatus | null>(null);
+  const [habitLogs, setHabitLogs] = useState<HabitLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -42,14 +45,21 @@ export const PatientProfilePage: React.FC = () => {
   });
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       try {
-        const response = await patientApi.getProfile();
-        setProfile(response.data);
+        const [profileRes, statusRes, historyRes] = await Promise.all([
+          patientApi.getProfile(),
+          patientApi.getProgramStatus(),
+          patientApi.getHabitHistory(),
+        ]);
+        
+        setProfile(profileRes.data);
+        setProgramStatus(statusRes.data);
+        setHabitLogs(historyRes.data.logs);
       } catch (error) {
         toast({
           title: 'Error',
-          description: 'Failed to load profile. Please try again.',
+          description: 'Failed to load profile data. Please try again.',
           variant: 'destructive',
         });
       } finally {
@@ -57,7 +67,7 @@ export const PatientProfilePage: React.FC = () => {
       }
     };
 
-    fetchProfile();
+    fetchData();
   }, [toast]);
 
   const onSubmit = async (data: PasswordFormData) => {
@@ -96,7 +106,29 @@ export const PatientProfilePage: React.FC = () => {
 
   const displayName = profile?.name || user?.name || 'Patient';
   const displayEmail = profile?.email || user?.email || '';
-  const progressPercent = profile ? Math.round((profile.completedTasks / profile.totalTasks) * 100) : 0;
+  
+  // Calculations for Fix 2
+  const totalHabitsCompleted = habitLogs.reduce((acc, log) => acc + (log.completedHabits?.length || 0), 0);
+  const totalPossibleHabits = habitLogs.length * 5;
+  const overallCompletionPercent = totalPossibleHabits > 0 
+    ? Math.round((totalHabitsCompleted / totalPossibleHabits) * 100) 
+    : 0;
+
+  const formattedStartDate = profile?.enrolledDate 
+    ? new Date(profile.enrolledDate).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : null;
+
+  const currentZoneName = programStatus?.currentZone 
+    ? getZoneName(programStatus.currentZone) 
+    : (profile?.currentZone ? getZoneName(profile.currentZone) : null);
+
+  const dayProgress = programStatus?.started 
+    ? `Day ${programStatus.currentDay} of ${programStatus.totalDaysInZone}`
+    : "Program not yet started";
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
@@ -145,32 +177,40 @@ export const PatientProfilePage: React.FC = () => {
                   </div>
                 </div>
               )}
-              <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-4">
-                <Calendar className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Enrolled Since</p>
-                  <p className="font-medium text-foreground">{profile?.enrolledDate || 'N/A'}</p>
+              {formattedStartDate && (
+                <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-4">
+                  <Calendar className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Program Start Date</p>
+                    <p className="font-medium text-foreground">{formattedStartDate}</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Stats */}
-            {profile && (
-              <div className="grid grid-cols-3 gap-4 pt-4">
+            <div className="grid grid-cols-2 gap-4 pt-4 sm:grid-cols-4">
+              {currentZoneName && (
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-primary">Zone {profile.currentZone}</p>
-                  <p className="text-sm text-muted-foreground">Current</p>
+                  <p className="text-xl font-bold text-primary">{currentZoneName}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Current Zone</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-secondary">{profile.completedTasks}</p>
-                  <p className="text-sm text-muted-foreground">Completed</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-foreground">{progressPercent}%</p>
-                  <p className="text-sm text-muted-foreground">Progress</p>
-                </div>
+              )}
+              <div className="text-center">
+                <p className="text-xl font-bold text-secondary">
+                  {dayProgress}
+                </p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Zone Progress</p>
               </div>
-            )}
+              <div className="text-center">
+                <p className="text-xl font-bold text-foreground">{habitLogs.length}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Submissions</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xl font-bold text-primary">{overallCompletionPercent}%</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Avg. Completion</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

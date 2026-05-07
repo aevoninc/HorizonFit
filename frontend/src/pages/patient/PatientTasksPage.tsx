@@ -212,16 +212,16 @@ export const PatientTasksPage: React.FC = () => {
 
       {/* Main Tabs */}
       <Tabs defaultValue="habits" className="space-y-6">
-        <TabsList className="grid grid-cols-4 w-full h-14 bg-muted/50 p-1 rounded-2xl">
+        <TabsList className="grid grid-cols-3 w-full h-14 bg-muted/50 p-1 rounded-2xl">
           <TabsTrigger value="habits" className="rounded-xl gap-2 font-bold data-[state=active]:shadow-lg">
             <Target className="h-4 w-4" /> Habits
           </TabsTrigger>
           <TabsTrigger value="videos" className="rounded-xl gap-2 font-bold data-[state=active]:shadow-lg">
             <Video className="h-4 w-4" /> Videos
           </TabsTrigger>
-          <TabsTrigger value="metrics" className="rounded-xl gap-2 font-bold data-[state=active]:shadow-lg">
+          {/* <TabsTrigger value="metrics" className="rounded-xl gap-2 font-bold data-[state=active]:shadow-lg">
             <Activity className="h-4 w-4" /> Metrics
-          </TabsTrigger>
+          </TabsTrigger> */}
           <TabsTrigger value="weekly" className="rounded-xl gap-2 font-bold data-[state=active]:shadow-lg">
             <CalendarCheck className="h-4 w-4" /> Weekly Log
           </TabsTrigger>
@@ -460,6 +460,7 @@ export const PatientTasksPage: React.FC = () => {
             completedTasks={0} // This is the old task logic, can be 0 or calculated
             totalTasks={0}
             canSubmit={true}
+            allLogs={npProgress.weeklyLogs}
             onSubmit={handleWeeklyLogSubmit}
           />
         </TabsContent>

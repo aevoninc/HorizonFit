@@ -99,21 +99,22 @@ export const normalPlanPatientApi = {
 
 export interface NormalPlanPatientSummary {
   id: string;
-  patientId: string;
   name: string;
   email: string;
+  mobile?: string;
   currentZone: number;
+  currentDay: number;
+  currentZoneWeek: number;
   totalWeeksCompleted: number;
   lastLogDate: string | null;
   lastDailyLogDate: string | null;
   daysSinceLastDailyLog: number;
   complianceRate: number;
-  status: 'active' | 'at-risk' | 'paused' | 'completed';
+  totalActiveDays: number;
+  status: 'active' | 'at-risk' | 'inactive' | 'paused' | 'completed';
   programStartDate: string;
   latestMetrics: {
     weight: number;
-    bodyFatPercentage: number;
-    visceralFat: number;
     loggedAt: string;
   } | null;
   activeDaysThisWeek: number;

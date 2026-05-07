@@ -386,7 +386,7 @@ const getConsultationRequests = asyncHandler(async (req, res) => {
 const updateConsultationStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status, confirmedDateTime } = req.body;
-  console.log(id);
+  console.log(status);
   if (!id) {
     return res
       .status(400)
@@ -394,7 +394,7 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
   }
   // 1. Validation
   if (
-    !["Pending", "Confirmed", "Rescheduled", "Cancelled", "Completed"].includes(
+    !["pending", "confirmed", "rescheduled", "cancelled", "completed"].includes(
       status
     )
   ) {
@@ -437,11 +437,10 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
       await sendConsultationUpdateEmail({
         recipient: user.email,
         personName: user.name,
-        doctor: DOCTOR_NAME || "Your Specialist",
+        otherPartyName: DOCTOR_NAME || "Your Specialist",
         status: status,
         dateTime:
-          updatedBooking.confirmedDateTime || updatedBooking.requestedDateTime,
-        bookingId: updatedBooking._id,
+          updatedBooking.confirmedDateTime || updatedBooking.requestedDateTime
       });
     }
   } catch (emailError) {

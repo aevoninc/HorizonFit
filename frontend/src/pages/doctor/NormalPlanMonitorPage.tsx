@@ -271,6 +271,8 @@ export const NormalPlanMonitorPage: React.FC = () => {
         return "bg-green-100 text-green-700";
       case "at-risk":
         return "bg-yellow-100 text-yellow-700";
+      case "inactive":
+        return "bg-red-100 text-red-700";
       case "paused":
         return "bg-gray-100 text-gray-700";
       case "completed":
@@ -508,11 +510,20 @@ export const NormalPlanMonitorPage: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        Zone {patient.currentZone}
-                      </Badge>
+                      <div className="flex flex-col">
+                        <Badge variant="outline">
+                          Zone {patient.currentZone}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground mt-1 text-center">
+                          Day {patient.currentDay}
+                        </span>
+                      </div>
                     </TableCell>
-                    <TableCell>{patient.totalWeeksCompleted}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-sm">Week {patient.currentZoneWeek}</span>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Progress
@@ -547,9 +558,12 @@ export const NormalPlanMonitorPage: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
-                        {patient.activeDaysThisWeek}/7
-                      </Badge>
+                      <div className="flex flex-col items-center gap-1">
+                        <Badge variant="secondary" className="font-bold">
+                          {patient.totalActiveDays}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Logs</span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(patient.status)}>
@@ -794,19 +808,32 @@ export const NormalPlanMonitorPage: React.FC = () => {
                                 <div>
                                   <p className="font-medium">
                                     {new Date(
-                                      log.completionDate,
+                                      log.date,
                                     ).toLocaleDateString("en-US", {
-                                      weekday: "short",
+                                      weekday: "long",
                                       month: "short",
                                       day: "numeric",
                                     })}
                                   </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {log.completedTasks?.length || "All"} tasks
-                                    completed
-                                  </p>
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    {["Hydration", "Nutrition", "Exercise", "Sleep", "Mindset"].map((habit) => {
+                                      const isDone = log.completedTasks?.some(
+                                        (h: any) => (typeof h === 'string' ? h : h.habitCode) === habit
+                                      );
+                                      return (
+                                        <div 
+                                          key={habit} 
+                                          className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium ${
+                                            isDone ? "bg-green-100 text-green-700 border border-green-200" : "bg-gray-100 text-gray-400 border border-gray-200"
+                                          }`}
+                                        >
+                                          {habit} {isDone ? "✓" : "✗"}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
                                   {log.notes && (
-                                    <p className="text-sm italic mt-1">
+                                    <p className="text-sm italic mt-2 text-muted-foreground bg-muted/30 p-2 rounded border-l-2 border-primary">
                                       "{log.notes}"
                                     </p>
                                   )}
