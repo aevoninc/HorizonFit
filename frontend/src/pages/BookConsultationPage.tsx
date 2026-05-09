@@ -238,9 +238,10 @@ export const BookConsultationPage: React.FC = () => {
             });
             toast({ title: "Booking Confirmed! 🎉" });
             navigate("/booking-success");
-          } catch {
+          } catch (error: any) {
             setIsProcessing(false);
-            toast({ title: "Booking Failed", variant: "destructive" });
+            const errorMessage = error.response?.data?.message || "Booking Failed. Please contact support.";
+            toast({ title: "Booking Failed", description: errorMessage, variant: "destructive" });
           }
         },
         onError: () => setIsProcessing(false),
@@ -446,10 +447,10 @@ export const BookConsultationPage: React.FC = () => {
                                       disabled={state !== "available"}
                                       onClick={() => setSelectedSlot(slot)}
                                       className={`relative rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-200 ${state === "taken" || state === "past"
-                                          ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60 border-transparent"
-                                          : isSelected
-                                            ? "border-secondary bg-secondary text-white shadow-md scale-105"
-                                            : "border-border bg-card hover:border-secondary/60 hover:bg-secondary/5 text-foreground"
+                                        ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60 border-transparent"
+                                        : isSelected
+                                          ? "border-secondary bg-secondary text-white shadow-md scale-105"
+                                          : "border-border bg-card hover:border-secondary/60 hover:bg-secondary/5 text-foreground"
                                         }`}
                                     >
                                       {slot.time}
@@ -493,10 +494,10 @@ export const BookConsultationPage: React.FC = () => {
                                       disabled={state !== "available"}
                                       onClick={() => setSelectedSlot(slot)}
                                       className={`relative rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-200 ${state === "taken" || state === "past"
-                                          ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60 border-transparent"
-                                          : isSelected
-                                            ? "border-secondary bg-secondary text-white shadow-md scale-105"
-                                            : "border-border bg-card hover:border-secondary/60 hover:bg-secondary/5 text-foreground"
+                                        ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60 border-transparent"
+                                        : isSelected
+                                          ? "border-secondary bg-secondary text-white shadow-md scale-105"
+                                          : "border-border bg-card hover:border-secondary/60 hover:bg-secondary/5 text-foreground"
                                         }`}
                                     >
                                       {slot.time}
@@ -546,8 +547,8 @@ export const BookConsultationPage: React.FC = () => {
                           <label
                             key={type.value}
                             className={`flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all ${selectedType === type.value
-                                ? "border-secondary bg-secondary/5 shadow-sm"
-                                : "border-border hover:border-secondary/50"
+                              ? "border-secondary bg-secondary/5 shadow-sm"
+                              : "border-border hover:border-secondary/50"
                               }`}
                           >
                             <div className="flex items-center gap-3">

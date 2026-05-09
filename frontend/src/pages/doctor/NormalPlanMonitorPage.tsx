@@ -725,9 +725,9 @@ export const NormalPlanMonitorPage: React.FC = () => {
               </div>
 
               {/* Tabs */}
-              <Tabs defaultValue="metrics">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="metrics">Metrics</TabsTrigger>
+              <Tabs defaultValue="daily">
+                <TabsList className="grid w-full grid-cols-3">
+                  {/* <TabsTrigger value="metrics">Metrics</TabsTrigger> */}
                   <TabsTrigger value="daily">Daily Logs</TabsTrigger>
                   <TabsTrigger value="weekly">Weekly Logs</TabsTrigger>
                   <TabsTrigger value="notes">Doctor Notes</TabsTrigger>

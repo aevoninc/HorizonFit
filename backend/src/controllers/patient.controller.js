@@ -312,6 +312,7 @@ const requestConsultation = asyncHandler(async (req, res) => {
     orderId,
     razorpaySignature,
     patientQuery,
+    patientName,
   } = req.body;
 
   // 1. Initial Validation
@@ -336,7 +337,7 @@ const requestConsultation = asyncHandler(async (req, res) => {
   // 3. Save to Database
   const booking = await ConsultationBooking.create({
     patientId,
-    patientName: name, // Added to match schema and ensure it reflects in history
+    patientName: patientName || name, // Prioritize name from body if passed, fallback to req.user.name
     patientEmail: email,
     mobileNumber: mobileNumber,
     requestedDateTime,

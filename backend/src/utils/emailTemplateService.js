@@ -57,7 +57,7 @@ const renderBaseTemplate = (title, content, link, buttonText, isFunctional = fal
 
                 <!-- Footer -->
                 <div style="background-color: #f1f5f9; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
-                    <p style="color: ${mutedSlate}; font-size: 12px; margin: 0;">&copy; ${new Date().getFullYear()} HorizonFit by Aevon Health. All rights reserved.</p>
+                    <p style="color: ${mutedSlate}; font-size: 12px; margin: 0;">&copy; ${new Date().getFullYear()} HorizonFit by Aevon Inc. All rights reserved.</p>
                     <p style="color: ${mutedSlate}; font-size: 12px; margin-top: 8px;">This is an automated message. Please do not reply directly to this email.</p>
                 </div>
             </div>

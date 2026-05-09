@@ -36,6 +36,7 @@ import { ZoneNavigator } from "@/components/normalplan/ZoneNavigator";
 import { ZoneVideoPlayer } from "@/components/normalplan/ZoneVideoPlayer";
 import { MetricsInputCard } from "@/components/normalplan/MetricsInputCard";
 import { WeeklyLogForm } from "@/components/normalplan/WeeklyLogForm";
+import { DailyCountdown } from "@/components/normalplan/DailyCountdown";
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -415,6 +416,15 @@ export const PatientTasksPage: React.FC = () => {
               <CheckCircle className="h-12 w-12 text-emerald-500 mx-auto" />
               <h3 className="text-2xl font-black text-emerald-900">Great Job Today!</h3>
               <p className="text-emerald-700 font-medium tracking-tight">Your habits are locked in. Tomorrow will be Day {programStatus.currentDay + 1}.</p>
+
+              <div className="pt-4">
+                <div className="bg-emerald-900/5 backdrop-blur-md rounded-3xl p-6 border border-emerald-900/10">
+                  <h4 className="text-sm font-bold text-emerald-800 uppercase tracking-widest mb-4">Time Until Next Session</h4>
+                  <div className="inline-block px-8 py-4 rounded-3xl bg-emerald-900 text-white shadow-2xl">
+                    <DailyCountdown />
+                  </div>
+                </div>
+              </div>
             </Card>
           )}
         </TabsContent>

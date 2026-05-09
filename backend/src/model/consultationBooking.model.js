@@ -40,7 +40,14 @@ const BookingSchema = new mongoose.Schema(
     // Use a single status field to track the progress
     status: {
       type: String,
-      enum: ["pending", "confirmed", "rescheduled", "cancelled", "completed"],
+      enum: [
+        "Awaiting Payment",
+        "Payment Successful",
+        "Confirmed",
+        "Rescheduled",
+        "Cancelled",
+        "Completed",
+      ],
       default: "Awaiting Payment",
     },
 

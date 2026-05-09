@@ -8,6 +8,7 @@ import NormalPlanPatient from "../model/user.model.js";
 import ZoneVideo from "../model/normalPlanModels/zoneVideo.model.js";
 import BodyMetrics from "../model/patientTrackingData.model.js";
 import WeeklyLog from "../model/normalPlanModels/weeklyLog.model.js";
+import mongoose from "mongoose";
 // import Patient = require('../models/Patient');
 
 import HabitLog from "../model/habitLog.model.js";
@@ -54,21 +55,25 @@ const getNormalPlanPatients = async (req, res) => {
         }).sort({ submittedAt: -1 });
 
         // Calculate compliance rate based on submissions / days elapsed
-        const totalPossibleDays = (user.currentZone - 1) * 21 + (user.currentDay || 0);
-        const totalLogsCount = await HabitLog.countDocuments({ patientId: userId });
-        
-        const complianceRate = totalPossibleDays > 0 
-          ? Math.round((totalLogsCount / totalPossibleDays) * 100) 
-          : 0;
+        const totalPossibleDays =
+          (user.currentZone - 1) * 21 + (user.currentDay || 0);
+        const totalLogsCount = await HabitLog.countDocuments({
+          patientId: userId,
+        });
+
+        const complianceRate =
+          totalPossibleDays > 0
+            ? Math.round((totalLogsCount / totalPossibleDays) * 100)
+            : 0;
 
         const lastDailyLog = await HabitLog.findOne({ patientId: userId }).sort(
           { date: -1 },
         );
         const daysSinceLastLog = lastDailyLog
           ? Math.floor(
-            (Date.now() - new Date(lastDailyLog.date).getTime()) /
-            (24 * 60 * 60 * 1000),
-          )
+              (Date.now() - new Date(lastDailyLog.date).getTime()) /
+                (24 * 60 * 60 * 1000),
+            )
           : 999;
 
         // Dynamic status logic
@@ -100,9 +105,9 @@ const getNormalPlanPatients = async (req, res) => {
           programStartDate: user.programStartDate,
           latestMetrics: latestMetrics
             ? {
-              weight: latestMetrics.value,
-              loggedAt: latestMetrics.dateRecorded,
-            }
+                weight: latestMetrics.value,
+                loggedAt: latestMetrics.dateRecorded,
+              }
             : null,
           activeDaysThisWeek: habitLogs.length,
           weeklyLogs: weeklyLogs.slice(0, 5),
@@ -160,7 +165,7 @@ const getNormalPlanPatientDetail = async (req, res) => {
     }).sort({ date: -1 });
 
     // Map HabitLog to what frontend expects for DailyLog
-    const dailyLogs = habitLogs.map(log => ({
+    const dailyLogs = habitLogs.map((log) => ({
       _id: log._id,
       patientId: log.patientId,
       zoneNumber: log.zone,
@@ -170,7 +175,7 @@ const getNormalPlanPatientDetail = async (req, res) => {
       completedTasks: log.completedHabits || [],
       notes: log.notes,
       mood: log.mood,
-      createdAt: log.createdAt
+      createdAt: log.createdAt,
     }));
 
     // Get current recommendations
@@ -231,8 +236,8 @@ const updatePatientStatus = async (req, res) => {
     const { patientId } = req.params;
     const { status, note } = req.body;
 
-    const normalPlanPatient = await NormalPlanPatient.findOneAndUpdate(
-      { patientId },
+    const normalPlanPatient = await NormalPlanPatient.findByIdAndUpdate(
+      patientId,
       {
         status,
         $push: note ? { doctorNotes: { note, createdAt: new Date() } } : {},
@@ -257,16 +262,16 @@ const addDoctorNote = async (req, res) => {
   try {
     const { patientId } = req.params;
     const { note } = req.body;
-
-    const normalPlanPatient = await NormalPlanPatient.findOneAndUpdate(
-      { patientId },
+    console.log(note, patientId);
+    const normalPlanPatient = await NormalPlanPatient.findByIdAndUpdate(
+      patientId, // ✅ force ObjectId
       {
         $push: { doctorNotes: { note, createdAt: new Date() } },
         updatedAt: new Date(),
       },
-      { new: true },
+      { new: true, upsert: true },
     );
-
+    console.log(normalPlanPatient);
     res.json({ success: true, doctorNotes: normalPlanPatient.doctorNotes });
   } catch (error) {
     console.error("Error adding doctor note:", error);
@@ -298,7 +303,6 @@ const overridePatientZone = async (req, res) => {
       },
       { new: true },
     );
-
 
     if (!user) {
       return res.status(404).json({ error: "Patient not found" });
@@ -665,9 +669,9 @@ const getDailyActivityReport = async (req, res) => {
 
         const daysSinceLastLog = lastLog
           ? Math.floor(
-            (Date.now() - new Date(lastLog.date).getTime()) /
-            (24 * 60 * 60 * 1000),
-          )
+              (Date.now() - new Date(lastLog.date).getTime()) /
+                (24 * 60 * 60 * 1000),
+            )
           : null;
 
         return {
