@@ -96,38 +96,37 @@ export const useRazorpay = () => {
       setIsLoading(true);
 
       try {
-const options: RazorpayOptions = {
-  key: RAZORPAY_KEY,
-  amount: amount,
-  currency,
-  name,
-  description,
-  order_id: orderId,
-  handler: async (response) => {
-    try {
-      await onSuccess(response);
-    } catch (error) {
-      onError?.(error as Error);
-    } finally {
-      setIsLoading(false);
-    }
-  },
-  prefill: {
-    name: prefill?.name || "",
-    email: prefill?.email || "",
-    contact: prefill?.contact || "9999999999",
-  },
-  theme: {
-    color: "#E8673C",
-  },
-  // ✅ remove the entire config block
-  modal: {
-    ondismiss: () => {
-      setIsLoading(false);
-      onDismiss?.();
-    },
-  },
-};
+        const options: RazorpayOptions = {
+          key: RAZORPAY_KEY,
+          amount: amount,
+          currency,
+          name,
+          description,
+          order_id: orderId,
+          handler: async (response) => {
+            try {
+              await onSuccess(response);
+            } catch (error) {
+              onError?.(error as Error);
+            } finally {
+              setIsLoading(false);
+            }
+          },
+          prefill: {
+            ...(prefill?.name && { name: prefill.name }),
+            ...(prefill?.email && { email: prefill.email }),
+            ...(prefill?.contact && { contact: prefill.contact }),
+          },
+          theme: {
+            color: "#E8673C",
+          },
+          modal: {
+            ondismiss: () => {
+              setIsLoading(false);
+              onDismiss?.();
+            },
+          },
+        };
 
         const razorpay = new window.Razorpay(options);
         razorpay.open();

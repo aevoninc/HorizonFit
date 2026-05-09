@@ -340,7 +340,7 @@ const deleteTask = asyncHandler(async (req, res) => {
 const getConsultationRequests = asyncHandler(async (req, res) => {
   // 1. Fetch EVERY booking in the system (No doctorId filter)
   const bookings = await ConsultationBooking.find()
-    .populate("patientId", "fullName email")
+    .populate("patientId", "name email")
     .sort({ createdAt: -1 });
   // 2. Format data to match exactly what your Frontend expects
   const formattedBookings = bookings.map((b) => {
@@ -357,7 +357,7 @@ const getConsultationRequests = asyncHandler(async (req, res) => {
 
     return {
       id: booking._id,
-      patientName: booking.patientId?.fullName || "Guest User",
+      patientName: booking.patientName || booking.patientId?.name || "Guest User",
       patientEmail: booking.patientId?.email || booking.patientEmail || "N/A",
       date: booking.requestedDateTime
         ? new Date(booking.requestedDateTime).toLocaleDateString()
@@ -550,7 +550,7 @@ const getNewConsultancyRequest = asyncHandler(async (req, res) => {
 
     return {
       id: booking._id,
-      patientName: booking.patientId?.fullName || "Guest User",
+      patientName: booking.patientName || booking.patientId?.name || "Guest User",
       patientEmail: booking.patientId?.email || booking.patientEmail || "N/A",
       date: booking.requestedDateTime
         ? new Date(booking.requestedDateTime).toLocaleDateString()

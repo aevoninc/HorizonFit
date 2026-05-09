@@ -266,13 +266,13 @@ export const DoctorConsultationsPage: React.FC = () => {
       const response = isNewRequestPath
         ? await doctorApi.getNewConsultancyRequests()
         : await doctorApi.getConsultations();
-
-      let bookingsArray: Consultation[] = [];
-      if (Array.isArray(response.data)) {
-        bookingsArray = response.data;
-      } else if (response.data && Array.isArray((response.data as any).bookings)) {
-        bookingsArray = (response.data as any).bookings;
-      }
+        let bookingsArray: Consultation[] = [];
+        if (Array.isArray(response.data)) {
+          bookingsArray = response.data;
+        } else if (response.data && Array.isArray((response.data as any).bookings)) {
+          bookingsArray = (response.data as any).bookings;
+        }
+        console.log(bookingsArray)
       setConsultations(bookingsArray);
     } catch {
       setConsultations([]);

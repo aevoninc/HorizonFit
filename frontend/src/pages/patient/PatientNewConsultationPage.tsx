@@ -199,6 +199,7 @@ export const PatientNewConsultationPage: React.FC = () => {
             await patientApi.requestConsultation({
               requestedDateTime,
               patientQuery: formData.patientQuery,
+              patientName: user?.name,
               paymentToken: response.razorpay_payment_id,
               orderId: response.razorpay_order_id,
               razorpaySignature: response.razorpay_signature,
@@ -210,11 +211,12 @@ export const PatientNewConsultationPage: React.FC = () => {
             });
 
             navigate("/patient/bookings");
-          } catch (error) {
+          } catch (error: any) {
             setIsProcessing(false);
+            const errorMessage = error.response?.data?.message || "Payment succeeded but booking failed. Please contact support.";
             toast({
               title: "Booking Failed",
-              description: "Payment succeeded but booking failed. Please contact support.",
+              description: errorMessage,
               variant: "destructive",
             });
           } finally {
