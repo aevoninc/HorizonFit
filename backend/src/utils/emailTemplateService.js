@@ -13,7 +13,7 @@ const renderBaseTemplate = (title, content, link, buttonText, isFunctional = fal
     const primaryCyan = "#06b6d4";
     const textSlate = "#1e293b";
     const mutedSlate = "#64748b";
-    
+
     // Functional template (e.g. password reset) uses more subdued colors
     const headerBg = isFunctional ? "#334155" : `linear-gradient(135deg, ${primaryTeal} 0%, ${primaryCyan} 100%)`;
 
@@ -114,7 +114,7 @@ const patientWelcomeTemplate = (patientName, assignedDoctorName, email, password
 /**
  * 2. Consultation Booking Confirmation (New centralized template)
  */
-const consultationBookingTemplate = (recipientName, otherPartyName, date, time, recipientRole = 'patient') => {
+const consultationBookingTemplate = (recipientName, otherPartyName, date, time, recipientRole = 'patient', bookingId = 'N/A') => {
     let title = '';
     let content = '';
     let buttonText = 'View Appointment';
@@ -129,8 +129,12 @@ const consultationBookingTemplate = (recipientName, otherPartyName, date, time, 
             <div style="background-color: #f8fafc; border-radius: 12px; padding: 20px; margin: 24px 0;">
                 <p style="margin: 0;"><strong>📅 Date:</strong> ${formattedDate}</p>
                 <p style="margin: 8px 0 0 0;"><strong>⏰ Time:</strong> ${time}</p>
+                <p style="margin: 12px 0 0 0; color: #14b8a6; font-weight: 700;"><strong>🆔 Booking ID:</strong> <code style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #14b8a6;">${bookingId}</code></p>
             </div>
-            <p style="color: #64748b; font-size: 14px;"><strong>Cancellation Policy:</strong> Please note that cancellations must be made at least 24 hours before the scheduled time to be eligible for a refund or reschedule.</p>
+            <p style="background-color: #f0fdfa; border: 1px solid #ccfbf1; padding: 16px; border-radius: 8px; font-size: 14px; color: #0f766e;">
+                <strong>IMPORTANT:</strong> Please keep this Booking ID safe. You will need it to enroll in your 15-week transformation program.
+            </p>
+            <p style="color: #64748b; font-size: 14px; margin-top: 16px;"><strong>Cancellation Policy:</strong> Please note that cancellations must be made at least 24 hours after booking to be eligible for a refund.</p>
         `;
     } else if (recipientRole === 'doctor') {
         title = 'New Booking Notification';
@@ -140,6 +144,7 @@ const consultationBookingTemplate = (recipientName, otherPartyName, date, time, 
             <div style="background-color: #f8fafc; border-radius: 12px; padding: 20px; margin: 24px 0;">
                 <p style="margin: 0;"><strong>📅 Date:</strong> ${formattedDate}</p>
                 <p style="margin: 8px 0 0 0;"><strong>⏰ Time:</strong> ${time}</p>
+                <p style="margin: 8px 0 0 0;"><strong>Booking ID:</strong> ${bookingId}</p>
             </div>
             <p>Please check your doctor dashboard for patient queries or past medical history associated with this log.</p>
         `;
@@ -152,6 +157,7 @@ const consultationBookingTemplate = (recipientName, otherPartyName, date, time, 
                 <p style="margin: 0;"><strong>Patient:</strong> ${recipientName}</p>
                 <p style="margin: 8px 0 0 0;"><strong>Specialist:</strong> ${otherPartyName}</p>
                 <p style="margin: 8px 0 0 0;"><strong>Schedule:</strong> ${formattedDate} at ${time}</p>
+                <p style="margin: 8px 0 0 0;"><strong>Booking ID:</strong> ${bookingId}</p>
             </div>
         `;
     }
@@ -164,8 +170,8 @@ const consultationBookingTemplate = (recipientName, otherPartyName, date, time, 
  */
 const consultationUpdateTemplate = (recipientName, otherPartyName, status, dateTime) => {
     const title = `Appointment Update: ${status}`;
-    const formattedDate = new Date(dateTime).toLocaleString('en-US', { 
-        weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+    const formattedDate = new Date(dateTime).toLocaleString('en-US', {
+        weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
 
     let statusColor = "#64748b";

@@ -437,6 +437,13 @@ export const PatientNewConsultationPage: React.FC = () => {
                   )}
                 </div>
 
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 flex gap-2 items-start">
+                  <Clock className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Refund Policy:</span> Cancellations must be made within 24 hours of payment to be eligible for a full refund. Beyond this window, refunds are not processed.
+                  </div>
+                </div>
+
                 <div className="rounded-xl bg-muted/40 p-4 border border-dashed border-muted-foreground/30">
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-sm text-muted-foreground">Booking for:</span>
