@@ -455,6 +455,7 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
       const name = user?.name || updatedBooking.patientName || "Valued Patient";
 
       if (email) {
+        console.log("Email Sending")
         await sendConsultationUpdateEmail({
           recipient: email,
           personName: name,
@@ -463,6 +464,7 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
           dateTime:
             updatedBooking.confirmedDateTime || updatedBooking.requestedDateTime
         });
+        console.log("Completed")
       }
     } catch (emailError) {
       console.error("Background email notification failed:", emailError);
