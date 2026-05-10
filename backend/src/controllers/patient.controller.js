@@ -365,6 +365,7 @@ const requestConsultation = asyncHandler(async (req, res) => {
           minute: "2-digit",
         }),
         recipientRole: "doctor",
+        bookingId: booking._id,
       }),
 
       // 2. Email to Admin
@@ -378,6 +379,7 @@ const requestConsultation = asyncHandler(async (req, res) => {
           minute: "2-digit",
         }),
         recipientRole: "admin",
+        bookingId: booking._id,
       }),
 
       // 3. Email to Patient
@@ -391,6 +393,7 @@ const requestConsultation = asyncHandler(async (req, res) => {
           minute: "2-digit",
         }),
         recipientRole: "patient",
+        bookingId: booking._id,
       }),
     ]);
   } catch (emailError) {

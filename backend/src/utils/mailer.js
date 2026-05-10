@@ -3,14 +3,14 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-import { 
+import {
     consultationUpdateTemplate,
     consultationBookingTemplate,
     passwordResetTemplate,
     patientWelcomeTemplate,
     taskAssignmentTemplate,
     programBookingTemplate
-} from './emailTemplateService.js'; 
+} from './emailTemplateService.js';
 
 
 // =================================================================
@@ -56,10 +56,10 @@ const sendEmail = async (recipient, subject, text, html) => {
 /**
  * Sends a consultation booking confirmation.
  */
-const sendConsultationBookingEmail = async ({ recipient, personName, otherPartyName, date, time, recipientRole }) => {
+const sendConsultationBookingEmail = async ({ recipient, personName, otherPartyName, date, time, recipientRole, bookingId }) => {
     const subject = `Consultation Confirmed - ${date}`;
-    const htmlBody = consultationBookingTemplate(personName, otherPartyName, date, time, recipientRole);
-    const textBody = `Hello ${personName}, your consultation with ${otherPartyName} is confirmed for ${date} at ${time}.`;
+    const htmlBody = consultationBookingTemplate(personName, otherPartyName, date, time, recipientRole, bookingId);
+    const textBody = `Hello ${personName}, your consultation with ${otherPartyName} is confirmed for ${date} at ${time}. Booking ID: ${bookingId}`;
 
     await sendEmail(recipient, subject, textBody, htmlBody);
 };
@@ -120,12 +120,12 @@ const sendTaskAssignmentEmail = async (recipient, personName, otherPartyName, ta
 };
 
 
-export { 
-    sendEmail, 
+export {
+    sendEmail,
     sendConsultationBookingEmail,
-    sendConsultationUpdateEmail, 
+    sendConsultationUpdateEmail,
     sendPasswordResetEmail,
     sendPatientWelcomeEmail,
     sendTaskAssignmentEmail,
-    sendProgramBookingEmail 
+    sendProgramBookingEmail
 };

@@ -37,37 +37,37 @@ export const PatientBookingsPage: React.FC = () => {
   const [selectedBooking, setSelectedBooking] = useState<PatientBooking | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
-const fetchBookings = async () => {
-  setLoading(true);
-  try {
-    const response = await patientApi.getBookings();
-    
-    // 1. Get the array from the response object
-    const rawBookings = response.data?.bookings || response.data || [];
+  const fetchBookings = async () => {
+    setLoading(true);
+    try {
+      const response = await patientApi.getBookings();
 
-    // 2. Map MongoDB's _id to id so 'selectedBooking.id' works
-    const formattedBookings = rawBookings.map((b: any) => ({
-      ...b,
-      id: b._id || b.id, // This ensures 'id' is populated for the frontend
-    }));
+      // 1. Get the array from the response object
+      const rawBookings = response.data?.bookings || response.data || [];
 
-    setBookings(formattedBookings);
-  } catch (error) {
-    toast({
-      title: 'Error',
-      description: 'Failed to load bookings.',
-      variant: 'destructive',
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+      // 2. Map MongoDB's _id to id so 'selectedBooking.id' works
+      const formattedBookings = rawBookings.map((b: any) => ({
+        ...b,
+        id: b._id || b.id, // This ensures 'id' is populated for the frontend
+      }));
+
+      setBookings(formattedBookings);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load bookings.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchBookings();
   }, []);
 
-const handleCancelClick = (booking: PatientBooking) => {
+  const handleCancelClick = (booking: PatientBooking) => {
     setSelectedBooking(booking);
     setCancelDialogOpen(true);
   };
@@ -87,7 +87,7 @@ const handleCancelClick = (booking: PatientBooking) => {
     setCancelling(true);
     try {
       const response = await patientApi.cancelBooking(selectedBooking.id);
-      
+
       // Update local state to show 'Cancelled' immediately
       setBookings((prev) =>
         prev.map((b) =>
@@ -129,9 +129,9 @@ const handleCancelClick = (booking: PatientBooking) => {
     }
   };
 
-const upcomingBookings = bookings.filter((b) => 
-  ['Pending', 'Confirmed', 'Payment Successful'].includes(b.status)
-);
+  const upcomingBookings = bookings.filter((b) =>
+    ['Pending', 'Confirmed', 'Payment Successful'].includes(b.status)
+  );
   const pastBookings = bookings.filter((b) => !['Pending', 'Confirmed'].includes(b.status));
 
   if (loading) {
@@ -141,7 +141,7 @@ const upcomingBookings = bookings.filter((b) =>
       </div>
     );
   }
-  
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
       {/* Header */}
@@ -155,86 +155,86 @@ const upcomingBookings = bookings.filter((b) =>
         <h2 className="text-xl font-semibold text-foreground">Upcoming Sessions</h2>
         {upcomingBookings.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
-{upcomingBookings.map((booking, index) => {
-  const { date, time } = formatDateTime(booking.requestedDateTime);
-  const config = statusConfig[booking.status] || { color: 'bg-gray-100', icon: null };
+            {upcomingBookings.map((booking, index) => {
+              const { date, time } = formatDateTime(booking.requestedDateTime);
+              const config = statusConfig[booking.status] || { color: 'bg-gray-100', icon: null };
 
-  // --- Logic for Refund Window ---
-  const paymentDate = new Date(booking.createdAt || Date.now()).getTime();
-  const currentTime = Date.now();
-  const twentyFourHours = 24 * 60 * 60 * 1000;
-  const isEligibleForRefund = (currentTime - paymentDate) < twentyFourHours;
-  const hoursRemaining = Math.max(0, 24 - (currentTime - paymentDate) / (1000 * 60 * 60)).toFixed(1);
+              // --- Logic for Refund Window ---
+              const paymentDate = new Date(booking.createdAt || Date.now()).getTime();
+              const currentTime = Date.now();
+              const twentyFourHours = 24 * 60 * 60 * 1000;
+              const isEligibleForRefund = (currentTime - paymentDate) < twentyFourHours;
+              const hoursRemaining = Math.max(0, 24 - (currentTime - paymentDate) / (1000 * 60 * 60)).toFixed(1);
 
-  return (
-    <motion.div
-      key={booking.id}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-    >
-      <Card className="card-elevated border-l-4 border-l-secondary">
-        <CardContent className="p-6">
-          <div className="mb-4 flex items-start justify-between">
-            <div>
-              <h3 className="font-semibold text-foreground">
-                {booking.type ? booking.type : "General Consultation"}
-              </h3>
-              <p className="text-sm text-muted-foreground">Dr. Jaburral</p>
-            </div>
-            <Badge className={config.color}>
-              <span className="mr-1">{config.icon}</span>
-              {booking.status}
-            </Badge>
-          </div>
+              return (
+                <motion.div
+                  key={booking.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card className="card-elevated border-l-4 border-l-secondary">
+                    <CardContent className="p-6">
+                      <div className="mb-4 flex items-start justify-between">
+                        <div>
+                          <h3 className="font-semibold text-foreground">
+                            {booking.type ? booking.type : "General Consultation"}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">Dr. Jaburral</p>
+                        </div>
+                        <Badge className={config.color}>
+                          <span className="mr-1">{config.icon}</span>
+                          {booking.status}
+                        </Badge>
+                      </div>
 
-          <div className="mb-4 space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              {date}
-            </div>
-            {time && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                {time}
-              </div>
-            )}
-          </div>
+                      <div className="mb-4 space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Calendar className="h-4 w-4" />
+                          {date}
+                        </div>
+                        {time && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            {time}
+                          </div>
+                        )}
+                      </div>
 
-          {booking.patientQuery && (
-            <p className="mb-4 text-sm text-muted-foreground italic">
-              "{booking.patientQuery}"
-            </p>
-          )}
+                      {booking.patientQuery && (
+                        <p className="mb-4 text-sm text-muted-foreground italic">
+                          "{booking.patientQuery}"
+                        </p>
+                      )}
 
-          {/* Refund Logic UI */}
-          {isEligibleForRefund ? (
-            <div className="space-y-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-destructive hover:bg-destructive/10"
-                onClick={() => handleCancelClick(booking)}
-              >
-                <XCircle className="mr-2 h-4 w-4" />
-                Cancel & Refund
-              </Button>
-              <p className="text-[10px] text-center text-muted-foreground flex items-center justify-center gap-1">
-                <Clock className="h-3 w-3" />
-                Refund window ends in {hoursRemaining} hours
-              </p>
-            </div>
-          ) : (
-            <div className="p-2 bg-muted/50 rounded-md text-center border border-dashed">
-              <p className="text-xs text-muted-foreground font-medium">Refund window closed</p>
-              <p className="text-[10px] text-muted-foreground">(24h post-payment limit reached)</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-})}
+                      {/* Refund Logic UI */}
+                      {isEligibleForRefund ? (
+                        <div className="space-y-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-destructive hover:bg-destructive/10"
+                            onClick={() => handleCancelClick(booking)}
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            Cancel & Refund
+                          </Button>
+                          <p className="text-[10px] text-center text-muted-foreground flex items-center justify-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Refund window ends in {hoursRemaining} hours
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-2.5 bg-red-50 border border-red-100 rounded-lg text-center">
+                          <p className="text-xs text-red-700 font-bold uppercase tracking-wider mb-1">Refund window closed</p>
+                          <p className="text-[10px] text-red-600">The 24-hour post-payment refund period has expired.</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
           </div>
         ) : (
           <Card className="card-elevated">
@@ -255,7 +255,7 @@ const upcomingBookings = bookings.filter((b) =>
             {pastBookings.map((booking, index) => {
               const { date, time } = formatDateTime(booking.requestedDateTime);
               const config = statusConfig[booking.status];
-              
+
               return (
                 <motion.div
                   key={booking.id}
@@ -266,10 +266,9 @@ const upcomingBookings = bookings.filter((b) =>
                   <Card className={`card-elevated ${booking.status === 'cancelled' ? 'opacity-70' : ''}`}>
                     <CardContent className="flex items-center justify-between p-4">
                       <div className="flex items-center gap-4">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                          booking.status === 'Completed' ? 'bg-green-100' : 
-                          booking.status === 'Refunded' ? 'bg-purple-100' : 'bg-red-100'
-                        }`}>
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${booking.status === 'Completed' ? 'bg-green-100' :
+                            booking.status === 'Refunded' ? 'bg-purple-100' : 'bg-red-100'
+                          }`}>
                           {booking.status === 'Completed' ? (
                             <CheckCircle className="h-5 w-5 text-green-600" />
                           ) : booking.status === 'Refunded' ? (
@@ -312,7 +311,7 @@ const upcomingBookings = bookings.filter((b) =>
               Cancel Booking
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to cancel your {selectedBooking?.type}? 
+              Are you sure you want to cancel your {selectedBooking?.type}?
               You will receive a refund which can be tracked using the refund ID.
             </AlertDialogDescription>
           </AlertDialogHeader>
