@@ -59,21 +59,33 @@ const processPayment = async (razorpayPaymentId, email, amount) => {
 
 // processRefund()
 const processRefund = async (transactionId, amount) => {
+  if (!transactionId) {
+    throw new Error("Refund failed: No transaction ID provided.");
+  }
+
   try {
     const refund = await razorpay.payments.refund(transactionId, {
-      amount: amount * 100, // ₹ → paise
+      amount: Math.round(amount * 100), // ₹ → paise, ensuring integer
     });
 
-    if (refund.status === "processed") {
+    if (refund.status === "processed" || refund.status === "pending") {
       return {
         id: refund.id,
         status: "Refund Successful",
       };
     } else {
-      throw new Error(refund.reason || "Refund failed.");
+      throw new Error(refund.reason || `Refund status: ${refund.status}`);
     }
   } catch (error) {
-    throw new Error(`Refund failed: ${error.message}`);
+    console.error("DEBUG: Razorpay Refund Error Object:", JSON.stringify(error, null, 2));
+
+    // Razorpay SDK errors often have description or error.description
+    const errorMsg = error.description ||
+      (error.error && error.error.description) ||
+      error.message ||
+      "Unknown Razorpay Refund Error";
+
+    throw new Error(`Refund failed: ${errorMsg}`);
   }
 };
 

@@ -476,12 +476,19 @@ const cancelBooking = asyncHandler(async (req, res) => {
   if (booking.status === "Cancelled") {
     return res.status(400).json({ message: "Booking is already cancelled." });
   }
+
+  if (!booking.transactionId) {
+    return res.status(400).json({
+      message: "Refund cannot be processed automatically: No transaction ID found for this booking. Please contact support."
+    });
+  }
+
   try {
     // 2. USE YOUR UTILITY FUNCTION HERE
     // Use the function you already wrote in payment.js
     const refundResult = await processRefund(
       booking.transactionId,
-      CONSULTANCY_BOOKING_PRICE,
+      booking.amountPaid || CONSULTANCY_BOOKING_PRICE,
     );
     // 3. Update Database using the result from the utility
     booking.status = "Cancelled";
