@@ -87,6 +87,13 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
     amountPaid: CONSULTANCY_BOOKING_PRICE,
   });
 
+    // 5. Final Success Response
+  res.status(201).json({
+    message: "Consultation booked successfully!",
+    bookingId: booking._id,
+    transactionId: paymentToken,
+  });
+  
   // Fire and forget emails so the user doesn't wait
   // ✅ Corrected Controller Call
   try {
@@ -126,12 +133,7 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
     console.error("Error sending consultation booking emails:", error);
   }
 
-  // 5. Final Success Response
-  res.status(201).json({
-    message: "Consultation booked successfully!",
-    bookingId: booking._id,
-    transactionId: paymentToken,
-  });
+
 });
 
 const programBooking = asyncHandler(async (req, res) => {
@@ -244,10 +246,13 @@ const programBooking = asyncHandler(async (req, res) => {
       patient: { id: patient._id, email: patient.email },
       bookingId: booking._id,
     });
-
+    res.status(500).json({
+      message:
+        "Payment verified but account creation failed. Please contact support immediately.",
+      error: error.message,
+    });
     // 9. Send Notifications (Non-blocking / Background)
     // We do this AFTER committing the transaction
-
     Promise.allSettled([
       // To Patient: (recipient, personName, otherPartyName, startDate, paymentId, price, planTier)
       sendProgramBookingEmail(
@@ -279,11 +284,7 @@ const programBooking = asyncHandler(async (req, res) => {
     await session.abortTransaction();
 
     console.error("CRITICAL ERROR during program booking session:", error);
-    res.status(500).json({
-      message:
-        "Payment verified but account creation failed. Please contact support immediately.",
-      error: error.message,
-    });
+
   } finally {
     session.endSession();
   }

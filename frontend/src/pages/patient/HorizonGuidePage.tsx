@@ -162,7 +162,7 @@ export const HorizonGuidePage: React.FC = () => {
                 </span>
                 <Badge
                   variant="secondary"
-                  className="ml-1 h-5 w-5 rounded-full p-0 text-xs"
+                  className="ml-1 h-5 w-5 flex justify-center items-center rounded-full p-2 text-xs"
                 >
                   {count}
                 </Badge>
