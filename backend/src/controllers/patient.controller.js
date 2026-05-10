@@ -97,16 +97,14 @@ const logTrackingData = asyncHandler(async (req, res) => {
   const { type, value, unit, recordDate } = req.body;
   // Optional: Basic validation to ensure all required data is present
   if (!type || value === undefined || !unit) {
-    return res
-      .status(400)
-      .json({
-        message: "Missing required tracking data fields (type, value, unit).",
-      });
+    return res.status(400).json({
+      message: "Missing required tracking data fields (type, value, unit).",
+    });
   }
 
   // Fetch the patient's program start date to calculate the accurate weekNumber if not provided
   const patient = await User.findById(patientId).select(
-    "programStartDate isActive"
+    "programStartDate isActive",
   );
   if (!patient || !patient.isActive) {
     return res
@@ -116,7 +114,7 @@ const logTrackingData = asyncHandler(async (req, res) => {
   // Function to calculate the program week number based on start date and record date
   const calculatedWeekNumber = calculateProgramWeek(
     patient.programStartDate,
-    recordDate
+    recordDate,
   );
 
   // 3. Create the tracking record
@@ -189,7 +187,7 @@ const logTaskCompletion = asyncHandler(async (req, res) => {
         });
         results.push(taskId);
       }
-    })
+    }),
   );
 
   res.status(200).json({
@@ -241,7 +239,7 @@ const getPatientTasks = asyncHandler(async (req, res) => {
 
   // Convert logs into a set for fast lookup
   const completedTaskIdsToday = new Set(
-    todayLogs.map((log) => log.taskId.toString())
+    todayLogs.map((log) => log.taskId.toString()),
   );
 
   // --- 4. Annotate Tasks with Completion Status ---
@@ -349,6 +347,11 @@ const requestConsultation = asyncHandler(async (req, res) => {
     amountPaid: CONSULTANCY_BOOKING_PRICE, // Added to store the paid amount
   });
 
+  res.status(201).json({
+    message: "Consultation booked successfully!",
+    booking,
+  });
+
   try {
     await Promise.allSettled([
       // 1. Email to Doctor
@@ -357,8 +360,11 @@ const requestConsultation = asyncHandler(async (req, res) => {
         personName: `Dr. ${DOCTOR_NAME}`,
         otherPartyName: name,
         date: requestedDateTime,
-        time: new Date(requestedDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        recipientRole: 'doctor'
+        time: new Date(requestedDateTime).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        recipientRole: "doctor",
       }),
 
       // 2. Email to Admin
@@ -367,8 +373,11 @@ const requestConsultation = asyncHandler(async (req, res) => {
         personName: "Admin",
         otherPartyName: name,
         date: requestedDateTime,
-        time: new Date(requestedDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        recipientRole: 'admin'
+        time: new Date(requestedDateTime).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        recipientRole: "admin",
       }),
 
       // 3. Email to Patient
@@ -377,18 +386,16 @@ const requestConsultation = asyncHandler(async (req, res) => {
         personName: name,
         otherPartyName: `Dr. ${DOCTOR_NAME}`,
         date: requestedDateTime,
-        time: new Date(requestedDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        recipientRole: 'patient'
+        time: new Date(requestedDateTime).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        recipientRole: "patient",
       }),
     ]);
   } catch (emailError) {
     console.error("Error sending consultation booking emails:", emailError);
   }
-
-  res.status(201).json({
-    message: "Consultation booked successfully!",
-    booking,
-  });
 });
 
 // @desc    Patient creates a Razorpay order for consultation payment
@@ -471,7 +478,7 @@ const cancelBooking = asyncHandler(async (req, res) => {
     // Use the function you already wrote in payment.js
     const refundResult = await processRefund(
       booking.transactionId,
-      CONSULTANCY_BOOKING_PRICE
+      CONSULTANCY_BOOKING_PRICE,
     );
     // 3. Update Database using the result from the utility
     booking.status = "Cancelled";
@@ -537,7 +544,7 @@ const updatePassword = asyncHandler(async (req, res) => {
   await sendPasswordResetEmail(
     user.email,
     user.firstName,
-    null // No reset link needed for password update
+    null, // No reset link needed for password update
   );
   res.status(200).json({ message: "Password updated successfully." });
 });
@@ -619,9 +626,6 @@ const getZoneTasks = asyncHandler(async (req, res) => {
   });
 });
 
-
-
-
 // @desc    Patient allocates tasks (self-assigned)
 // @route   POST /api/patient/allocate-tasks
 // @access  Private/Patient
@@ -630,7 +634,9 @@ const allocateTasks = asyncHandler(async (req, res) => {
   const { tasks } = req.body;
 
   if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
-    return res.status(400).json({ message: "No tasks provided for allocation." });
+    return res
+      .status(400)
+      .json({ message: "No tasks provided for allocation." });
   }
 
   const tasksToInsert = tasks.map((task) => ({
@@ -641,7 +647,7 @@ const allocateTasks = asyncHandler(async (req, res) => {
     zone: task.zone,
     programWeek: task.programWeek,
     frequency: task.frequency,
-    daysApplicable: task.daysApplicable || [],  // ✅ store all days in one document
+    daysApplicable: task.daysApplicable || [], // ✅ store all days in one document
     timeOfDay: task.timeOfDay,
     metricRequired: task.metricRequired || null,
     status: "Pending",
@@ -663,15 +669,22 @@ const deleteTask = asyncHandler(async (req, res) => {
   const patientId = req.user._id;
   const { taskId } = req.params;
 
-  const task = await PatientProgramTask.findOne({ _id: taskId, patientId: patientId });
+  const task = await PatientProgramTask.findOne({
+    _id: taskId,
+    patientId: patientId,
+  });
 
   if (!task) {
-    return res.status(404).json({ message: "Task not found or you are not authorized to delete it." });
+    return res.status(404).json({
+      message: "Task not found or you are not authorized to delete it.",
+    });
   }
 
   await task.deleteOne();
 
-  res.status(200).json({ success: true, message: "Task deleted successfully." });
+  res
+    .status(200)
+    .json({ success: true, message: "Task deleted successfully." });
 });
 
 export {

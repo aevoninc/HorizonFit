@@ -235,7 +235,6 @@ const updatePatientStatus = async (req, res) => {
   try {
     const { patientId } = req.params;
     const { status, note } = req.body;
-
     const normalPlanPatient = await NormalPlanPatient.findByIdAndUpdate(
       patientId,
       {

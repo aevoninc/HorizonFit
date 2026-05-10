@@ -37,6 +37,9 @@ const BookingSchema = new mongoose.Schema(
     // Store reason for cancellation if applicable
     cancellationReason: { type: String, default: null },
 
+    // Doctor's internal notes or response
+    notes: { type: String, default: null },
+
     // Use a single status field to track the progress
     status: {
       type: String,

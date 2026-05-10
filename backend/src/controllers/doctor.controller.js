@@ -370,7 +370,7 @@ const getConsultationRequests = asyncHandler(async (req, res) => {
         : "N/A",
       status: statusMap[booking.status] || "pending", // Fallback to pending
       type: booking.patientQuery || "General Consultation",
-      notes: booking.cancellationReason || "",
+      notes: booking.notes || booking.cancellationReason || "",
     };
   });
 
@@ -385,13 +385,25 @@ const getConsultationRequests = asyncHandler(async (req, res) => {
 // @access  Private/Doctor
 const updateConsultationStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { status, confirmedDateTime } = req.body;
-  console.log(status);
+  const { status, confirmedDateTime, notes } = req.body;
+
+  // Status mapping to match DB Enum
+  const statusMap = {
+    pending: "Payment Successful",
+    confirmed: "Confirmed",
+    rescheduled: "Rescheduled",
+    cancelled: "Cancelled",
+    completed: "Completed",
+  };
+
+  const dbStatus = statusMap[status] || status;
+
   if (!id) {
     return res
       .status(400)
       .json({ message: "Invalid booking status provided. patient ID is missing" });
   }
+
   // 1. Validation
   if (
     !["pending", "confirmed", "rescheduled", "cancelled", "completed"].includes(
@@ -403,9 +415,9 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
       .json({ message: "Invalid booking status provided." });
   }
 
-  const updateData = { status };
+  const updateData = { status: dbStatus, notes: notes || undefined };
 
-  if (status === "Confirmed" || status === "Rescheduled") {
+  if (dbStatus === "Confirmed" || dbStatus === "Rescheduled") {
     if (!confirmedDateTime) {
       return res.status(400).json({
         message:
@@ -415,44 +427,47 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
     updateData.confirmedDateTime = new Date(confirmedDateTime);
   }
 
-  // 2. Perform the update FIRST
+  // 2. Perform the update
   const updatedBooking = await ConsultationBooking.findOneAndUpdate(
     { _id: id },
     { $set: updateData },
     { new: true }
   );
 
-  // 3. NOW check if it was found
   if (!updatedBooking) {
     return res.status(404).json({ message: "Booking not found." });
   }
 
-  // 4. Send Email Notification
-  try {
-    const user = await User.findById(updatedBooking.patientId).select(
-      "email name"
-    );
-    if (user && user.email) {
-      // NEW (Matches the mailer object structure)
-      await sendConsultationUpdateEmail({
-        recipient: user.email,
-        personName: user.name,
-        otherPartyName: DOCTOR_NAME || "Your Specialist",
-        status: status,
-        dateTime:
-          updatedBooking.confirmedDateTime || updatedBooking.requestedDateTime
-      });
-    }
-  } catch (emailError) {
-    console.error("Email notification failed:", emailError);
-    // We don't return an error to the user because the DB update actually succeeded
-  }
-
-  // 5. Success Response
+  // 3. Success Response sent FIRST to avoid frontend waiting for emails
   res.status(200).json({
-    message: `Booking status updated to ${status} and patient notified.`,
+    message: `Booking status updated to ${dbStatus} and patient notification initiated.`,
     booking: updatedBooking,
   });
+
+  // 4. Send Email Notification (Background task - non-blocking)
+  (async () => {
+    try {
+      const user = await User.findById(updatedBooking.patientId).select(
+        "email name"
+      );
+
+      const email = user?.email || updatedBooking.patientEmail;
+      const name = user?.name || updatedBooking.patientName || "Valued Patient";
+
+      if (email) {
+        await sendConsultationUpdateEmail({
+          recipient: email,
+          personName: name,
+          otherPartyName: DOCTOR_NAME || "Your Specialist",
+          status: dbStatus,
+          dateTime:
+            updatedBooking.confirmedDateTime || updatedBooking.requestedDateTime
+        });
+      }
+    } catch (emailError) {
+      console.error("Background email notification failed:", emailError);
+    }
+  })();
 });
 
 // @desc    Get list of Patients whose 15-week program is completed
@@ -563,7 +578,7 @@ const getNewConsultancyRequest = asyncHandler(async (req, res) => {
         : "N/A",
       status: statusMap[booking.status] || "pending", // Fallback to pending
       type: booking.patientQuery || "General Consultation",
-      notes: booking.cancellationReason || "",
+      notes: booking.notes || booking.cancellationReason || "",
     };
   });
 
