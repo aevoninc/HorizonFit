@@ -114,50 +114,72 @@ const patientWelcomeTemplate = (patientName, assignedDoctorName, email, password
 /**
  * 2. Consultation Booking Confirmation (New centralized template)
  */
-const consultationBookingTemplate = (recipientName, otherPartyName, date, time, recipientRole = 'patient', bookingId = 'N/A') => {
+const consultationBookingTemplate = (recipientName, otherPartyName, date, time, recipientRole = 'patient', bookingId = 'N/A', mobileNumber = 'N/A') => {
     let title = '';
     let content = '';
-    let buttonText = 'View Appointment';
+    const buttonText = recipientRole === 'patient' ? 'View My Appointment' : 'View Dashboard';
 
-    const formattedDate = new Date(date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    const formattedDate = new Date(date).toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+    });
 
     if (recipientRole === 'patient') {
-        title = 'Your Consultation is Booked';
+        title = 'Your Wellness Journey Begins';
         content = `
             <p>Dear ${recipientName},</p>
-            <p>Your consultation with <strong>${otherPartyName}</strong> has been successfully scheduled.</p>
-            <div style="background-color: #f8fafc; border-radius: 12px; padding: 20px; margin: 24px 0;">
-                <p style="margin: 0;"><strong>📅 Date:</strong> ${formattedDate}</p>
-                <p style="margin: 8px 0 0 0;"><strong>⏰ Time:</strong> ${time}</p>
-                <p style="margin: 12px 0 0 0; color: #14b8a6; font-weight: 700;"><strong>🆔 Booking ID:</strong> <code style="background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid #14b8a6;">${bookingId}</code></p>
+            <p>Your upcoming consultation with <strong>${otherPartyName}</strong> has been successfully scheduled. We are excited to support you on your path to peak vitality.</p>
+            
+            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0;">
+                <p style="margin: 0; color: #64748b; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Appointment Details</p>
+                <p style="margin: 12px 0 0 0; font-size: 18px; color: #1e293b;"><strong>Date:</strong> ${formattedDate}</p>
+                <p style="margin: 8px 0 0 0; font-size: 18px; color: #1e293b;"><strong>Time:</strong> ${time}</p>
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                    <p style="margin: 0; color: #14b8a6; font-weight: 700; font-size: 14px;">YOUR UNIQUE BOOKING ID:</p>
+                    <p style="margin: 8px 0 0 0;"><code style="background: #14b8a6; color: #ffffff; padding: 6px 12px; border-radius: 6px; font-size: 18px; font-weight: 700; display: inline-block;">${bookingId}</code></p>
+                </div>
             </div>
-            <p style="background-color: #f0fdfa; border: 1px solid #ccfbf1; padding: 16px; border-radius: 8px; font-size: 14px; color: #0f766e;">
-                <strong>IMPORTANT:</strong> Please keep this Booking ID safe. You will need it to enroll in your 15-week transformation program.
-            </p>
-            <p style="color: #64748b; font-size: 14px; margin-top: 16px;"><strong>Cancellation Policy:</strong> Please note that cancellations must be made at least 24 hours after booking to be eligible for a refund.</p>
+
+            <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 12px; margin-bottom: 24px;">
+                <p style="margin: 0; font-weight: 700; color: #166534;">Next Steps for Your Success:</p>
+                <ul style="margin: 12px 0 0 0; padding-left: 20px; color: #166534; font-size: 14px;">
+                    <li>Please join the session 5 minutes early to ensure a stable connection.</li>
+                    <li>Secure your Booking ID above; it is required for your 15-week program enrollment.</li>
+                    <li>Cancellations are eligible for a refund within 24 hours of booking.</li>
+                </ul>
+            </div>
+
+            <p style="color: #64748b; font-size: 13px; font-style: italic;">At HorizonFit, we believe that personalized care is the cornerstone of sustainable health. We look forward to seeing you soon.</p>
         `;
     } else if (recipientRole === 'doctor') {
-        title = 'New Booking Notification';
+        title = 'New Consultation Scheduled';
         content = `
             <p>Dear ${recipientName},</p>
-            <p>A new consultation has been booked on your schedule by <strong>${otherPartyName}</strong>.</p>
-            <div style="background-color: #f8fafc; border-radius: 12px; padding: 20px; margin: 24px 0;">
-                <p style="margin: 0;"><strong>📅 Date:</strong> ${formattedDate}</p>
-                <p style="margin: 8px 0 0 0;"><strong>⏰ Time:</strong> ${time}</p>
-                <p style="margin: 8px 0 0 0;"><strong>Booking ID:</strong> ${bookingId}</p>
+            <p>A new consultation has been added to your professional schedule.</p>
+            <div style="background-color: #f8fafc; border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #e2e8f0;">
+                <p style="margin: 0;"><strong>Patient:</strong> ${otherPartyName}</p>
+                <p style="margin: 8px 0 0 0;"><strong>Contact:</strong> <a href="tel:${mobileNumber}" style="color: #14b8a6; text-decoration: none; font-weight: 600;">${mobileNumber}</a></p>
+                <p style="margin: 8px 0 0 0;"><strong>Date:</strong> ${formattedDate}</p>
+                <p style="margin: 8px 0 0 0;"><strong>Time:</strong> ${time}</p>
+                <p style="margin: 16px 0 0 0; color: #64748b; font-size: 12px;"><strong>Booking Ref:</strong> ${bookingId}</p>
             </div>
-            <p>Please check your doctor dashboard for patient queries or past medical history associated with this log.</p>
+            <p>Please review the patient's preliminary query and health history on your specialist dashboard prior to the session.</p>
         `;
     } else {
         // Admin
-        title = 'System: Consultation Summary';
+        title = 'System: Consultation Logged';
         content = `
-            <p>New consultation activity reported:</p>
-            <div style="background-color: #f8fafc; border-radius: 12px; padding: 20px; margin: 24px 0;">
-                <p style="margin: 0;"><strong>Patient:</strong> ${recipientName}</p>
-                <p style="margin: 8px 0 0 0;"><strong>Specialist:</strong> ${otherPartyName}</p>
-                <p style="margin: 8px 0 0 0;"><strong>Schedule:</strong> ${formattedDate} at ${time}</p>
-                <p style="margin: 8px 0 0 0;"><strong>Booking ID:</strong> ${bookingId}</p>
+            <p>A new system activity has been recorded:</p>
+            <div style="background-color: #f8fafc; border-radius: 12px; padding: 24px; margin: 24px 0; border: 1px solid #e2e8f0;">
+                <table style="width: 100%;">
+                    <tr><td style="padding: 4px 0; color: #64748b;">Patient:</td><td style="padding: 4px 0; font-weight: 600;">${recipientName}</td></tr>
+                    <tr><td style="padding: 4px 0; color: #64748b;">Contact:</td><td style="padding: 4px 0; font-weight: 600;">${mobileNumber}</td></tr>
+                    <tr><td style="padding: 4px 0; color: #64748b;">Specialist:</td><td style="padding: 4px 0; font-weight: 600;">${otherPartyName}</td></tr>
+                    <tr><td style="padding: 4px 0; color: #64748b;">Schedule:</td><td style="padding: 4px 0; font-weight: 600;">${formattedDate} at ${time}</td></tr>
+                    <tr><td style="padding: 4px 0; color: #64748b;">Reference:</td><td style="padding: 4px 0; font-family: monospace;">${bookingId}</td></tr>
+                </table>
             </div>
         `;
     }

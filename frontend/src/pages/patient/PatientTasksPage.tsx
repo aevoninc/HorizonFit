@@ -288,7 +288,7 @@ export const PatientTasksPage: React.FC = () => {
           </Card>
 
           <div className="space-y-4">
-            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Daily Checklist</h3>
+            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest px-1">Horizon Daily Habits</h3>
             <div className="grid gap-3">
               {HABIT_CODES.map((code, idx) => {
                 const meta = HABIT_META[code];

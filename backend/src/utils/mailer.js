@@ -56,9 +56,9 @@ const sendEmail = async (recipient, subject, text, html) => {
 /**
  * Sends a consultation booking confirmation.
  */
-const sendConsultationBookingEmail = async ({ recipient, personName, otherPartyName, date, time, recipientRole, bookingId }) => {
-    const subject = `Consultation Confirmed - ${date}`;
-    const htmlBody = consultationBookingTemplate(personName, otherPartyName, date, time, recipientRole, bookingId);
+const sendConsultationBookingEmail = async ({ recipient, personName, otherPartyName, date, time, recipientRole, bookingId, mobileNumber }) => {
+    const subject = `Your HorizonFit Consultation Details - ${date}`;
+    const htmlBody = consultationBookingTemplate(personName, otherPartyName, date, time, recipientRole, bookingId, mobileNumber);
     const textBody = `Hello ${personName}, your consultation with ${otherPartyName} is confirmed for ${date} at ${time}. Booking ID: ${bookingId}`;
 
     await sendEmail(recipient, subject, textBody, htmlBody);

@@ -1,24 +1,39 @@
-import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Calendar, Dumbbell, Users, ArrowRight, CheckCircle, Flame, Heart, Award, Stethoscope, ShieldCheck, UserCheck } from 'lucide-react';
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import {
+  Calendar,
+  Dumbbell,
+  Users,
+  ArrowRight,
+  CheckCircle,
+  Flame,
+  Heart,
+  Award,
+  Stethoscope,
+  ShieldCheck,
+  UserCheck,
+} from "lucide-react";
 import logo from "../../public/logo.png";
 
 const features = [
   {
     icon: Dumbbell,
-    title: 'Doctor-Led Program',
-    description: 'A medically-supervised 15-week health transformation designed specifically for your metabolic needs.',
+    title: "Doctor-Led Program",
+    description:
+      "A medically-supervised 15-week health transformation designed specifically for your metabolic needs.",
   },
   {
     icon: Calendar,
-    title: 'Personal Consultations',
-    description: 'One-on-one sessions with our certified health specialists to guide your journey.',
+    title: "Personal Consultations",
+    description:
+      "One-on-one sessions with our certified health specialists to guide your journey.",
   },
   {
     icon: Users,
-    title: 'Expert Medical Guidance',
-    description: 'Our doctors create customized metabolic plans based on your health profile and goals.',
+    title: "Expert Medical Guidance",
+    description:
+      "Our doctors create customized metabolic plans based on your health profile and goals.",
   },
 ];
 
@@ -36,7 +51,8 @@ const programSteps = [
   {
     zone: 3,
     title: "Transformation",
-    description: "Witness significant changes in your body composition and energy",
+    description:
+      "Witness significant changes in your body composition and energy",
   },
   {
     zone: 4,
@@ -46,7 +62,8 @@ const programSteps = [
   {
     zone: 5,
     title: "Freedom",
-    description: "Achieve lasting results and the knowledge to maintain them for life",
+    description:
+      "Achieve lasting results and the knowledge to maintain them for life",
   },
 ];
 
@@ -110,16 +127,21 @@ export const HomePage: React.FC = () => {
               className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2"
             >
               <Stethoscope className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Doctor-Supervised Health Program</span>
+              <span className="text-sm font-medium text-primary">
+                Doctor-Supervised Health Program
+              </span>
             </motion.div>
 
             <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl md:text-6xl">
               <span className="block">Doctor-Led Personalized</span>
-              <span className="block text-gradient-phoenix">Health Transformation</span>
+              <span className="block text-gradient-phoenix">
+                Health Transformation
+              </span>
             </h1>
 
             <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl">
-              Achieve your health goals with a customized 15-week metabolic transformation plan tailored to your unique biology and lifestyle.
+              Achieve your health goals with a customized 15-week metabolic
+              transformation plan tailored to your unique biology and lifestyle.
             </p>
 
             {/* Trust Badges */}
@@ -146,7 +168,7 @@ export const HomePage: React.FC = () => {
             <div className="flex flex-wrap justify-center gap-4">
               <Link to="/enroll">
                 <Button variant="phoenix" size="xl">
-                   Start Your Transformation
+                  Start Your Transformation
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
@@ -177,10 +199,14 @@ export const HomePage: React.FC = () => {
                 variants={itemVariants}
                 className="card-elevated group p-8 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
               >
-                <div className={`mb-6 inline-flex h-14 w-14 items-center justify-center rounded-xl ${index === 0 ? 'gradient-phoenix shadow-phoenix' : 'gradient-teal shadow-teal'}`}>
+                <div
+                  className={`mb-6 inline-flex h-14 w-14 items-center justify-center rounded-xl ${index === 0 ? "gradient-phoenix shadow-phoenix" : "gradient-teal shadow-teal"}`}
+                >
                   <feature.icon className="h-6 w-6 text-primary-foreground" />
                 </div>
-                <h3 className="mb-3 text-xl font-bold text-foreground">{feature.title}</h3>
+                <h3 className="mb-3 text-xl font-bold text-foreground">
+                  {feature.title}
+                </h3>
                 <p className="text-muted-foreground">{feature.description}</p>
               </motion.div>
             ))}
@@ -197,9 +223,13 @@ export const HomePage: React.FC = () => {
             viewport={{ once: true }}
             className="mb-12 text-center"
           >
-            <h2 className="mb-4 text-4xl font-bold text-foreground">The 15-Week Doctor-Designed Journey</h2>
+            <h2 className="mb-4 text-4xl font-bold text-foreground">
+              The 15-Week Doctor-Designed Journey
+            </h2>
             <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-              Our proven 5-zone system, designed by medical professionals, progressively builds your metabolic health ensuring sustainable results.
+              Our proven 5-zone system, designed by medical professionals,
+              progressively builds your metabolic health ensuring sustainable
+              results.
             </p>
           </motion.div>
 
@@ -217,13 +247,21 @@ export const HomePage: React.FC = () => {
                 className="relative"
               >
                 <div className="card-elevated group p-6 text-center transition-all duration-300 hover:-translate-y-1">
-                  <div className={`mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full ${index === 4 ? 'gradient-phoenix' : 'bg-secondary/20'}`}>
-                    <span className={`text-lg font-bold ${index === 4 ? 'text-primary-foreground' : 'text-secondary'}`}>
+                  <div
+                    className={`mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full ${index === 4 ? "gradient-phoenix" : "bg-secondary/20"}`}
+                  >
+                    <span
+                      className={`text-lg font-bold ${index === 4 ? "text-primary-foreground" : "text-secondary"}`}
+                    >
                       {step.zone}
                     </span>
                   </div>
-                  <h3 className="mb-2 font-bold text-foreground">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground">{step.description}</p>
+                  <h3 className="mb-2 font-bold text-foreground">
+                    {step.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {step.description}
+                  </p>
                 </div>
                 {index < 4 && (
                   <div className="absolute right-0 top-1/2 hidden h-0.5 w-4 -translate-y-1/2 translate-x-full bg-border md:block" />
@@ -251,24 +289,31 @@ export const HomePage: React.FC = () => {
                 <h2 className="mb-2 text-3xl font-bold text-secondary-foreground md:text-4xl">
                   DR. M. JABAARRUL
                 </h2>
-                <p className="mb-2 text-xl font-semibold text-secondary-foreground/90">MBBS, AFIH</p>
-                <p className="mb-4 text-lg font-medium text-secondary-foreground/80 italic">Fellowship in Clinical Diabetology</p>
-                <p className="mb-6 text-secondary-foreground/80">
-                  With over 15 years of experience in metabolic health and clinical diabetology, DR. M. JABAARRUL has helped thousands of clients achieve their health transformation goals through personalized doctor-led programs.
+                <p className="mb-2 text-xl font-semibold text-secondary-foreground/90">
+                  MBBS, AFIH
                 </p>
-                <div className="mb-8 grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-secondary-foreground">15+</div>
-                    <div className="text-sm text-secondary-foreground/70">Years Experience</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-secondary-foreground">2000+</div>
-                    <div className="text-sm text-secondary-foreground/70">Clients Transformed</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-secondary-foreground">98%</div>
-                    <div className="text-sm text-secondary-foreground/70">Success Rate</div>
-                  </div>
+                <p className="mb-4 text-lg font-medium text-secondary-foreground/80 italic">
+                  Fellowship in Clinical Diabetology
+                </p>
+                <p className="mb-6 text-secondary-foreground/80">
+                  With over 15 years of experience in metabolic health and
+                  clinical diabetology, Dr. M. Jabaarrul focuses on structured
+                  doctor-led lifestyle transformation and long-term metabolic
+                  health improvement.
+                </p>
+                <div className="mb-8 grid grid-cols-1 gap-3">
+                  {[
+                    "15+ Years Experience",
+                    "Personalized Care",
+                    "Doctor-Led Approach",
+                  ].map((label) => (
+                    <div key={label} className="flex items-center gap-3">
+                      <CheckCircle className="h-5 w-5 shrink-0 text-secondary-foreground" />
+                      <span className="text-secondary-foreground/90 font-medium">
+                        {label}
+                      </span>
+                    </div>
+                  ))}
                 </div>
                 <Link to="/book-consultation">
                   <Button variant="phoenix" size="lg">
@@ -296,7 +341,9 @@ export const HomePage: React.FC = () => {
             viewport={{ once: true }}
             className="mb-12 text-center"
           >
-            <h2 className="mb-4 text-4xl font-bold text-foreground">Why Choose HorizonFit?</h2>
+            <h2 className="mb-4 text-4xl font-bold text-foreground">
+              Why Choose HorizonFit?
+            </h2>
           </motion.div>
 
           <motion.div
@@ -307,10 +354,10 @@ export const HomePage: React.FC = () => {
             className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
           >
             {[
-              { icon: Stethoscope, text: 'Medical Supervision' },
-              { icon: Award, text: 'Certified Professionals' },
-              { icon: Flame, text: 'Proven Results' },
-              { icon: Heart, text: 'Holistic Approach' },
+              { icon: Stethoscope, text: "Medical Supervision" },
+              { icon: Award, text: "Certified Professionals" },
+              { icon: Flame, text: "Proven Results" },
+              { icon: Heart, text: "Holistic Approach" },
             ].map((item) => (
               <motion.div
                 key={item.text}
@@ -320,7 +367,9 @@ export const HomePage: React.FC = () => {
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg gradient-phoenix">
                   <item.icon className="h-5 w-5 text-primary-foreground" />
                 </div>
-                <span className="font-semibold text-foreground">{item.text}</span>
+                <span className="font-semibold text-foreground">
+                  {item.text}
+                </span>
               </motion.div>
             ))}
           </motion.div>
@@ -340,11 +389,15 @@ export const HomePage: React.FC = () => {
               Ready to Start Your Transformation?
             </h2>
             <p className="mx-auto mb-8 max-w-xl text-primary-foreground/90">
-              Join thousands of others who have already transformed their lives with HorizonFit's doctor-personalized programs.
+              Join thousands of others who have already transformed their lives
+              with HorizonFit's doctor-personalized programs.
             </p>
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link to="/enroll">
-                <Button size="xl" className="bg-background text-foreground hover:bg-background/90">
+                <Button
+                  size="xl"
+                  className="bg-background text-foreground hover:bg-background/90"
+                >
                   Start Your Journey
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
@@ -368,7 +421,8 @@ export const HomePage: React.FC = () => {
               © 2024 HorizonFit. All rights reserved.
             </p>
             <p className="text-xs text-secondary">
-              Developed by <span className="font-medium">Javid Shariff</span> (Technical Lead) @ Aevon Inc
+              Developed by <span className="font-medium">Javid Shariff</span>{" "}
+              (Technical Lead) @ Aevon Inc
             </p>
           </div>
         </div>

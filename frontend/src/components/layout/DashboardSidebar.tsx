@@ -42,7 +42,7 @@ const patientNavItems: NavItem[] = [
   { label: 'Daily Habits', path: '/patient/tasks', icon: ClipboardList },
   { label: 'Horizon Guide', path: '/patient/horizon-guide', icon: BookOpen },
   { label: 'Progress History', path: '/patient/progress', icon: BarChart3 },
-  { label: 'Log Data', path: '/patient/log-data', icon: Activity },
+  // { label: 'Log Data', path: '/patient/log-data', icon: Activity },
   { label: 'Book Consultancy', path: '/patient/new-consultation', icon: Calendar },
   { label: 'My Bookings', path: '/patient/bookings', icon: BookOpen },
   { label: 'Profile', path: '/patient/profile', icon: User },
