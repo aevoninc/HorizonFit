@@ -50,13 +50,18 @@ import { useToast } from "@/hooks/use-toast";
 import {
   LineChart,
   Line,
+  AreaChart,
+  Area,
+  ReferenceLine,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   BarChart,
   Bar,
+  Cell,
 } from "recharts";
 import { doctorApi, PatientProgress, HabitCode, HabitGuide, HABIT_CODES } from "@/lib/api";
 import { getZoneName } from "@/lib/zoneUtils";
@@ -394,81 +399,120 @@ export const PatientDetailPage: React.FC = () => {
         onSuccess={fetchPatientProgress}
       />
       {/* Charts */}
+      {/* Enhanced Analytics Section */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="card-elevated">
-          <CardHeader>
-            <CardTitle className="text-lg">Weekly Completion Rate</CardTitle>
+        {/* Weekly Completion Rate - Now as a professional Area Chart */}
+        <Card className="card-elevated border-t-4 border-t-secondary transition-all hover:shadow-xl">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div>
+              <CardTitle className="text-xl font-bold">Activity Pulse</CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">Weekly task completion percentage</p>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-secondary/10 flex items-center justify-center">
+              <Target className="h-5 w-5 text-secondary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
+            <div className="h-72 mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={progressData}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="hsl(var(--border))"
-                  />
+                <AreaChart data={progressData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorCompletion" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--secondary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--secondary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="week"
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    dy={10}
                   />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    domain={[0, 100]}
+                    ticks={[0, 25, 50, 75, 100]}
+                  />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
+                      borderRadius: "12px",
+                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
                     }}
+                    formatter={(value: number) => [`${value}%`, "Completion"]}
                   />
-                  <Line
+                  <ReferenceLine y={80} stroke="hsl(var(--primary))" strokeDasharray="5 5" label={{ position: 'right', value: 'Goal (80%)', fill: 'hsl(var(--primary))', fontSize: 10 }} />
+                  <Area
                     type="monotone"
                     dataKey="completion"
                     stroke="hsl(var(--secondary))"
-                    strokeWidth={3}
-                    dot={{ fill: "hsl(var(--secondary))", strokeWidth: 2 }}
+                    strokeWidth={4}
+                    fillOpacity={1}
+                    fill="url(#colorCompletion)"
+                    animationDuration={1500}
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="card-elevated">
-          <CardHeader>
-            <CardTitle className="text-lg">Zone Progress</CardTitle>
+        {/* Zone Progress - Cleaner Bar Chart with Comparison */}
+        <Card className="card-elevated border-t-4 border-t-primary transition-all hover:shadow-xl">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div>
+              <CardTitle className="text-xl font-bold">Zone Breakdown</CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">Comparing total vs completed tasks per zone</p>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <CheckCircle className="h-5 w-5 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
+            <div className="h-72 mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={zoneData}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="hsl(var(--border))"
-                  />
+                <BarChart data={zoneData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="zone"
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    dy={10}
                   />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                  />
                   <Tooltip
+                    cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }}
                     contentStyle={{
                       backgroundColor: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
+                      borderRadius: "12px",
                     }}
                   />
+                  <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '20px', fontSize: '12px' }} />
                   <Bar
                     dataKey="tasks"
                     fill="hsl(var(--muted))"
-                    name="Total Tasks"
-                    radius={[4, 4, 0, 0]}
+                    name="Target Tasks"
+                    radius={[6, 6, 0, 0]}
+                    barSize={30}
                   />
                   <Bar
                     dataKey="completed"
                     fill="hsl(var(--secondary))"
-                    name="Completed"
-                    radius={[4, 4, 0, 0]}
+                    name="Success Rate"
+                    radius={[6, 6, 0, 0]}
+                    barSize={30}
+                    animationDuration={2000}
                   />
                 </BarChart>
               </ResponsiveContainer>

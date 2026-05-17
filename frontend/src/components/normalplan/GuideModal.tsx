@@ -30,7 +30,7 @@ export const HABIT_META: Record<HabitCode, {
         color: "text-blue-500",
         bgGradient: "from-blue-50 to-cyan-50",
         border: "border-blue-200",
-        description: "Drink at least 3L of water",
+        description: "Maintain good hydration",
     },
     Nutrition: {
         icon: Salad,
@@ -38,7 +38,7 @@ export const HABIT_META: Record<HabitCode, {
         color: "text-green-500",
         bgGradient: "from-green-50 to-emerald-50",
         border: "border-green-200",
-        description: "Follow your prescribed meal plan",
+        description: "Follow your nutrition plan",
     },
     Exercise: {
         icon: Dumbbell,
@@ -46,7 +46,7 @@ export const HABIT_META: Record<HabitCode, {
         color: "text-orange-500",
         bgGradient: "from-orange-50 to-amber-50",
         border: "border-orange-200",
-        description: "Complete your daily workout",
+        description: "Complete your workout",
     },
     Sleep: {
         icon: Moon,
@@ -54,7 +54,7 @@ export const HABIT_META: Record<HabitCode, {
         color: "text-indigo-500",
         bgGradient: "from-indigo-50 to-violet-50",
         border: "border-indigo-200",
-        description: "Get 7-8 hours of quality sleep",
+        description: "Get quality sleep",
     },
     Mindset: {
         icon: Brain,
@@ -62,7 +62,7 @@ export const HABIT_META: Record<HabitCode, {
         color: "text-purple-500",
         bgGradient: "from-purple-50 to-fuchsia-50",
         border: "border-purple-200",
-        description: "Practice your mindfulness drills",
+        description: "Follow your mindset practice",
     },
 };
 
