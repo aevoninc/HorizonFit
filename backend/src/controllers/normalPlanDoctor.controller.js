@@ -11,6 +11,7 @@ import WeeklyLog from "../model/normalPlanModels/weeklyLog.model.js";
 import mongoose from "mongoose";
 // import Patient = require('../models/Patient');
 
+import HabitGuide from "../model/habitGuide.model.js";
 import HabitLog from "../model/habitLog.model.js";
 import calculateRecommendations from "../utils/healthCalculations.js";
 
@@ -71,9 +72,9 @@ const getNormalPlanPatients = async (req, res) => {
         );
         const daysSinceLastLog = lastDailyLog
           ? Math.floor(
-              (Date.now() - new Date(lastDailyLog.date).getTime()) /
-                (24 * 60 * 60 * 1000),
-            )
+            (Date.now() - new Date(lastDailyLog.date).getTime()) /
+            (24 * 60 * 60 * 1000),
+          )
           : 999;
 
         // Dynamic status logic
@@ -105,9 +106,9 @@ const getNormalPlanPatients = async (req, res) => {
           programStartDate: user.programStartDate,
           latestMetrics: latestMetrics
             ? {
-                weight: latestMetrics.value,
-                loggedAt: latestMetrics.dateRecorded,
-              }
+              weight: latestMetrics.value,
+              loggedAt: latestMetrics.dateRecorded,
+            }
             : null,
           activeDaysThisWeek: habitLogs.length,
           weeklyLogs: weeklyLogs.slice(0, 5),
@@ -158,10 +159,9 @@ const getNormalPlanPatientDetail = async (req, res) => {
       .populate("metricsId")
       .sort({ submittedAt: -1 });
 
-    // Get all daily logs from HabitLog (last 30 days)
+    // Get all daily logs from HabitLog
     const habitLogs = await HabitLog.find({
       patientId,
-      date: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
     }).sort({ date: -1 });
 
     // Map HabitLog to what frontend expects for DailyLog
@@ -173,6 +173,7 @@ const getNormalPlanPatientDetail = async (req, res) => {
       date: log.date,
       // We map completedHabits length since frontend expects completedTasks array
       completedTasks: log.completedHabits || [],
+      habitDetails: log.habitDetails || [],
       notes: log.notes,
       mood: log.mood,
       createdAt: log.createdAt,
@@ -185,6 +186,22 @@ const getNormalPlanPatientDetail = async (req, res) => {
 
     // Get custom tasks
     const customTasks = normalPlanPatient.customTasks || [];
+    // Fetch habit guides for checklist tasks across all zones
+    const allGuides = await HabitGuide.find({
+      $or: [{ patientId: null }, { patientId }]
+    });
+
+    const habitGuidesMap = new Map();
+    allGuides.forEach(guide => {
+      const key = `${guide.zone}-${guide.habitCode}`;
+      const existing = habitGuidesMap.get(key);
+      // Let patient-specific override take precedence
+      if (!existing || guide.patientId) {
+        habitGuidesMap.set(key, guide);
+      }
+    });
+    const habitGuides = Array.from(habitGuidesMap.values());
+
     // Normalize latest metrics
     let normalizedMetrics = {
       weight: null,
@@ -223,6 +240,7 @@ const getNormalPlanPatientDetail = async (req, res) => {
       dailyLogs,
       recommendations,
       customTasks,
+      habitGuides,
     });
   } catch (error) {
     console.error("Error fetching patient detail:", error);
@@ -668,9 +686,9 @@ const getDailyActivityReport = async (req, res) => {
 
         const daysSinceLastLog = lastLog
           ? Math.floor(
-              (Date.now() - new Date(lastLog.date).getTime()) /
-                (24 * 60 * 60 * 1000),
-            )
+            (Date.now() - new Date(lastLog.date).getTime()) /
+            (24 * 60 * 60 * 1000),
+          )
           : null;
 
         return {

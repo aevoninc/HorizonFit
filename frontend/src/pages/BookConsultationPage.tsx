@@ -624,10 +624,7 @@ export const BookConsultationPage: React.FC = () => {
                         <Check className="h-4 w-4 text-green-500" />
                         Instant booking confirmation
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Check className="h-4 w-4 text-green-500" />
-                        Free cancellation up to 24h before
-                      </div>
+
                     </div>
 
                     <div className="flex gap-3">

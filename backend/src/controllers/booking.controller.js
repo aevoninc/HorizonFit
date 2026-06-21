@@ -87,13 +87,13 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
     amountPaid: CONSULTANCY_BOOKING_PRICE,
   });
 
-    // 5. Final Success Response
+  // 5. Final Success Response
   res.status(201).json({
     message: "Consultation booked successfully!",
     bookingId: booking._id,
     transactionId: paymentToken,
   });
-  
+
   // Fire and forget emails so the user doesn't wait
   // ✅ Corrected Controller Call
   try {
@@ -102,10 +102,12 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
       sendConsultationBookingEmail({
         recipient: DOCTOR_EMAIL,
         personName: `Dr. ${DOCTOR_NAME}`,
-        otherPartyName: name, 
+        otherPartyName: name,
         date: requestedDateTime,
         time: new Date(requestedDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        recipientRole: 'doctor'
+        recipientRole: 'doctor',
+        bookingId: booking._id,
+        mobileNumber: mobileNumber,
       }),
 
       // 2. Email to Admin
@@ -115,9 +117,10 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
         otherPartyName: name,
         date: requestedDateTime,
         time: new Date(requestedDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        recipientRole: 'admin'
+        recipientRole: 'admin',
+        bookingId: booking._id,
+        mobileNumber: mobileNumber,
       }),
-
       // 3. Email to Patient
       sendConsultationBookingEmail({
         recipient: email,
@@ -125,7 +128,8 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
         otherPartyName: `Dr. ${DOCTOR_NAME}`,
         date: requestedDateTime,
         time: new Date(requestedDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        recipientRole: 'patient'
+        recipientRole: 'patient',
+        bookingId: booking._id,
       }),
     ])
 

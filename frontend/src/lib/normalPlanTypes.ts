@@ -2,6 +2,7 @@
 
 export interface BodyMetrics {
   id?: string;
+  _id?: string;
   weight: number; // kg
   bodyFatPercentage: number; // %
   visceralFat: number; // 1-59 scale
@@ -44,6 +45,7 @@ export interface ZoneData {
 
 export interface ZoneVideo {
   id: string;
+  _id?: string;
   title: string;
   description: string;
   videoUrl: string;
@@ -68,6 +70,7 @@ export interface HorizonGuideVideo {
 
 export interface WeeklyLog {
   id?: string;
+  _id?: string;
   weekNumber: number;
   zoneNumber: number;
   metrics: BodyMetrics;

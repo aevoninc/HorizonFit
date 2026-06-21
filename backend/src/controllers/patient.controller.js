@@ -366,6 +366,7 @@ const requestConsultation = asyncHandler(async (req, res) => {
         }),
         recipientRole: "doctor",
         bookingId: booking._id,
+        mobileNumber: mobileNumber,
       }),
 
       // 2. Email to Admin
@@ -380,6 +381,7 @@ const requestConsultation = asyncHandler(async (req, res) => {
         }),
         recipientRole: "admin",
         bookingId: booking._id,
+        mobileNumber: mobileNumber,
       }),
 
       // 3. Email to Patient

@@ -104,9 +104,10 @@ export const PatientBookingsPage: React.FC = () => {
           : 'Your booking has been cancelled.',
       });
     } catch (error: any) {
+      console.error(error.response?.data?.message)
       toast({
         title: 'Cancellation Failed',
-        description: error.response?.data?.message || 'Failed to cancel booking.',
+        description: 'Failed to cancel booking. Please contact the admin',
         variant: 'destructive',
       });
     } finally {

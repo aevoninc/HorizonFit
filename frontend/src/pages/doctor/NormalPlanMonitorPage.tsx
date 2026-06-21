@@ -223,6 +223,7 @@ export const NormalPlanMonitorPage: React.FC = () => {
       setIsZoneOverrideModalOpen(false);
       setNewZone("");
       setOverrideReason("");
+      console.log(patientDetail)
       await fetchData();
       if (patientDetail) {
         await fetchPatientDetail(selectedPatient.id);
@@ -258,9 +259,9 @@ export const NormalPlanMonitorPage: React.FC = () => {
     avgCompliance:
       patients.length > 0
         ? Math.round(
-            patients.reduce((acc, p) => acc + p.complianceRate, 0) /
-              patients.length,
-          )
+          patients.reduce((acc, p) => acc + p.complianceRate, 0) /
+          patients.length,
+        )
         : 0,
     activeToday: dailyReport?.activeToday || 0,
   };
@@ -815,19 +816,34 @@ export const NormalPlanMonitorPage: React.FC = () => {
                                       day: "numeric",
                                     })}
                                   </p>
-                                  <div className="flex flex-wrap gap-2 mt-2">
+                                  <div className="flex flex-col gap-2 mt-3">
                                     {["Hydration", "Nutrition", "Exercise", "Sleep", "Mindset"].map((habit) => {
+                                      const detail = log.habitDetails?.find(hd => hd.habitCode === habit);
                                       const isDone = log.completedTasks?.some(
                                         (h: any) => (typeof h === 'string' ? h : h.habitCode) === habit
-                                      );
+                                      ) || detail?.mainTicked;
+
+                                      const guideTasks = patientDetail.habitGuides?.find(hg => hg.habitCode === habit && hg.zone === log.zoneNumber)?.tasks || [];
+                                      const completedSubTasks = detail?.completedTasks || [];
+                                      const combinedTasks = guideTasks.length > 0 ? guideTasks.map(t => t.taskName) : completedSubTasks;
+
                                       return (
-                                        <div 
-                                          key={habit} 
-                                          className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium ${
-                                            isDone ? "bg-green-100 text-green-700 border border-green-200" : "bg-gray-100 text-gray-400 border border-gray-200"
-                                          }`}
-                                        >
-                                          {habit} {isDone ? "✓" : "✗"}
+                                        <div key={habit} className={`flex flex-col p-2.5 rounded-md border ${isDone ? "border-green-100 bg-green-50/30" : "border-gray-100 bg-gray-50/50"}`}>
+                                          <div className={`font-semibold text-sm flex items-center gap-1.5 ${isDone ? "text-green-700" : "text-gray-500"}`}>
+                                            {habit} {isDone ? "✓" : "✗"}
+                                          </div>
+                                          {combinedTasks.length > 0 && (
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs mt-1.5 pl-1">
+                                              {combinedTasks.map((taskName, idx) => {
+                                                const isSubTaskDone = completedSubTasks.includes(taskName);
+                                                return (
+                                                  <span key={idx} className={`flex items-center gap-1 ${isSubTaskDone ? "text-green-600 font-medium" : "text-red-500"}`}>
+                                                    {taskName} {isSubTaskDone ? "✓" : "✗"}
+                                                  </span>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })}

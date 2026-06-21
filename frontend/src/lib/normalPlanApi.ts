@@ -1,9 +1,9 @@
 // Normal Plan API - Frontend API calls for Normal Plan feature
 import { api } from './api';
-import { 
-  BodyMetrics, 
-  HealthRecommendations, 
-  WeeklyLog, 
+import {
+  BodyMetrics,
+  HealthRecommendations,
+  WeeklyLog,
   ZoneVideo,
   HorizonGuideVideo,
   DIYTask,
@@ -29,10 +29,16 @@ export interface SubmitMetricsResponse {
 
 export interface DailyLog {
   id: string;
+  _id?: string;
   patientId: string;
   zoneNumber: number;
   date: string;
-  completedTasks: DIYTask[];
+  completedTasks: any[];
+  habitDetails?: {
+    habitCode: string;
+    completedTasks: string[];
+    mainTicked: boolean;
+  }[];
   notes?: string;
   mood?: 'great' | 'good' | 'okay' | 'bad' | 'terrible';
   createdAt: string;
@@ -40,9 +46,9 @@ export interface DailyLog {
 
 export const normalPlanPatientApi = {
   // Get full progress
-  getProgress: () => 
-    api.get<NormalPlanProgress & { 
-      canEnterMetrics: boolean; 
+  getProgress: () =>
+    api.get<NormalPlanProgress & {
+      canEnterMetrics: boolean;
       daysSinceLastMetrics: number;
       daysUntilNextMetrics: number;
     }>('/patient/normal-plan/progress'),
@@ -99,6 +105,7 @@ export const normalPlanPatientApi = {
 
 export interface NormalPlanPatientSummary {
   id: string;
+  _id?: string;
   name: string;
   email: string;
   mobile?: string;
@@ -124,6 +131,7 @@ export interface NormalPlanPatientSummary {
 export interface NormalPlanPatientDetail {
   patient: {
     id: string;
+    _id?: string;
     name: string;
     email: string;
     currentZone: number;
@@ -139,6 +147,12 @@ export interface NormalPlanPatientDetail {
   dailyLogs: DailyLog[];
   recommendations: HealthRecommendations | null;
   customTasks: any[];
+  habitGuides?: {
+    habitCode: string;
+    zone: number;
+    tasks: { taskName: string }[];
+  }[];
+  normalizedMetrics?: any;
 }
 
 export interface DailyActivityReport {
