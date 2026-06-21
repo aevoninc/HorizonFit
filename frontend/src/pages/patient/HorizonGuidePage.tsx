@@ -31,7 +31,7 @@ import {
   HorizonGuideVideo,
   HORIZON_GUIDE_CATEGORIES,
 } from "@/lib/normalPlanTypes";
-import { normalPlanPatientApi } from "@/lib/normalPlanApi";
+import { getLocalGuideVideos } from "@/lib/videoAssets";
 
 const iconMap: Record<string, React.ElementType> = {
   Calculator,
@@ -59,10 +59,15 @@ export const HorizonGuidePage: React.FC = () => {
   const fetchVideos = async () => {
     try {
       setLoading(true);
-      const response = await normalPlanPatientApi.getHorizonGuideVideos(
-        activeCategory === "all" ? undefined : activeCategory
-      );
-      setVideos(response.data);
+      if (activeCategory === "all") {
+        let allVideos: HorizonGuideVideo[] = [];
+        HORIZON_GUIDE_CATEGORIES.forEach(c => {
+          allVideos = [...allVideos, ...getLocalGuideVideos(c.value)];
+        });
+        setVideos(allVideos);
+      } else {
+        setVideos(getLocalGuideVideos(activeCategory));
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -86,8 +91,8 @@ export const HorizonGuidePage: React.FC = () => {
   const getCategoryIcon = (category: string) => {
     const Icon =
       iconMap[
-        HORIZON_GUIDE_CATEGORIES.find((c) => c.value === category)?.icon ||
-          "BookOpen"
+      HORIZON_GUIDE_CATEGORIES.find((c) => c.value === category)?.icon ||
+      "BookOpen"
       ] || BookOpen;
     return Icon;
   };
@@ -261,12 +266,22 @@ export const HorizonGuidePage: React.FC = () => {
           </DialogHeader>
           <div className="aspect-video bg-black">
             {selectedVideo?.videoUrl ? (
-              <iframe
-                src={selectedVideo.videoUrl}
-                className="h-full w-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+              selectedVideo.videoUrl.endsWith('.mp4') ? (
+                <video
+                  src={selectedVideo.videoUrl}
+                  className="h-full w-full"
+                  controls
+                  controlsList="nodownload"
+                  autoPlay
+                />
+              ) : (
+                <iframe
+                  src={selectedVideo.videoUrl}
+                  className="h-full w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              )
             ) : (
               <div className="flex h-full items-center justify-center text-white">
                 <div className="text-center">

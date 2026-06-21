@@ -149,11 +149,11 @@ export const PatientTasksPage: React.FC = () => {
 
   const handleVideoComplete = async (videoId: string) => {
     try {
-      await normalPlanPatientApi.markVideoWatched(videoId);
-      loadData();
-      toast({ title: "Video marked as watched!" });
+      // await normalPlanPatientApi.markVideoWatched(videoId);
+      // loadData();
+      // toast({ title: "Video marked as watched!" });
     } catch {
-      toast({ title: "Failed to update video status", variant: "destructive" });
+      // toast({ title: "Failed to update video status", variant: "destructive" });
     }
   };
 
