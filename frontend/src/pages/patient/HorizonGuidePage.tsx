@@ -105,6 +105,22 @@ export const HorizonGuidePage: React.FC = () => {
     );
   }
 
+  const getMappedLabel = (label: string): string => {
+    switch (label.split(" ").slice(-1)[0]) {
+      case "Workouts":
+        return "Exercise";
+      case "Planning":
+        return "Hydration";
+      case "Nutrition":
+        return "Sleep";
+      case "Optimization":
+        return "Sleep";
+      case "Building":
+        return "Mindset";
+      default:
+        return label.split(" ").slice(-1)[0] === "Calories" ? "Nutrition" : label.split(" ").slice(-1)[0];
+    }
+  };
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -163,7 +179,9 @@ export const HorizonGuidePage: React.FC = () => {
               >
                 <Icon className="h-4 w-4" />
                 <span className="hidden sm:inline">
-                  {category.label.split(" ").slice(-1)[0]}
+                  {/* {category.label.split(" ").slice(-1)[0] == "Calories" ? "Nutrition" : category.label == "Workouts" ? "Exercise" :
+                    category.label == "Planning" ? "Exercise" : category.label == "Nutrition" ? "Sleep" : category.label == "Sleep" ? "Mindset" : ""} */}
+                  {getMappedLabel(category.label)}
                 </span>
                 <Badge
                   variant="secondary"

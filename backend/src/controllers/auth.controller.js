@@ -102,7 +102,8 @@ const authLogin = asyncHandler(async (req, res) => {
       user: {
         _id: user._id,
         email: user.email,
-        name: user.name, // Make sure name is in your schema!
+        name: user.name,
+        assignedCategory: user.assignedCategory || null,
       },
       role: user.role,
       planTier: user.planTier || "normal",
@@ -184,7 +185,6 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 const getMe = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
-
   if (!user) {
     return res.status(404).json({ message: "User not found" });
   }
@@ -194,6 +194,7 @@ const getMe = asyncHandler(async (req, res) => {
       _id: user._id,
       email: user.email,
       name: user.name,
+      assignedCategory: user.assignedCategory || null,
     },
     role: user.role,
     planTier: user.planTier || "normal",

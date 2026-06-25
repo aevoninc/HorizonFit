@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle,
@@ -14,7 +14,7 @@ import {
   X,
   Target,
   Send,
-  Video,
+  FolderOpen,
   Activity,
   CalendarCheck,
   RefreshCw,
@@ -30,6 +30,8 @@ import { NormalPlanProgress, BodyMetrics, WeeklyLog } from "@/lib/normalPlanType
 
 import { GuideModal, HABIT_META } from "@/components/normalplan/GuideModal";
 import { getZoneName, getZoneMotivation } from "@/lib/zoneUtils";
+import { useAuth } from "@/contexts/AuthContext";
+import { getLocalZonePDFs } from "@/lib/videoAssets";
 
 // Components for other features
 import { ZoneNavigator } from "@/components/normalplan/ZoneNavigator";
@@ -42,6 +44,7 @@ import { DailyCountdown } from "@/components/normalplan/DailyCountdown";
 
 export const PatientTasksPage: React.FC = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const [programStatus, setProgramStatus] = useState<ProgramStatus>({
     currentZone: 1,
@@ -176,6 +179,8 @@ export const PatientTasksPage: React.FC = () => {
       toast({ title: "Failed to submit weekly log", variant: "destructive" });
     }
   };
+  const currentViewerZoneData = npProgress?.zones.find(z => z.zoneNumber === selectedViewerZone);
+  const currentZonePDFs = useMemo(() => getLocalZonePDFs(selectedViewerZone), [selectedViewerZone]);
 
   if (loadingPage) {
     return (
@@ -188,7 +193,6 @@ export const PatientTasksPage: React.FC = () => {
     );
   }
 
-  const currentViewerZoneData = npProgress?.zones.find(z => z.zoneNumber === selectedViewerZone);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="container max-w-5xl mx-auto space-y-8 pb-12">
@@ -218,7 +222,7 @@ export const PatientTasksPage: React.FC = () => {
             <Target className="h-4 w-4" /> Habits
           </TabsTrigger>
           <TabsTrigger value="videos" className="rounded-xl gap-2 font-bold data-[state=active]:shadow-lg">
-            <Video className="h-4 w-4" /> Videos
+            <FolderOpen className="h-4 w-4" /> Resources
           </TabsTrigger>
           {/* <TabsTrigger value="metrics" className="rounded-xl gap-2 font-bold data-[state=active]:shadow-lg">
             <Activity className="h-4 w-4" /> Metrics
@@ -433,9 +437,11 @@ export const PatientTasksPage: React.FC = () => {
         <TabsContent value="videos" className="focus-visible:outline-none">
           <ZoneVideoPlayer
             videos={currentViewerZoneData?.requiredVideos || []}
+            pdfs={currentZonePDFs}
             zoneName={currentViewerZoneData?.zoneName || getZoneName(selectedViewerZone)}
             isZoneLocked={false}
             onVideoComplete={handleVideoComplete}
+            patientCategory={user?.assignedCategory}
           />
         </TabsContent>
 
@@ -470,7 +476,7 @@ export const PatientTasksPage: React.FC = () => {
             completedTasks={0} // This is the old task logic, can be 0 or calculated
             totalTasks={0}
             canSubmit={true}
-            allLogs={npProgress.weeklyLogs}
+            allLogs={npProgress.weeklyLogs || []}
             onSubmit={handleWeeklyLogSubmit}
           />
         </TabsContent>
