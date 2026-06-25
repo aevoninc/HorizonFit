@@ -28,7 +28,7 @@ const UserSchema = new mongoose.Schema(
     },
     assignedCategory: {
       type: String,
-      enum: ["Weight Gain", "Weight Loss", null],
+      enum: ["Weight Gain", "Weight Loss", "Pre diabetic", null],
       default: null,
     }, // e.g., 'Weight Loss'
     planTier: {

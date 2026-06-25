@@ -80,6 +80,68 @@ export const getLocalZoneVideoUrl = (zoneNumber: number, title: string): string 
     return null;
 };
 
+// ─── Zone PDFs ────────────────────────────────────────────────────────────────
+export const ZONE_PDFS_MAP: Record<number, string[]> = {
+    1: [
+        "3. Zone 1 -DIY- Hydration tracker pdf.pdf",
+        "5. Zone-1 Nutrition template.pdf",
+        "7. ZONE-1-Exercise-Blueprint-Tracker.pdf",
+        "9. Horizon-Fit-21-Day-Zone-1-Hydration-Tracker.pdf",
+        "11. Horizon-Fit-Zone-1-Sleep-Tracker.pdf",
+        "13. Horizon-Fit-Zone-1-Mindset-Tracker.pdf",
+        "15. Horizon-Daily-Code-Zone-1-Workbook.pdf",
+    ],
+    2: [
+        "3. Zone 2 - DIY -Sleep tracker pdf.pdf",
+        "5. Personal-Nutrition-Calculator-ZONE-2.pdf",
+        "7. ZONE-2-Exercise-Blueprint-Tracker.pdf",
+        "9. Horizon-Fit-21-Day-Zone-2-Hydration-Tracker.pdf",
+        "11. Horizon-Fit-Zone-2-Sleep-Tracker.pdf",
+        "13. Horizon-Fit-Zone-2-Mindset-Tracker.pdf",
+        "15. Horizon-Daily-Code-Zone-2-Workbook.pdf",
+    ],
+    3: [
+        "3. Zone 3 - DIY -Nutrition tracker pdf.pdf",
+        "5. Personal-Nutrition-Calculator-ZONE-3.pdf",
+        "7. ZONE-3-Exercise-Blueprint-Tracker.pdf",
+        "9. Horizon-Fit-21-Day-Zone-3-Hydration-Tracker.pdf",
+        "11. Horizon-Fit-Zone-3-Sleep-Tracker.pdf",
+        "13. Horizon-Fit-Zone-3-Mindset-Tracker.pdf",
+        "15. Horizon-Daily-Code-Zone-3-Workbook.pdf",
+    ],
+    4: [
+        "3. Zone 4 - DIY -Exercise tracker pdf.pdf",
+        "5. Personal-Nutrition-Calculator-ZONE-4.pdf",
+        "7. ZONE-4-Exercise-Blueprint-Tracker.pdf",
+        "9. Horizon-Fit-21-Day-Zone-4-Hydration-Tracker.pdf",
+        "11. Horizon-Fit-Zone-4-Sleep-Tracker.pdf",
+        "13. Horizon-Fit-Zone-4-Mindset-Tracker.pdf",
+        "15. Horizon-Daily-Code-Zone-4-Workbook.pdf",
+    ],
+    5: [
+        "3. Zone 5 - DIY -Mindset tracker pdf.pdf",
+        "5. Personal-Nutrition-Calculator-ZONE-5.pdf",
+        "7. ZONE-5-Exercise-Blueprint-Tracker.pdf",
+        "9. Horizon-Fit-21-Day-Zone-5-Hydration-Tracker.pdf",
+        "11. Horizon-Fit-Zone-5-Sleep-Tracker.pdf",
+        "13. Horizon-Fit-Zone-5-Mindset-Tracker.pdf",
+        "15. Horizon-Daily-Code-Zone-5-Workbook.pdf",
+    ],
+};
+
+import { ZonePDF } from './normalPlanTypes';
+
+export const getLocalZonePDFs = (zoneNumber: number): ZonePDF[] => {
+    const files = ZONE_PDFS_MAP[zoneNumber] || [];
+    return files.map((f, i) => ({
+        id: `pdf-zone-${zoneNumber}-${i}`,
+        title: f.replace('.pdf', '').replace(/^[0-9]+\.\s*/, ''),
+        pdfUrl: `/horizonFitVideos/Zone- ${zoneNumber}/${f}`,
+        zoneNumber,
+        order: i,
+    }));
+};
+
 // Map backend categories to folder structure
 export const GUIDE_CATEGORY_MAPPING: Record<string, string> = {
     'calories': '1. Nutrition',

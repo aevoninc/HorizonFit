@@ -8,32 +8,44 @@ import {
   ChevronRight,
   Video,
   X,
+  FileText,
+  Download,
+  FolderOpen,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { ZoneVideo } from '@/lib/normalPlanTypes';
+import { ZoneVideo, ZonePDF } from '@/lib/normalPlanTypes';
 import { getLocalZoneVideoUrl, START_HERE_VIDEOS, ZONE_VIDEOS_MAP } from '@/lib/videoAssets';
 
 interface ZoneVideoPlayerProps {
   videos: ZoneVideo[];
+  pdfs?: ZonePDF[];
   zoneName: string;
   isZoneLocked: boolean;
   onVideoComplete: (videoId: string) => void;
+  patientCategory?: string | null;
 }
 
 export const ZoneVideoPlayer: React.FC<ZoneVideoPlayerProps> = ({
   videos,
+  pdfs = [],
   zoneName,
   isZoneLocked,
   onVideoComplete,
+  patientCategory,
 }) => {
   const [selectedVideo, setSelectedVideo] = useState<ZoneVideo | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  const isWeightLoss = patientCategory === 'Weight Loss';
+  const hasContent = isWeightLoss; // show content if category is null/undefined (fallback)
+
   const augmentedVideos = useMemo(() => {
+    if (!hasContent) return [];
+
     let result = [...videos];
     let manualZoneNumber = 1;
     if (zoneName.includes('2')) manualZoneNumber = 2;
@@ -89,7 +101,7 @@ export const ZoneVideoPlayer: React.FC<ZoneVideoPlayerProps> = ({
       const localUrl = getLocalZoneVideoUrl(v.zoneNumber, v.title);
       return { ...v, videoUrl: localUrl || v.videoUrl };
     }).sort((a, b) => a.order - b.order);
-  }, [videos, zoneName]);
+  }, [videos, zoneName, hasContent]);
 
   const completedCount = augmentedVideos.filter(v => v.isWatched).length;
   const requiredCount = augmentedVideos.filter(v => v.isRequired).length;
@@ -110,21 +122,25 @@ export const ZoneVideoPlayer: React.FC<ZoneVideoPlayerProps> = ({
     setSelectedVideo(null);
   };
 
+  const handleDownloadPdf = (pdf: ZonePDF) => {
+    window.open(pdf.pdfUrl, '_blank');
+  };
+
   return (
     <>
       <Card className="card-elevated overflow-hidden">
         <CardHeader className={isZoneLocked ? 'bg-muted/50' : 'gradient-phoenix'}>
           <div className="flex items-center justify-between">
             <CardTitle className={`flex items-center gap-2 text-lg ${isZoneLocked ? 'text-muted-foreground' : 'text-white'}`}>
-              <Video className="h-5 w-5" />
-              {zoneName} Videos
+              <FolderOpen className="h-5 w-5" />
+              {zoneName} Resources
             </CardTitle>
             {isZoneLocked ? (
               <Badge variant="secondary" className="gap-1">
                 <Lock className="h-3 w-3" />
                 Locked
               </Badge>
-            ) : allRequiredComplete ? (
+            ) : !hasContent ? null : allRequiredComplete ? (
               <Badge className="gap-1 bg-green-500">
                 <CheckCircle className="h-3 w-3" />
                 Complete
@@ -135,7 +151,7 @@ export const ZoneVideoPlayer: React.FC<ZoneVideoPlayerProps> = ({
               </Badge>
             )}
           </div>
-          {!isZoneLocked && (
+          {!isZoneLocked && hasContent && (
             <Progress value={progress} className="mt-3 h-2 bg-white/20" />
           )}
         </CardHeader>
@@ -144,79 +160,152 @@ export const ZoneVideoPlayer: React.FC<ZoneVideoPlayerProps> = ({
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Lock className="h-12 w-12 text-muted-foreground" />
               <p className="mt-4 font-medium text-muted-foreground">
-                Complete previous zone to unlock these videos
+                Complete previous zone to unlock these resources
               </p>
             </div>
-          ) : augmentedVideos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Video className="h-12 w-12 text-muted-foreground" />
-              <p className="mt-4 text-muted-foreground">
-                No videos available for this zone yet
+          ) : !hasContent ? (
+            /* ── Placeholder for non-Weight-Loss categories ── */
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-100 to-orange-100 mb-4">
+                <FolderOpen className="h-10 w-10 text-amber-500" />
+              </div>
+              <h3 className="text-lg font-bold text-foreground">Content Coming Soon!</h3>
+              <p className="mt-2 text-muted-foreground max-w-md">
+                Resources for your program category are being prepared.
+                You'll be notified when they're available.
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {augmentedVideos.map((video, index) => (
-                <motion.div
-                  key={video._id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className={`group flex items-center gap-4 rounded-lg border p-3 transition-all cursor-pointer ${video.isWatched
-                    ? 'border-green-200 bg-green-50/50'
-                    : 'border-border hover:border-primary/30 hover:bg-muted/30'
-                    }`}
-                  onClick={() => handlePlayVideo(video)}
-                >
-                  {/* Thumbnail */}
-                  <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-muted">
-                    {video.thumbnailUrl ? (
-                      <img
-                        src={video.thumbnailUrl}
-                        alt={video.title}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center gradient-teal">
-                        <Video className="h-6 w-6 text-white" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
-                      <Play className="h-6 w-6 text-white" />
-                    </div>
-                  </div>
+            <div className="space-y-6">
+              {/* ── Videos Section ── */}
+              {augmentedVideos.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
+                    <Video className="h-4 w-4" />
+                    Videos
+                  </h3>
+                  <div className="space-y-3">
+                    {augmentedVideos.map((video, index) => (
+                      <motion.div
+                        key={video._id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className={`group flex items-center gap-4 rounded-lg border p-3 transition-all cursor-pointer ${video.isWatched
+                          ? 'border-green-200 bg-green-50/50'
+                          : 'border-border hover:border-primary/30 hover:bg-muted/30'
+                          }`}
+                        onClick={() => handlePlayVideo(video)}
+                      >
+                        {/* Thumbnail */}
+                        <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-muted">
+                          {video.thumbnailUrl ? (
+                            <img
+                              src={video.thumbnailUrl}
+                              alt={video.title}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center gradient-teal">
+                              <Video className="h-6 w-6 text-white" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
+                            <Play className="h-6 w-6 text-white" />
+                          </div>
+                        </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-foreground truncate">
-                        {video.title}
-                      </p>
-                      {video.isRequired && !video.isWatched && (
-                        <Badge variant="destructive" className="text-xs shrink-0">
-                          Required
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-sm text-muted-foreground truncate">
-                      {video.description}
-                    </p>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {video.duration}
-                    </div>
-                  </div>
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-foreground truncate">
+                              {video.title}
+                            </p>
+                            {video.isRequired && !video.isWatched && (
+                              <Badge variant="destructive" className="text-xs shrink-0">
+                                Required
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="mt-0.5 text-sm text-muted-foreground truncate">
+                            {video.description}
+                          </p>
+                          <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {video.duration}
+                          </div>
+                        </div>
 
-                  {/* Status */}
-                  <div className="shrink-0">
-                    {video.isWatched ? (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
-                    )}
+                        {/* Status */}
+                        <div className="shrink-0">
+                          {video.isWatched ? (
+                            <CheckCircle className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                          )}
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
-                </motion.div>
-              ))}
+                </div>
+              )}
+
+              {/* ── PDFs Section ── */}
+              {pdfs.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 px-1">
+                    <FileText className="h-4 w-4" />
+                    Downloadable PDFs
+                  </h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {pdfs.map((pdf, index) => (
+                      <motion.div
+                        key={pdf.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.04 }}
+                      >
+                        <Card
+                          className="group cursor-pointer border-2 border-transparent hover:border-secondary/30 hover:shadow-md transition-all"
+                          onClick={() => handleDownloadPdf(pdf)}
+                        >
+                          <CardContent className="p-4 flex items-center gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 group-hover:bg-red-100 transition-colors">
+                              <FileText className="h-6 w-6 text-red-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-foreground text-sm truncate">
+                                {pdf.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5">PDF Document</p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0 h-9 w-9 rounded-full hover:bg-secondary/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadPdf(pdf);
+                              }}
+                            >
+                              <Download className="h-4 w-4 text-secondary" />
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {augmentedVideos.length === 0 && pdfs.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <FolderOpen className="h-12 w-12 text-muted-foreground" />
+                  <p className="mt-4 text-muted-foreground">
+                    No resources available for this zone yet
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

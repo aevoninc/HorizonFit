@@ -57,6 +57,14 @@ export interface ZoneVideo {
   order: number;
 }
 
+export interface ZonePDF {
+  id: string;
+  title: string;
+  pdfUrl: string;
+  zoneNumber: number;
+  order: number;
+}
+
 export interface HorizonGuideVideo {
   id: string;
   category: 'calories' | 'workouts' | 'hydration' | 'sleep' | 'mindset';

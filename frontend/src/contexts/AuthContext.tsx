@@ -15,6 +15,7 @@ interface User {
   id: string;
   email: string;
   name: string;
+  assignedCategory?: string | null;
 }
 
 interface AuthContextType {
@@ -81,6 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               id: backendUser._id,
               email: backendUser.email,
               name: backendUser.name || "User",
+              assignedCategory: backendUser.assignedCategory || null,
             };
             setUser(userData);
             setRole(userRole);
@@ -125,6 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         id: backendUser._id,
         email: backendUser.email,
         name: backendUser.name || "User",
+        assignedCategory: backendUser.assignedCategory || null,
       };
 
       setUser(userData);
