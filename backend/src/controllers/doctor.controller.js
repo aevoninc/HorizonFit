@@ -55,11 +55,14 @@ const createPatient = asyncHandler(async (req, res) => {
     });
   }
   try {
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({
+      $or: [{ email }, { mobileNumber }]
+    });
     if (userExists) {
-      return res
-        .status(400)
-        .json({ message: `User already exists with this email: ${email}` });
+      const duplicateField = userExists.email === email ? "email" : "mobile number";
+      return res.status(400).json({
+        message: `User already exists with this ${duplicateField}: ${userExists.email === email ? email : mobileNumber}`
+      });
     }
 
     const patient = await User.create({
@@ -72,41 +75,31 @@ const createPatient = asyncHandler(async (req, res) => {
       assignedCategory,
       programStartDate: programStartDate || new Date(),
     });
-
+    console.log("Patient created successfully:", patient);
     if (!patient || !patient.assignedCategory) {
       return res
         .status(400)
         .json({ message: "Invalid patient data received." });
     }
-    let taskCount = 0;
 
-    if (patient.assignedCategory == "Weight Loss" && assignFixedMatrix) {
-      const tasksToInsert = Weight_Loss.map((task) => ({
-        ...task,
-        patientId: patient._id,
-        status: "Pending",
-        dateAssigned: new Date(),
-      }));
 
-      const newTasks = await PatientProgramTask.insertMany(tasksToInsert);
-      taskCount = newTasks.length;
-    }
 
     // Move the email and response OUTSIDE the if block so it always runs
-    await sendPatientWelcomeEmail(email, name, DOCTOR_NAME, password);
+    try {
+      await sendPatientWelcomeEmail(email, name, DOCTOR_NAME, password);
+    } catch (emailError) {
+      console.error("Failed to send welcome email:", emailError);
+    }
 
     // ALWAYS return the patient object at the same level
     return res.status(201).json({
       success: true,
-      message:
-        taskCount > 0
-          ? `Patient created and ${taskCount} tasks assigned.`
-          : "Patient created successfully.",
+      message: "Patient created successfully.",
       patient: patient, // Keep this consistent!
     });
   } catch (error) {
     console.error("Error creating patient:", error);
-    res.status(500).json({ message: "Server error while creating patient." });
+    res.status(500).json({ message: "Server error while creating patient.", error: error.message });
   }
 });
 
@@ -476,27 +469,24 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
 // @route   GET /api/doctor/patients/completed
 // @access  Private/Doctor
 const getCompletedPatients = asyncHandler(async (req, res) => {
-  // 1. Calculate the cutoff date (Program Start Date + 15 Weeks)
-  const cutoffDate = new Date();
-  // 15 weeks * 7 days/week = 105 days.
-  cutoffDate.setDate(cutoffDate.getDate() - 105);
-
-  // 2. Find patients whose programStartDate is BEFORE the cutoff date
-  // (i.e., their 15 weeks have already elapsed)
   const completedPatients = await User.find({
     role: "Patient",
-    isActive: true, // Only fetch active patients
-    programStartDate: { $lte: cutoffDate }, // Start date is less than or equal to 105 days ago
-  }).select("email programStartDate assignedCategory");
+    isActive: true,
+    currentZone: 5,        // ✅ must be in final zone
+    currentDay: { $gte: 21 }, // ✅ must have reached or passed day 21
+  }).select("name email programStartDate assignedCategory currentZone currentDay");
 
   if (completedPatients.length === 0) {
     return res.status(200).json({
-      message: "No patients found with a completed 15-week program.",
+      message: "No patients found who have completed the program.",
       patients: [],
     });
   }
 
-  res.status(200).json(completedPatients);
+  res.status(200).json({
+    patients: completedPatients,
+    count: completedPatients.length,
+  });
 });
 
 // @desc    Doctor deactivates a patient account (for audit/program end)

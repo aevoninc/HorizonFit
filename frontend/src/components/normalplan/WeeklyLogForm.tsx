@@ -8,6 +8,7 @@ import {
   FileText,
   Loader2,
   Send,
+  Lock,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,8 @@ import { useToast } from '@/hooks/use-toast';
 interface WeeklyLogFormProps {
   currentZone: number;
   currentWeek: number;
+  userCurrentDay?: number;
+  userCurrentZone?: number;
   lastLog?: WeeklyLog;
   latestMetrics?: BodyMetrics;
   completedTasks: number;
@@ -35,6 +38,8 @@ interface WeeklyLogFormProps {
 export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
   currentZone,
   currentWeek,
+  userCurrentDay = 1,
+  userCurrentZone = 1,
   lastLog,
   latestMetrics,
   completedTasks,
@@ -86,10 +91,10 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
         title: 'Weekly Log Submitted!',
         description: 'Your progress has been recorded.',
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Error',
-        description: 'Failed to submit weekly log. Please try again.',
+        description: error.response?.data?.message || error.message || 'Failed to submit weekly log. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -98,19 +103,26 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
   };
 
   // Sort logs by date (newest first)
-  const sortedLogs = [...allLogs].sort((a, b) => 
+  const sortedLogs = [...allLogs].sort((a, b) =>
     new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
   );
 
   const mostRecentLog = sortedLogs[0];
-  const submittedDate = mostRecentLog ? new Date(mostRecentLog.submittedAt) : null;
-  const daysSinceLastLog = submittedDate 
-    ? Math.floor((Date.now() - submittedDate.getTime()) / (24 * 60 * 60 * 1000)) 
-    : null;
-  
-  // A log is due if there are no logs or if 7 days have passed
-  const daysUntilDueCalculated = daysSinceLastLog !== null ? Math.max(0, 7 - daysSinceLastLog) : 0;
-  const isDue = mostRecentLog ? daysUntilDueCalculated === 0 : true;
+
+  // Calculate if the weekly log is due based on completed task days instead of elapsed time
+  const requiredCompletedDay = currentWeek * 7;
+  let isDue = false;
+  let daysUntilDueCalculated = 0;
+
+  if (userCurrentZone > currentZone) {
+    isDue = true;
+  } else if (userCurrentZone === currentZone) {
+    if (userCurrentDay >= requiredCompletedDay) {
+      isDue = true;
+    } else {
+      daysUntilDueCalculated = Math.max(0, requiredCompletedDay - userCurrentDay);
+    }
+  }
 
   const renderLogCard = (log: WeeklyLog, index: number) => {
     const logDate = new Date(log.submittedAt);
@@ -140,15 +152,7 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
             </div>
             <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">Zone {log.zoneNumber}</Badge>
           </div>
-          
-          {index === 0 && daysUntilDueCalculated !== null && daysUntilDueCalculated > 0 && (
-            <div className="rounded-lg bg-green-100/50 p-4 border border-green-200 shadow-sm">
-              <p className="text-green-800 font-medium flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Next log due in <span className="text-2xl font-black text-green-600">{daysUntilDueCalculated}</span> {daysUntilDueCalculated === 1 ? 'day' : 'days'}
-              </p>
-            </div>
-          )}
+
 
           <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
             <div className="rounded-xl bg-white p-4 border border-border/50 shadow-sm hover:shadow-md transition-shadow">
@@ -171,7 +175,7 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
 
           {log.notes && (
             <div className="rounded-xl bg-white p-4 border border-border/30 italic text-sm text-muted-foreground relative overflow-hidden shadow-inner">
-               <div className="absolute top-0 left-0 w-1 h-full bg-green-200" />
+              <div className="absolute top-0 left-0 w-1 h-full bg-green-200" />
               "{log.notes}"
             </div>
           )}
@@ -183,13 +187,33 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
   return (
     <div className="space-y-10 group">
       {/* 1. Submission Section (Form or Required Message) */}
-      {isDue && (
+      {!isDue ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-2">
+            <Lock className="h-5 w-5 text-amber-600" />
+            <h3 className="text-lg font-bold text-foreground">Next Weekly Submission</h3>
+          </div>
+          <Card className="card-elevated border-amber-200 bg-amber-50/50">
+            <CardHeader>
+              <CardTitle className="text-lg text-amber-800 flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Week {currentWeek} Progress Report Locked
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-amber-800 font-medium">
+                Complete <span className="text-2xl font-black text-amber-600">{daysUntilDueCalculated}</span> more daily {daysUntilDueCalculated === 1 ? 'task' : 'tasks'} to unlock your next weekly log submission.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-2">
             <Send className="h-5 w-5 text-primary" />
             <h3 className="text-lg font-bold text-foreground">New Weekly Submission</h3>
           </div>
-          
+
           {!canSubmit ? (
             <Card className="card-elevated border-amber-200 bg-amber-50/50">
               <CardHeader>
@@ -200,12 +224,12 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
               </CardHeader>
               <CardContent>
                 <div className="flex items-start gap-3">
-                   <div className="rounded-full bg-amber-100 p-2 mt-1">
-                      <Scale className="h-4 w-4 text-amber-600" />
-                   </div>
-                   <p className="text-amber-800 leading-relaxed">
-                     Please complete your **required zone videos** and log your **body metrics** in the overview tab before you can submit your weekly progress log.
-                   </p>
+                  <div className="rounded-full bg-amber-100 p-2 mt-1">
+                    <Scale className="h-4 w-4 text-amber-600" />
+                  </div>
+                  <p className="text-amber-800 leading-relaxed">
+                    Please complete your **required zone videos** and log your **body metrics** in the overview tab before you can submit your weekly progress log.
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -221,7 +245,7 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
                     </CardTitle>
                     <Badge variant="secondary" className="px-3 py-1">Zone {currentZone}</Badge>
                   </div>
-                  
+
                   <div className="inline-flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full text-xs font-bold self-start border border-amber-100">
                     <AlertCircle className="h-3 w-3" />
                     <span>7-Day Update Due Now</span>
@@ -289,11 +313,10 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
                     {COMPLIANCE_OPTIONS.map((option) => (
                       <div
                         key={option.value}
-                        className={`group/item flex items-center gap-4 rounded-xl border-2 p-4 cursor-pointer transition-all duration-200 ${
-                          formData.compliance === option.value
-                            ? "border-primary bg-primary/5 shadow-md scale-[1.02]"
-                            : "border-border hover:border-primary/30 hover:bg-muted/30"
-                        }`}
+                        className={`group/item flex items-center gap-4 rounded-xl border-2 p-4 cursor-pointer transition-all duration-200 ${formData.compliance === option.value
+                          ? "border-primary bg-primary/5 shadow-md scale-[1.02]"
+                          : "border-border hover:border-primary/30 hover:bg-muted/30"
+                          }`}
                         onClick={() => setFormData({ ...formData, compliance: option.value as WeeklyLog['compliance'] })}
                       >
                         <RadioGroupItem value={option.value} id={option.value} className="sr-only" />
@@ -365,29 +388,29 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
         </div>
       )}
 
-      {/* 2. Logs List */}
+      {/* 2. History Section */}
       <div className="space-y-8">
         <div className="flex items-center gap-2 px-2">
-            <FileText className="h-5 w-5 text-secondary" />
-            <h3 className="text-lg font-bold text-foreground">Progress Timeline</h3>
+          <FileText className="h-5 w-5 text-secondary" />
+          <h3 className="text-lg font-bold text-foreground">Progress Timeline</h3>
         </div>
-        
+
         {sortedLogs.length > 0 ? (
           <div className="space-y-6 relative before:absolute before:left-[1.35rem] before:top-2 before:bottom-2 before:w-0.5 before:bg-gradient-to-b before:from-green-200 before:via-green-100 before:to-transparent">
             {sortedLogs.map((log, index) => (
-               <div key={log.id || index} className="pl-4">
-                  {renderLogCard(log, index)}
-               </div>
+              <div key={log.id || index} className="pl-4">
+                {renderLogCard(log, index)}
+              </div>
             ))}
           </div>
         ) : (
           <div className="py-20 text-center text-muted-foreground border-2 border-dashed border-border rounded-3xl bg-muted/10">
             <div className="bg-muted/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-               <FileText className="h-8 w-8 text-muted-foreground/50" />
+              <FileText className="h-8 w-8 text-muted-foreground/50" />
             </div>
             <p className="font-bold text-lg">No Journey Records Yet</p>
             <p className="text-sm max-w-xs mx-auto mt-2">
-               Once you submit your first weekly log, it will appear here as part of your physical transformation timeline.
+              Once you submit your first weekly log, it will appear here as part of your physical transformation timeline.
             </p>
           </div>
         )}

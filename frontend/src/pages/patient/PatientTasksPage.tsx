@@ -171,13 +171,8 @@ export const PatientTasksPage: React.FC = () => {
   };
 
   const handleWeeklyLogSubmit = async (log: Omit<WeeklyLog, 'id' | 'submittedAt'>) => {
-    try {
-      await normalPlanPatientApi.submitWeeklyLog(log);
-      toast({ title: "Weekly log submitted!", description: "Keep going!" });
-      loadData();
-    } catch {
-      toast({ title: "Failed to submit weekly log", variant: "destructive" });
-    }
+    await normalPlanPatientApi.submitWeeklyLog(log);
+    loadData();
   };
   const currentViewerZoneData = npProgress?.zones.find(z => z.zoneNumber === selectedViewerZone);
   const currentZonePDFs = useMemo(() => getLocalZonePDFs(selectedViewerZone), [selectedViewerZone]);
@@ -471,6 +466,8 @@ export const PatientTasksPage: React.FC = () => {
           <WeeklyLogForm
             currentZone={selectedViewerZone}
             currentWeek={npProgress?.totalWeeksCompleted ? npProgress.totalWeeksCompleted + 1 : 1}
+            userCurrentDay={programStatus.currentDay}
+            userCurrentZone={programStatus.currentZone}
             lastLog={npProgress?.weeklyLogs ? npProgress.weeklyLogs[npProgress.weeklyLogs.length - 1] : undefined}
             latestMetrics={npProgress?.latestMetrics || null}
             completedTasks={0} // This is the old task logic, can be 0 or calculated

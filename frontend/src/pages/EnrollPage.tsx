@@ -36,7 +36,7 @@ const enrollSchema = z
     email: z.string().email("Please enter a valid email").max(255),
     phone: z.string().min(10, "Please enter a valid phone number").max(15),
     password: z.string().min(8, "Password must be at least 8 characters"),
-    assignedCategory: z.enum(["Weight Loss", "Weight Gain"], {
+    assignedCategory: z.enum(["Weight Loss", "Weight Gain", "Pre diabetic"], {
       errorMap: () => ({ message: "Please select a health goal" }),
     }),
     confirmPassword: z.string(),
@@ -110,7 +110,7 @@ const STEPS = [
   },
 ];
 
-const Category = ["Weight Loss", "Weight Gain"];
+const Category = ["Weight Loss", "Weight Gain", "Pre diabetic"];
 
 
 
@@ -139,21 +139,21 @@ export const EnrollPage: React.FC = () => {
   }, [step]);
   const selectedProgram = PROGRAM_TIERS[selectedTier];
 
-const handleVerifyConsultation = async () => {
-  try {
-    setIsProcessing(true);
-    
-    // Pass as an object { consultationId: "your_id_here" }
-    const response = await publicApi.verifyBooking({ consultationId: bookingId }); 
-    console.log("Verification Response:", response.data);
-    setStep(2); 
-    toast({ title: "Success", description: "Consultation verified!" });
-  } catch (error) {
-    toast({ title: "Invalid ID", variant: "destructive" });
-  } finally {
-    setIsProcessing(false);
-  }
-};
+  const handleVerifyConsultation = async () => {
+    try {
+      setIsProcessing(true);
+
+      // Pass as an object { consultationId: "your_id_here" }
+      const response = await publicApi.verifyBooking({ consultationId: bookingId });
+      console.log("Verification Response:", response.data);
+      setStep(2);
+      toast({ title: "Success", description: "Consultation verified!" });
+    } catch (error) {
+      toast({ title: "Invalid ID", variant: "destructive" });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const validateAndProceed = async () => {
     const isValid = await trigger();
@@ -618,7 +618,7 @@ const handleVerifyConsultation = async () => {
                 <CardTitle>Create Your Account</CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit(() => {})} className="space-y-4">
+                <form onSubmit={handleSubmit(() => { })} className="space-y-4">
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}

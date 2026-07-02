@@ -193,10 +193,8 @@ export const DoctorPatientsPage: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Weight Loss">Weight Loss</SelectItem>
-                    <SelectItem value="Diabetes Management">Diabetes Management</SelectItem>
-                    <SelectItem value="General Wellness">General Wellness</SelectItem>
-                    <SelectItem value="Cardiac Care">Cardiac Care</SelectItem>
-                    <SelectItem value="Physiotherapy">Physiotherapy</SelectItem>
+                    <SelectItem value="Weight Gain">Weight Gain</SelectItem>
+                    <SelectItem value="Pre diabetic">Pre diabetic</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
