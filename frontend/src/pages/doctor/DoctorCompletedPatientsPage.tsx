@@ -54,21 +54,24 @@ export const DoctorCompletedPatientsPage: React.FC = () => {
   const filteredPatients = patients
     .filter(
       (patient) =>
-        patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        patient.email.toLowerCase().includes(searchQuery.toLowerCase())
+        (patient.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (patient.email || '').toLowerCase().includes(searchQuery.toLowerCase())
     )
     .sort((a, b) => {
       if (sortBy === 'date') {
         return new Date(b.completedDate || '').getTime() - new Date(a.completedDate || '').getTime();
       }
-      return a.name.localeCompare(b.name);
+      return (a.name || '').localeCompare(b.name || ''); // ✅ safe here too
     });
 
   // Calculate stats
   const thisMonthCount = patients.filter((p) => {
-    const completedDate = new Date(p.completedDate || '');
+    if (!p.completedDate) return false; // ✅ skip patients with no date
+    const completedDate = new Date(p.completedDate);
+    if (isNaN(completedDate.getTime())) return false; // ✅ skip invalid dates
     const now = new Date();
-    return completedDate.getMonth() === now.getMonth() && completedDate.getFullYear() === now.getFullYear();
+    return completedDate.getMonth() === now.getMonth() &&
+      completedDate.getFullYear() === now.getFullYear();
   }).length;
 
   return (

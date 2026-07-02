@@ -18,7 +18,8 @@ const programBookingSchema = new mongoose.Schema({
 
     programCategory: {
         type: String,
-        required: true, // Must be provided during booking
+        required: true,
+        enum: ["Weight Loss", "Weight Gain", "Pre diabetic"],
         trim: true
     },
 
@@ -28,45 +29,45 @@ const programBookingSchema = new mongoose.Schema({
     },
 
     // --- Status and Cancellation ---
-    status: { 
-        type: String, 
+    status: {
+        type: String,
         enum: [
-            'Awaiting Payment', 
+            'Awaiting Payment',
             'Payment Successful',
-            'Confirmed', 
-            'Rescheduled', 
+            'Confirmed',
+            'Rescheduled',
             'Cancelled'
-        ], 
-        default: 'Awaiting Payment' 
+        ],
+        default: 'Awaiting Payment'
     },
-    
+
     cancellationReason: { type: String, default: null },
 
     // --- Payment Details (External IDs) ---
 
     // Renamed from transactionId and changed to String to store external payment ID (e.g., Razorpay Payment ID)
-    externalTransactionId: { 
+    externalTransactionId: {
         type: String,
         default: null
     },
 
     // Reference to the Razorpay order ID
-    orderId: { 
+    orderId: {
         type: String,
         default: null
     },
 
     // Reference to the Razorpay Refund ID
-    refundId: { 
+    refundId: {
         type: String,
         default: null
     },
 
-    paymentSignature: { 
+    paymentSignature: {
         type: String,
         default: null
     }
 
 }, { timestamps: true });
 
-export default mongoose.model("ProgramBooking",programBookingSchema);
+export default mongoose.model("ProgramBooking", programBookingSchema);

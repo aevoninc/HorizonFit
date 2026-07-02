@@ -41,18 +41,21 @@ export const PatientBookingsPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await patientApi.getBookings();
+      const rawBookings = response.data?.bookings || response.data || []; // ✅ already safe
 
-      // 1. Get the array from the response object
-      const rawBookings = response.data?.bookings || response.data || [];
+      if (!Array.isArray(rawBookings)) { // ✅ add this extra guard
+        setBookings([]);
+        return;
+      }
 
-      // 2. Map MongoDB's _id to id so 'selectedBooking.id' works
       const formattedBookings = rawBookings.map((b: any) => ({
         ...b,
-        id: b._id || b.id, // This ensures 'id' is populated for the frontend
+        id: b._id || b.id,
       }));
 
       setBookings(formattedBookings);
     } catch (error) {
+      setBookings([]); // ✅ ensure bookings is always an array even on error
       toast({
         title: 'Error',
         description: 'Failed to load bookings.',
@@ -119,8 +122,10 @@ export const PatientBookingsPage: React.FC = () => {
   };
 
   const formatDateTime = (dateTime: string) => {
+    if (!dateTime) return { date: 'Date not set', time: '' }; // ✅ add this guard
     try {
       const date = new Date(dateTime);
+      if (isNaN(date.getTime())) return { date: 'Invalid date', time: '' }; // ✅ guard against invalid dates
       return {
         date: format(date, 'MMM dd, yyyy'),
         time: format(date, 'hh:mm a'),
@@ -161,6 +166,7 @@ export const PatientBookingsPage: React.FC = () => {
               const config = statusConfig[booking.status] || { color: 'bg-gray-100', icon: null };
 
               // --- Logic for Refund Window ---
+              // This line can crash if booking.createdAt is undefined
               const paymentDate = new Date(booking.createdAt || Date.now()).getTime();
               const currentTime = Date.now();
               const twentyFourHours = 24 * 60 * 60 * 1000;
@@ -181,7 +187,7 @@ export const PatientBookingsPage: React.FC = () => {
                           <h3 className="font-semibold text-foreground">
                             {booking.type ? booking.type : "General Consultation"}
                           </h3>
-                          <p className="text-sm text-muted-foreground">Dr. Jaburral</p>
+                          <p className="text-sm text-muted-foreground">Dr. M. Jabaarrul</p>
                         </div>
                         <Badge className={config.color}>
                           <span className="mr-1">{config.icon}</span>
@@ -255,7 +261,10 @@ export const PatientBookingsPage: React.FC = () => {
           <div className="space-y-3">
             {pastBookings.map((booking, index) => {
               const { date, time } = formatDateTime(booking.requestedDateTime);
-              const config = statusConfig[booking.status];
+              const config = statusConfig[booking.status] || {
+                color: 'bg-gray-100 text-gray-700 border-gray-200',
+                icon: <Clock className="h-4 w-4" />
+              };
 
               return (
                 <motion.div
@@ -268,7 +277,7 @@ export const PatientBookingsPage: React.FC = () => {
                     <CardContent className="flex items-center justify-between p-4">
                       <div className="flex items-center gap-4">
                         <div className={`flex h-10 w-10 items-center justify-center rounded-full ${booking.status === 'Completed' ? 'bg-green-100' :
-                            booking.status === 'Refunded' ? 'bg-purple-100' : 'bg-red-100'
+                          booking.status === 'Refunded' ? 'bg-purple-100' : 'bg-red-100'
                           }`}>
                           {booking.status === 'Completed' ? (
                             <CheckCircle className="h-5 w-5 text-green-600" />

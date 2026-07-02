@@ -589,26 +589,33 @@ const submitWeeklyLog = async (req, res) => {
       });
     }
 
-    // 2. Validation: Prevent submission if less than 6 days have passed since the last log
-    const lastLog = await WeeklyLog.findOne({ patientId }).sort({
-      submittedAt: -1,
-    });
-    if (lastLog) {
-      const now = new Date();
-      const lastSubmitted = new Date(lastLog.submittedAt);
-      const diffInMs = now.getTime() - lastSubmitted.getTime();
-      const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+    // 2. Validation: Prevent submission if the required daily tasks are not yet completed
+    const user = await User.findById(patientId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
 
-      if (diffInDays < 6) {
-        // Enforce 6-7 day gap
-        return res.status(400).json({
-          success: false,
-          message:
-            "You can only submit one weekly log every 7 days. Please wait for your next scheduled day.",
-          daysRemaining: Math.ceil(7 - diffInDays),
-        });
+    const requiredCompletedDay = actualWeekNumber * 7;
+    let isAllowed = false;
+
+    if (user.currentZone > actualZoneNumber) {
+      // They have advanced beyond this zone, so the week's tasks are definitely done.
+      isAllowed = true;
+    } else if (user.currentZone === actualZoneNumber) {
+      // user.currentDay represents the NEXT day to be done.
+      // So if they completed Day 6, currentDay is 7. We want them to submit ON Day 7 (>= 7).
+      if (user.currentDay >= requiredCompletedDay) {
+        isAllowed = true;
       }
     }
+
+    if (!isAllowed) {
+      return res.status(400).json({
+        success: false,
+        message: `You must complete all daily tasks for Week ${actualWeekNumber} (up to Day ${requiredCompletedDay}) before submitting this log.`
+      });
+    }
+
     // 1. Process and save individual tracking data first to get IDs
     const trackingEntryIds = [];
     if (actualLogData.metrics) {
@@ -703,16 +710,14 @@ const submitWeeklyLog = async (req, res) => {
       // B. Determine the next zone
       const nextZoneNumber = zoneNumber + 1;
 
-      // C. Update the "Master" User Profile (INCREMENTing the currentZone)
-      // This is crucial for keeping the UI simple for the patient
-      await User.findByIdAndUpdate(patientId, {
-        currentZone: nextZoneNumber,
-        updatedAt: new Date(),
-      });
-
-      // D. Initialize the record for the next zone so it's ready for next week
-      // Max zone is assumed to be 5
+      // C. Update the "Master" User Profile
       if (nextZoneNumber <= 5) {
+        await User.findByIdAndUpdate(patientId, {
+          currentZone: nextZoneNumber,
+          updatedAt: new Date(),
+        });
+
+        // D. Initialize the record for the next zone so it's ready for next week
         await PatientZoneProgress.findOneAndUpdate(
           { patientId, zoneNumber: nextZoneNumber },
           {
@@ -721,16 +726,29 @@ const submitWeeklyLog = async (req, res) => {
             weeksInZone: 0,
             isCompleted: false,
           },
-          { upsert: true },
+          { upsert: true }
         );
-      }
 
-      return res.status(200).json({
-        success: true,
-        message: `Congratulations! You have completed Zone ${zoneNumber}. You are now promoted to Zone ${nextZoneNumber}!`,
-        action: "ZONE_UPGRADE",
-        newZone: nextZoneNumber,
-      });
+        return res.status(200).json({
+          success: true,
+          message: `Congratulations! You have completed Zone ${zoneNumber}. You are now promoted to Zone ${nextZoneNumber}!`,
+          action: "ZONE_UPGRADE",
+          newZone: nextZoneNumber,
+        });
+      } else {
+        // Completed max zone (Zone 5) - The program is complete!
+        await User.findByIdAndUpdate(patientId, {
+          programCompleted: true, // Assuming this field exists or can be added to User schema
+          updatedAt: new Date(),
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: `Congratulations! You have successfully completed the entire 15-week program!`,
+          action: "PROGRAM_COMPLETE",
+          programCompleted: true,
+        });
+      }
     } else {
       // If they haven't reached 3 weeks yet, just save the incremented progress
       await zoneProgress.save();

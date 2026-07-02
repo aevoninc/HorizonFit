@@ -203,7 +203,7 @@ export interface ProgramBookingData {
   email: string;
   mobileNumber: string;
   password: string;
-  assignedCategory: "Weight Loss" | "Weight Gain";
+  assignedCategory: "Weight Loss" | "Weight Gain" | "Pre diabetic";
   planTier: ProgramTier;
   programStartDate?: string;
   paymentToken: string;
