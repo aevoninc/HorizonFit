@@ -18,6 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Components
 import { ZoneNavigator } from "@/components/normalplan/ZoneNavigator";
@@ -62,6 +63,7 @@ const zoneNames = [
 
 const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export const NormalPlanDashboard: React.FC = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<NormalPlanProgress | null>(null);
@@ -569,7 +571,9 @@ export const NormalPlanDashboard: React.FC = () => {
         <TabsContent value="weekly">
           <WeeklyLogForm
             currentZone={selectedZone}
-            currentWeek={safeProgress.totalWeeksCompleted + 1}
+            currentWeek={(safeProgress.weeklyLogs?.filter((l) => l.zoneNumber === selectedZone)?.length || 0) + 1}
+            userCurrentDay={safeProgress.userCurrentDay || 1}
+            userCurrentZone={safeProgress.userCurrentZone || safeProgress.currentZone}
             lastLog={safeProgress.weeklyLogs[safeProgress.weeklyLogs.length - 1]}
             latestMetrics={safeProgress.latestMetrics}
             completedTasks={completedTasks}

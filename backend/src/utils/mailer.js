@@ -100,10 +100,10 @@ const sendPatientWelcomeEmail = async (recipient, patientName, assignedDoctorNam
 /**
  * Sends a program booking confirmation.
  */
-const sendProgramBookingEmail = async (recipient, patientName, specialistName, startDate, paymentId, price, planTier) => {
+const sendProgramBookingEmail = async (recipient, patientName, specialistName, startDate, paymentId, price, planTier, email = null, password = null, bookingId = null) => {
     const subject = `Enrollment Confirmed: 15-Week Transformation`;
-    const htmlBody = programBookingTemplate(patientName, specialistName, startDate, planTier, paymentId);
-    const textBody = `Hello ${patientName}, your enrollment in the ${planTier} plan is confirmed for ${startDate}. Payment ID: ${paymentId}`;
+    const htmlBody = programBookingTemplate(patientName, specialistName, startDate, planTier, paymentId, email, password, bookingId);
+    const textBody = `Hello ${patientName}, your enrollment in the ${planTier} plan is confirmed for ${startDate}. Booking ID: ${bookingId || 'N/A'}, Payment ID: ${paymentId}`;
 
     await sendEmail(recipient, subject, textBody, htmlBody);
 };

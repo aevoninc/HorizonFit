@@ -66,6 +66,19 @@ const programBookingSchema = new mongoose.Schema({
     paymentSignature: {
         type: String,
         default: null
+    },
+
+    // --- Legal Acceptance (recorded at time of purchase for compliance) ---
+    legalAcceptance: {
+        termsAccepted: { type: Boolean, default: false },
+        userAgreementAccepted: { type: Boolean, default: false },
+        disclaimerAccepted: { type: Boolean, default: false },
+        privacyPolicyAccepted: { type: Boolean, default: false },
+        refundPolicyAccepted: { type: Boolean, default: false },
+        acceptedAt: { type: Date, default: null },
+        ipAddress: { type: String, default: null },
+        userAgent: { type: String, default: null },
+        agreementVersion: { type: String, default: null },
     }
 
 }, { timestamps: true });

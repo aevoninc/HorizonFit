@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   UserCheck,
 } from "lucide-react";
+import { ProductEducationSection } from "@/components/ProductEducationSection";
 import logo from "../../public/logo.png";
 
 const features = [
@@ -271,6 +272,9 @@ export const HomePage: React.FC = () => {
           </motion.div>
         </div>
       </section>
+
+      {/* Product Education Section */}
+      <ProductEducationSection />
 
       {/* Doctor Profile Section */}
       <section className="py-20">

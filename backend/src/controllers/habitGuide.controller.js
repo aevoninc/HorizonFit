@@ -6,6 +6,7 @@ import HabitGuide, { HABIT_CODE_LIST } from "../model/habitGuide.model.js";
 import HabitLog from "../model/habitLog.model.js";
 import User from "../model/user.model.js";
 import PatientZoneProgress from "../model/normalPlanModels/patientZoneProgress.model.js";
+import WeeklyLog from "../model/normalPlanModels/weeklyLog.model.js";
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -21,13 +22,14 @@ function startOfDay(date) {
  * GET /api/v1/patients/program-status
  */
 export const getProgramStatus = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("currentZone currentDay");
+  const user = await User.findById(req.user._id).select("currentZone currentDay programCompleted status");
   if (!user) throw new ApiError(404, "User not found");
 
   return res.status(200).json(new ApiResponse(200, {
     currentZone: user.currentZone,
     currentDay: user.currentDay,
     totalDaysInZone: 21, // Each zone is currently 21 days
+    programCompleted: user.programCompleted || user.status === "completed" || false,
     started: true
   }, "Program status fetched"));
 });
@@ -65,9 +67,46 @@ export const submitHabits = asyncHandler(async (req, res) => {
   const user = await User.findById(patientId);
   if (!user) throw new ApiError(404, "User not found");
 
+  if (user.programCompleted || user.status === "completed") {
+    throw new ApiError(400, "🎉 Program Completed! You have completed all 15 weeks of the HorizonFit program and cannot submit further daily habits.");
+  }
+
+  // GATING: Verify user has submitted required weekly logs before proceeding with daily habits
+  const logsInCurrentZone = await WeeklyLog.countDocuments({
+    patientId,
+    zoneNumber: user.currentZone,
+  });
+
+  if (user.currentDay >= 8 && user.currentDay <= 14 && logsInCurrentZone < 1) {
+    throw new ApiError(
+      400,
+      `Please complete your Week 1 log for Zone ${user.currentZone} to proceed with your daily habits.`
+    );
+  }
+
+  if (user.currentDay >= 15 && user.currentDay <= 21 && logsInCurrentZone < 2) {
+    throw new ApiError(
+      400,
+      `Please complete your Week 2 log for Zone ${user.currentZone} to proceed with your daily habits.`
+    );
+  }
+
+  if (user.currentZone > 1 && user.currentDay === 1) {
+    const logsInPrevZone = await WeeklyLog.countDocuments({
+      patientId,
+      zoneNumber: user.currentZone - 1,
+    });
+    if (logsInPrevZone < 3) {
+      throw new ApiError(
+        400,
+        `Please complete your Week 3 log for Zone ${user.currentZone - 1} to proceed to Zone ${user.currentZone}.`
+      );
+    }
+  }
+
   const todayStart = startOfDay(new Date());
 
-  // Prevent duplicate submissions for the same calendar date
+  // // Prevent duplicate submissions for the same calendar date
   const existing = await HabitLog.findOne({ patientId, date: todayStart });
   if (existing) {
     throw new ApiError(400, "You have already submitted your habits for today.");
@@ -126,22 +165,29 @@ export const submitHabits = asyncHandler(async (req, res) => {
   // Zone Progression Logic
   let nextDay = user.currentDay + 1;
   let nextZone = user.currentZone;
+  let programCompleted = user.programCompleted || false;
 
   if (nextDay > 21) {
-    nextDay = 1;
-    nextZone = Math.min(user.currentZone + 1, 5);
+    if (user.currentZone < 5) {
+      nextDay = 1;
+      nextZone = user.currentZone + 1;
 
-    // If transitioning to a new zone, ensure PatientZoneProgress is updated
-    if (nextZone > user.currentZone) {
+      // Mark current zone as completed and unlock next zone
+      await PatientZoneProgress.findOneAndUpdate(
+        { patientId, zoneNumber: user.currentZone },
+        { isCompleted: true, completedAt: new Date() }
+      );
       await PatientZoneProgress.findOneAndUpdate(
         { patientId, zoneNumber: nextZone },
         { isUnlocked: true, startedAt: new Date() },
         { upsert: true, new: true }
       );
-
-      // Mark current zone as completed
+    } else {
+      // Completed Zone 5 Day 21 - Program Completed!
+      nextDay = 21;
+      programCompleted = true;
       await PatientZoneProgress.findOneAndUpdate(
-        { patientId, zoneNumber: user.currentZone },
+        { patientId, zoneNumber: 5 },
         { isCompleted: true, completedAt: new Date() }
       );
     }
@@ -149,11 +195,23 @@ export const submitHabits = asyncHandler(async (req, res) => {
 
   user.currentDay = nextDay;
   user.currentZone = nextZone;
+  if (programCompleted) {
+    user.programCompleted = true;
+    user.status = "completed";
+  }
   await user.save();
+
+  const isUpgrade = nextZone > user.currentZone;
+  let message = "Habits submitted successfully";
+  if (programCompleted) {
+    message = "🎉 Congratulations! You have successfully completed the entire 15-week HorizonFit Program!";
+  } else if (isUpgrade) {
+    message = `🎉 Congratulations! You have completed Zone ${user.currentZone}! You are now promoted to Zone ${nextZone}!`;
+  }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, { log, user: { currentZone: user.currentZone, currentDay: user.currentDay } }, "Habits submitted successfully"));
+    .json(new ApiResponse(200, { log, user: { currentZone: user.currentZone, currentDay: user.currentDay, programCompleted } }, message));
 });
 
 /**

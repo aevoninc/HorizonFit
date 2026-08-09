@@ -47,6 +47,7 @@ const UserSchema = new mongoose.Schema(
     lastMetricsDate: { type: Date },
     lastWeeklyLogDate: { type: Date },
     totalWeeksCompleted: { type: Number, default: 0 },
+    programCompleted: { type: Boolean, default: false },
     status: {
       type: String,
       enum: ["active", "at-risk", "paused", "completed"],

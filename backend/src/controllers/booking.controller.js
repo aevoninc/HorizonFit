@@ -152,7 +152,12 @@ const programBooking = asyncHandler(async (req, res) => {
     paymentToken, // razorpay_payment_id
     orderId, // razorpay_order_id
     razorpaySignature,
+    legalAcceptance, // legal acceptance data from frontend
   } = req.body;
+
+  // Capture server-side metadata for legal compliance
+  const ipAddress = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+  const userAgent = req.headers['user-agent'] || 'unknown';
 
   // 1. Initial Validation
   if (
@@ -217,6 +222,19 @@ const programBooking = asyncHandler(async (req, res) => {
           paymentSignature: razorpaySignature,
           programCategory: assignedCategory,
           programPrice: actualPrice,
+          legalAcceptance: legalAcceptance
+            ? {
+              termsAccepted: legalAcceptance.termsAccepted || false,
+              userAgreementAccepted: legalAcceptance.userAgreementAccepted || false,
+              disclaimerAccepted: legalAcceptance.disclaimerAccepted || false,
+              privacyPolicyAccepted: legalAcceptance.privacyPolicyAccepted || false,
+              refundPolicyAccepted: legalAcceptance.refundPolicyAccepted || false,
+              acceptedAt: legalAcceptance.acceptedAt || new Date(),
+              ipAddress,
+              userAgent,
+              agreementVersion: legalAcceptance.agreementVersion || '7 June 2026',
+            }
+            : undefined,
         },
       ],
       { session }
@@ -250,37 +268,53 @@ const programBooking = asyncHandler(async (req, res) => {
       patient: { id: patient._id, email: patient.email },
       bookingId: booking._id,
     });
-    res.status(500).json({
-      message:
-        "Payment verified but account creation failed. Please contact support immediately.",
-      error: error.message,
-    });
+
     // 9. Send Notifications (Non-blocking / Background)
     // We do this AFTER committing the transaction
     Promise.allSettled([
-      // To Patient: (recipient, personName, otherPartyName, startDate, paymentId, price, planTier)
+      // To Patient: welcome credentials + booking summary
       sendProgramBookingEmail(
         email,
         name,
         DOCTOR_NAME,
-        startDate,
+        programStartDate || new Date(),
         paymentToken,
         actualPrice,
-        actualPlanTier
+        actualPlanTier,
+        email,
+        password,
+        booking._id
       ),
 
-      // To Doctor: (recipient, personName, otherPartyName, startDate, paymentId, price, planTier)
+      // To Doctor: new enrollment notification (no password sent)
       sendProgramBookingEmail(
         DOCTOR_EMAIL,
         DOCTOR_NAME,
         name,
-        startDate,
+        programStartDate || new Date(),
         paymentToken,
         actualPrice,
-        actualPlanTier
+        actualPlanTier,
+        email,
+        null,
+        booking._id
       ),
 
-      // Welcome Email: (recipient, patientName, assignedDoctorName, password)
+      // To Admin: copy of enrollment (no password sent)
+      sendProgramBookingEmail(
+        ADMIN_MAIL,
+        "Admin",
+        name,
+        programStartDate || new Date(),
+        paymentToken,
+        actualPrice,
+        actualPlanTier,
+        email,
+        null,
+        booking._id
+      ),
+
+      // Welcome Email to Patient
       sendPatientWelcomeEmail(email, name, DOCTOR_NAME, password),
     ]).catch((err) => console.error("Notification Error:", err));
   } catch (error) {
@@ -289,6 +323,11 @@ const programBooking = asyncHandler(async (req, res) => {
 
     console.error("CRITICAL ERROR during program booking session:", error);
 
+    res.status(500).json({
+      message:
+        "Payment verified but account creation failed. Please contact support immediately.",
+      error: error.message,
+    });
   } finally {
     session.endSession();
   }
@@ -372,6 +411,40 @@ const getPublicTimeSlots = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, slots });
 });
 
+// POST /api/v1/public/check-duplicate
+// Checks if an email or phone number already exists in the system before the user proceeds to payment
+const checkDuplicate = asyncHandler(async (req, res) => {
+  const { email, mobileNumber } = req.body;
+
+  if (!email && !mobileNumber) {
+    return res.status(400).json({ message: "Email or phone number is required." });
+  }
+
+  const query = [];
+  if (email) query.push({ email: email.toLowerCase().trim() });
+  if (mobileNumber) query.push({ mobileNumber: mobileNumber.trim() });
+
+  const existingUser = await User.findOne({ $or: query }).lean();
+
+  if (existingUser) {
+    const emailTaken = email && existingUser.email === email.toLowerCase().trim();
+    const phoneTaken = mobileNumber && existingUser.mobileNumber === mobileNumber.trim();
+
+    return res.status(409).json({
+      duplicate: true,
+      emailTaken: Boolean(emailTaken),
+      phoneTaken: Boolean(phoneTaken),
+      message: emailTaken && phoneTaken
+        ? "Both email and phone number are already registered."
+        : emailTaken
+          ? "This email address is already registered."
+          : "This phone number is already registered.",
+    });
+  }
+
+  return res.status(200).json({ duplicate: false, message: "Email and phone are available." });
+});
+
 export {
   newRequestConsultation,
   programBooking,
@@ -379,4 +452,5 @@ export {
   verifyCosultationId,
   getPublicTimeSlots,
   getBookedSlots,
+  checkDuplicate,
 };

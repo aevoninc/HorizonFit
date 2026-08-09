@@ -16,7 +16,11 @@ import {
 } from "../utils/mailer.js";
 import weeklyLog from "../model/normalPlanModels/weeklyLog.model.js";
 import TimeSlot from "../model/timeSlot.model.js";
-
+import mongoose from "mongoose";
+import DailyLog from "../model/normalPlanModels/dailyLog.model.js";
+import PatientZoneProgress from "../model/normalPlanModels/patientZoneProgress.model.js";
+import HabitLog from "../model/habitLog.model.js";
+import RecommendationsCache from "../model/normalPlanModels/recommendationsCache.model.js";
 
 export async function createDoctor(name, email, password, mobileNumber) {
 
@@ -598,6 +602,22 @@ const deletePatient = asyncHandler(async (req, res) => {
   const patient = await User.findOneAndDelete({
     _id: patientId,
     role: "Patient",
+  });
+
+  const weeklyLogResult = await weeklyLog.deleteMany({
+    patientId: patientId,
+  });
+
+  const timeSlotResult = await TimeSlot.deleteMany({
+    patientId: patientId,
+  });
+
+  const consultationResult = await ConsultationBooking.deleteMany({
+    patientId: patientId,
+  });
+
+  const npProgressResult = await PatientZoneProgress.deleteMany({
+    patientId: patientId,
   });
 
   if (!patient) {

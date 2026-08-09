@@ -130,7 +130,7 @@ export const PatientTasksPage: React.FC = () => {
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleSubmitDaily = async () => {
-    if (submittedToday) return;
+    // if (submittedToday) return;
     setSubmitting(true);
     try {
       const completedHabits = HABIT_CODES.filter(code => localSelections[code]);
@@ -177,6 +177,33 @@ export const PatientTasksPage: React.FC = () => {
   const currentViewerZoneData = npProgress?.zones.find(z => z.zoneNumber === selectedViewerZone);
   const currentZonePDFs = useMemo(() => getLocalZonePDFs(selectedViewerZone), [selectedViewerZone]);
 
+  const isProgramCompleted = useMemo(() => {
+    return (
+      Boolean(npProgress?.programCompleted) ||
+      Boolean((programStatus as any)?.programCompleted) ||
+      Boolean((user as any)?.programCompleted) ||
+      (programStatus?.currentZone === 5 && programStatus?.currentDay >= 21)
+    );
+  }, [npProgress, programStatus, user]);
+
+  const isWeeklyLogGateBlocked = useMemo(() => {
+    if (!npProgress) return false;
+    const currentZoneLogs = (npProgress.weeklyLogs || []).filter(l => l.zoneNumber === programStatus.currentZone);
+    if (programStatus.currentDay >= 8 && programStatus.currentDay <= 14 && currentZoneLogs.length < 1) {
+      return true;
+    }
+    if (programStatus.currentDay >= 15 && programStatus.currentDay <= 21 && currentZoneLogs.length < 2) {
+      return true;
+    }
+    if (programStatus.currentZone > 1 && programStatus.currentDay === 1) {
+      const prevZoneLogs = (npProgress.weeklyLogs || []).filter(l => l.zoneNumber === programStatus.currentZone - 1);
+      if (prevZoneLogs.length < 3) {
+        return true;
+      }
+    }
+    return false;
+  }, [npProgress, programStatus]);
+
   if (loadingPage) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -187,7 +214,6 @@ export const PatientTasksPage: React.FC = () => {
       </div>
     );
   }
-
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="container max-w-5xl mx-auto space-y-8 pb-12">
@@ -270,7 +296,8 @@ export const PatientTasksPage: React.FC = () => {
               </div>
 
               <AnimatePresence>
-                {submittedToday && (
+                {/* {submittedToday && ( */}
+                {true && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
@@ -308,14 +335,15 @@ export const PatientTasksPage: React.FC = () => {
                             id={`habit-${code}`}
                             checked={isSelected}
                             onCheckedChange={(checked) => {
-                              if (submittedToday) return;
+                              // if (submittedToday) return;
                               setLocalSelections(prev => ({ ...prev, [code]: !!checked }));
                               setHabitDetails(prev => ({
                                 ...prev,
                                 [code]: { ...prev[code], mainTicked: !!checked }
                               }));
                             }}
-                            disabled={submittedToday}
+                            // disabled={submittedToday}
+
                             className="h-7 w-7 rounded-lg border-2 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 transition-all scale-110"
                           />
 
@@ -356,7 +384,34 @@ export const PatientTasksPage: React.FC = () => {
             </div>
           </div>
 
-          {!submittedToday ? (
+          {isProgramCompleted ? (
+            <Card className="rounded-3xl gradient-phoenix text-white p-10 text-center space-y-4 shadow-2xl border-none">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20 backdrop-blur-md mx-auto shadow-inner">
+                <PartyPopper className="h-10 w-10 text-yellow-200 animate-bounce" />
+              </div>
+              <h3 className="text-3xl font-black tracking-tight">🎉 Congratulations! Program Completed!</h3>
+              <p className="text-lg text-white/90 max-w-xl mx-auto font-medium leading-relaxed">
+                You have successfully completed all 15 weeks and 5 zones of the HorizonFit transformation journey. Your dedication to your health and habits has paid off!
+              </p>
+              <div className="pt-2">
+                <div className="inline-block bg-white/15 backdrop-blur-md border border-white/20 px-6 py-2.5 rounded-full text-sm font-extrabold uppercase tracking-widest text-yellow-200">
+                  ✨ 15 Weeks Completed • Official HorizonFit Graduate
+                </div>
+              </div>
+            </Card>
+          ) : isWeeklyLogGateBlocked ? (
+            <Card className="rounded-3xl border-2 border-amber-300 bg-amber-50/90 p-8 text-center space-y-4 shadow-xl">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-700 mx-auto shadow-inner">
+                <Activity className="h-7 w-7" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black text-amber-950">Weekly Log Submission Required</h3>
+                <p className="text-base text-amber-900 font-medium max-w-md mx-auto leading-relaxed">
+                  Please complete your weekly log to proceed with your next daily habit session.
+                </p>
+              </div>
+            </Card>
+          ) : !submittedToday ? (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="card-elevated">
@@ -465,7 +520,7 @@ export const PatientTasksPage: React.FC = () => {
         <TabsContent value="weekly" className="focus-visible:outline-none">
           <WeeklyLogForm
             currentZone={selectedViewerZone}
-            currentWeek={npProgress?.totalWeeksCompleted ? npProgress.totalWeeksCompleted + 1 : 1}
+            currentWeek={(npProgress?.weeklyLogs?.filter((l) => l.zoneNumber === selectedViewerZone)?.length || 0) + 1}
             userCurrentDay={programStatus.currentDay}
             userCurrentZone={programStatus.currentZone}
             lastLog={npProgress?.weeklyLogs ? npProgress.weeklyLogs[npProgress.weeklyLogs.length - 1] : undefined}
@@ -473,7 +528,7 @@ export const PatientTasksPage: React.FC = () => {
             completedTasks={0} // This is the old task logic, can be 0 or calculated
             totalTasks={0}
             canSubmit={true}
-            allLogs={npProgress.weeklyLogs || []}
+            allLogs={npProgress?.weeklyLogs || []}
             onSubmit={handleWeeklyLogSubmit}
           />
         </TabsContent>
