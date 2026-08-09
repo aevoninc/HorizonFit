@@ -209,6 +209,15 @@ export interface ProgramBookingData {
   paymentToken: string;
   orderId: string;
   razorpaySignature: string;
+  legalAcceptance?: {
+    termsAccepted: boolean;
+    userAgreementAccepted: boolean;
+    disclaimerAccepted: boolean;
+    privacyPolicyAccepted: boolean;
+    refundPolicyAccepted: boolean;
+    acceptedAt: string;
+    agreementVersion: string;
+  };
 }
 
 export type HabitCode = 'Hydration' | 'Nutrition' | 'Exercise' | 'Sleep' | 'Mindset';
@@ -244,6 +253,7 @@ export interface ProgramStatus {
   currentDay: number;
   totalDaysInZone: number;
   started: boolean;
+  programCompleted?: boolean;
 }
 
 export interface HabitLog {
@@ -298,6 +308,8 @@ export const publicApi = {
     api.post('/public/verify-payment', data),
   verifyBooking: (data: { consultationId: string }) =>
     api.post('/public/verify-consultation-id', data),
+  checkDuplicate: (data: { email: string; mobileNumber: string }) =>
+    api.post<{ duplicate: boolean; emailTaken?: boolean; phoneTaken?: boolean; message: string }>('/public/check-duplicate', data),
   getTimeSlots: () => api.get<{ slots: TimeSlot[] }>('/public/time-slots'),
   getBookedSlots: (date: string) => api.get<{ bookedTimes: string[] }>('/public/booked-slots', { params: { date } }),
 };

@@ -13,6 +13,7 @@ import {
   Video,
   Search,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   HorizonGuideVideo,
   HORIZON_GUIDE_CATEGORIES,
@@ -42,6 +44,7 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 export const HorizonGuidePage: React.FC = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [videos, setVideos] = useState<HorizonGuideVideo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +54,39 @@ export const HorizonGuidePage: React.FC = () => {
     null
   );
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Coming Soon state for non-Weight Loss categories
+  if (user?.assignedCategory && user.assignedCategory !== "Weight Loss") {
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center p-6 text-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md"
+        >
+          <Card className="card-elevated border-secondary/20 p-8 shadow-xl">
+            <CardContent className="flex flex-col items-center gap-5 p-0">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl gradient-phoenix shadow-lg">
+                <Sparkles className="h-10 w-10 text-primary-foreground animate-pulse" />
+              </div>
+              <Badge variant="outline" className="px-3 py-1 text-xs font-semibold text-secondary uppercase tracking-widest border-secondary/30 bg-secondary/10">
+                Coming Soon
+              </Badge>
+              <h2 className="text-2xl font-extrabold text-foreground">
+                Horizon Guide for {user.assignedCategory}
+              </h2>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                We are currently curating specialized, high-impact video guides tailored specifically for <span className="font-semibold text-foreground">{user.assignedCategory}</span> patients.
+              </p>
+              <div className="w-full rounded-lg bg-muted/50 p-4 text-xs text-muted-foreground border border-border">
+                💡 <span className="font-medium text-foreground">Stay tuned!</span> Video modules for {user.assignedCategory} will be added soon.
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     fetchVideos();

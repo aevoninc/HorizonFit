@@ -41,7 +41,7 @@ const consultationTypes = [
   {
     value: "initial",
     label: "Initial Assessment",
-    price: 1,
+    price: 500,
     description: "Comprehensive health evaluation",
   },
 ];

@@ -16,6 +16,7 @@ interface User {
   email: string;
   name: string;
   assignedCategory?: string | null;
+  programCompleted?: boolean;
 }
 
 interface AuthContextType {

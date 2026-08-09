@@ -161,7 +161,9 @@ const getNormalPlanProgress = async (req, res) => {
         }
         : null,
       weeklyLogs,
-      totalWeeksCompleted: normalPlanPatient.totalWeeksCompleted || 0,
+      userCurrentDay: normalPlanPatient.currentDay || 1,
+      userCurrentZone: normalPlanPatient.currentZone || 1,
+      totalWeeksCompleted: weeklyLogs.length,
       programCompleted: normalPlanPatient.programCompleted || false,
       canEnterMetrics,
       daysSinceLastMetrics,
@@ -440,6 +442,11 @@ const markVideoWatched = async (req, res) => {
 // Get Horizon Guide videos
 const getHorizonGuideVideos = async (req, res) => {
   try {
+    // Return empty array for non-Weight Loss category users (videos coming soon)
+    if (req.user?.assignedCategory && req.user.assignedCategory !== "Weight Loss") {
+      return res.json([]);
+    }
+
     const { category } = req.query;
 
     // Build query object
@@ -566,53 +573,69 @@ const submitWeeklyLog = async (req, res) => {
   try {
     // Fallback: If logData is not present, assume req.body contains the fields directly
     const actualLogData = logData || req.body;
-    const actualWeekNumber = actualLogData.weekNumber;
     const actualZoneNumber = zoneNumber || actualLogData.zoneNumber;
-    if (!actualWeekNumber) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing week number in log data.",
-      });
-    }
 
-    // 1. Validation: Prevent duplicate submission for the same week and zone
-    const existingLog = await WeeklyLog.findOne({
-      patientId,
-      zoneNumber: actualZoneNumber,
-      weekNumber: actualWeekNumber,
-    });
-
-    if (existingLog) {
-      return res.status(400).json({
-        success: false,
-        message: `You have already submitted a log for Week ${actualWeekNumber} in this zone.`,
-      });
-    }
-
-    // 2. Validation: Prevent submission if the required daily tasks are not yet completed
     const user = await User.findById(patientId);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found." });
     }
 
-    const requiredCompletedDay = actualWeekNumber * 7;
+    if (user.programCompleted || user.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "🎉 Program Completed! You have completed all 15 weeks of the HorizonFit program and cannot submit further weekly logs.",
+        programCompleted: true,
+      });
+    }
+
+    // Determine target week for this log within the zone (1, 2, or 3)
+    const existingLogsInZone = await WeeklyLog.find({
+      patientId,
+      zoneNumber: actualZoneNumber,
+    });
+    const logsInZoneCount = existingLogsInZone.length;
+
+    if (logsInZoneCount >= 3) {
+      return res.status(400).json({
+        success: false,
+        message: `You have already completed all 3 weekly logs for Zone ${actualZoneNumber}.`,
+      });
+    }
+
+    // Next week inside this zone is logsInZoneCount + 1
+    const weekInZone = logsInZoneCount + 1;
+    const actualWeekNumber = actualLogData.weekNumber || weekInZone;
+
+    // Validation: Prevent duplicate submission for the same week in this zone
+    const existingLog = existingLogsInZone.find((l) => l.weekNumber === actualWeekNumber);
+    if (existingLog) {
+      return res.status(400).json({
+        success: false,
+        message: `You have already submitted a log for Week ${actualWeekNumber} in Zone ${actualZoneNumber}.`,
+      });
+    }
+
+    // Calculate required completed day in current zone
+    // Week 1 in zone requires Day 7, Week 2 requires Day 14, Week 3 requires Day 21
+    const requiredCompletedDay = weekInZone * 7;
     let isAllowed = false;
 
     if (user.currentZone > actualZoneNumber) {
-      // They have advanced beyond this zone, so the week's tasks are definitely done.
       isAllowed = true;
     } else if (user.currentZone === actualZoneNumber) {
-      // user.currentDay represents the NEXT day to be done.
-      // So if they completed Day 6, currentDay is 7. We want them to submit ON Day 7 (>= 7).
+      // User must be at or past the required day for this week's log (e.g. Day 7 for Week 1)
       if (user.currentDay >= requiredCompletedDay) {
         isAllowed = true;
       }
     }
 
     if (!isAllowed) {
+      const daysLeft = Math.max(0, requiredCompletedDay - user.currentDay);
       return res.status(400).json({
         success: false,
-        message: `You must complete all daily tasks for Week ${actualWeekNumber} (up to Day ${requiredCompletedDay}) before submitting this log.`
+        message: `You must complete ${daysLeft} more daily tasks (up to Day ${requiredCompletedDay} in Zone ${actualZoneNumber}) before submitting your Week ${actualWeekNumber} log.`,
+        daysLeft,
+        requiredDay: requiredCompletedDay,
       });
     }
 

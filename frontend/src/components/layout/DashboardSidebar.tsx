@@ -63,8 +63,8 @@ export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
 }) => {
   const { role, logout, user, planTier } = useAuth();
   const location = useLocation();
-  const navItems = role === 'Doctor' ? doctorNavItems : patientNavItems;
   const isPatient = role === 'Patient';
+  const navItems = role === 'Doctor' ? doctorNavItems : patientNavItems;
 
   const handleLogout = async () => {
     await logout();

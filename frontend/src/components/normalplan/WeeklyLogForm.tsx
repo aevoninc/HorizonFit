@@ -109,7 +109,7 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
 
   const mostRecentLog = sortedLogs[0];
 
-  // Calculate if the weekly log is due based on completed task days instead of elapsed time
+  // Calculate required completed day for the current week log (Week 1 = Day 7, Week 2 = Day 14, Week 3 = Day 21)
   const requiredCompletedDay = currentWeek * 7;
   let isDue = false;
   let daysUntilDueCalculated = 0;
@@ -120,7 +120,8 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
     if (userCurrentDay >= requiredCompletedDay) {
       isDue = true;
     } else {
-      daysUntilDueCalculated = Math.max(0, requiredCompletedDay - userCurrentDay);
+      // Days remaining to reach current 7-day milestone
+      daysUntilDueCalculated = Math.max(0, requiredCompletedDay - (userCurrentDay - 1));
     }
   }
 
@@ -186,8 +187,18 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
 
   return (
     <div className="space-y-10 group">
-      {/* 1. Submission Section (Form or Required Message) */}
-      {!isDue ? (
+      {/* 1. Submission Section (Form, Required Message, or Program Completed Banner) */}
+      {currentZone === 5 && allLogs.filter(l => l.zoneNumber === 5).length >= 3 ? (
+        <Card className="rounded-3xl gradient-phoenix text-white p-10 text-center space-y-4 shadow-2xl border-none">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-md mx-auto shadow-inner">
+            <CheckCircle className="h-8 w-8 text-yellow-200" />
+          </div>
+          <h3 className="text-2xl font-black tracking-tight">🎉 All Weekly Logs Completed!</h3>
+          <p className="text-base text-white/90 max-w-lg mx-auto font-medium leading-relaxed">
+            Congratulations! You have submitted all 15 weekly logs across all 5 zones. The program has ended and no further logs are required.
+          </p>
+        </Card>
+      ) : !isDue ? (
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-2">
             <Lock className="h-5 w-5 text-amber-600" />
@@ -201,8 +212,8 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-amber-800 font-medium">
-                Complete <span className="text-2xl font-black text-amber-600">{daysUntilDueCalculated}</span> more daily {daysUntilDueCalculated === 1 ? 'task' : 'tasks'} to unlock your next weekly log submission.
+              <p className="text-amber-800 font-medium leading-relaxed">
+                You are currently on Day <span className="font-bold text-amber-900">{userCurrentDay}</span> of Zone {currentZone}. Complete <span className="text-2xl font-black text-amber-600">{daysUntilDueCalculated}</span> more daily habit {daysUntilDueCalculated === 1 ? 'log' : 'logs'} (up to Day {requiredCompletedDay}) to unlock your Week {currentWeek} log submission.
               </p>
             </CardContent>
           </Card>
