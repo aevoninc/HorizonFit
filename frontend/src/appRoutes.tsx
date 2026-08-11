@@ -4,6 +4,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { BookConsultationPage } from "./pages/BookConsultationPage";
 import { EnrollPage } from "./pages/EnrollPage";
 import { BookingSuccessPage } from "./pages/BookingSuccessPage";
+import { SelfGuidedSystemPage } from "./pages/SelfGuidedSystemPage";
 
 // Doctor Pages
 import { DoctorPatientsPage } from "./pages/doctor/DoctorPatientsPage";
@@ -40,6 +41,7 @@ export const AppRoutes = () => {
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/book-consultation" element={<BookConsultationPage />} />
       <Route path="/enroll" element={<EnrollPage />} />
+      <Route path="/self-guided-system" element={<SelfGuidedSystemPage />} />
       <Route path="/booking-success" element={<BookingSuccessPage />} />
 
       {/* Doctor Routes */}
@@ -65,11 +67,11 @@ export const AppRoutes = () => {
         />
         <Route path="templates" element={<ProgramTemplatesPage />} />
 
-          <Route path="normal-plan-videos" element={<NormalPlanVideosPage />} />
-          <Route
-            path="normal-plan-monitor"
-            element={<NormalPlanMonitorPage />}
-          />
+        <Route path="normal-plan-videos" element={<NormalPlanVideosPage />} />
+        <Route
+          path="normal-plan-monitor"
+          element={<NormalPlanMonitorPage />}
+        />
       </Route>
 
       {/* Patient Routes */}
