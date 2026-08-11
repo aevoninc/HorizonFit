@@ -186,23 +186,25 @@ export const PatientTasksPage: React.FC = () => {
     );
   }, [npProgress, programStatus, user]);
 
-  const isWeeklyLogGateBlocked = useMemo(() => {
-    if (!npProgress) return false;
-    const currentZoneLogs = (npProgress.weeklyLogs || []).filter(l => l.zoneNumber === programStatus.currentZone);
-    if (programStatus.currentDay >= 8 && programStatus.currentDay <= 14 && currentZoneLogs.length < 1) {
-      return true;
-    }
-    if (programStatus.currentDay >= 15 && programStatus.currentDay <= 21 && currentZoneLogs.length < 2) {
-      return true;
-    }
-    if (programStatus.currentZone > 1 && programStatus.currentDay === 1) {
-      const prevZoneLogs = (npProgress.weeklyLogs || []).filter(l => l.zoneNumber === programStatus.currentZone - 1);
-      if (prevZoneLogs.length < 3) {
-        return true;
-      }
-    }
-    return false;
-  }, [npProgress, programStatus]);
+  // const isWeeklyLogGateBlocked = useMemo(() => {
+  //   if (!npProgress) return false;
+  //   const currentZoneLogs = (npProgress.weeklyLogs || []).filter(l => l.zoneNumber === programStatus.currentZone);
+  //   if (programStatus.currentDay >= 8 && programStatus.currentDay <= 14 && currentZoneLogs.length < 1) {
+  //     return true;
+  //   }
+  //   if (programStatus.currentDay >= 15 && programStatus.currentDay <= 21 && currentZoneLogs.length < 2) {
+  //     return true;
+  //   }
+  //   if (programStatus.currentZone > 1 && programStatus.currentDay === 1) {
+  //     const prevZoneLogs = (npProgress.weeklyLogs || []).filter(l => l.zoneNumber === programStatus.currentZone - 1);
+  //     if (prevZoneLogs.length < 3) {
+  //       return true;
+  //     }
+  //   }
+  //   return false;
+  // }, [npProgress, programStatus]);
+
+  const isWeeklyLogGateBlocked = false;
 
   if (loadingPage) {
     return (

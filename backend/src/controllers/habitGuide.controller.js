@@ -72,37 +72,37 @@ export const submitHabits = asyncHandler(async (req, res) => {
   }
 
   // GATING: Verify user has submitted required weekly logs before proceeding with daily habits
-  const logsInCurrentZone = await WeeklyLog.countDocuments({
-    patientId,
-    zoneNumber: user.currentZone,
-  });
+  // const logsInCurrentZone = await WeeklyLog.countDocuments({
+  //   patientId,
+  //   zoneNumber: user.currentZone,
+  // });
 
-  if (user.currentDay >= 8 && user.currentDay <= 14 && logsInCurrentZone < 1) {
-    throw new ApiError(
-      400,
-      `Please complete your Week 1 log for Zone ${user.currentZone} to proceed with your daily habits.`
-    );
-  }
+  // if (user.currentDay >= 8 && user.currentDay <= 14 && logsInCurrentZone < 1) {
+  //   throw new ApiError(
+  //     400,
+  //     `Please complete your Week 1 log for Zone ${user.currentZone} to proceed with your daily habits.`
+  //   );
+  // }
 
-  if (user.currentDay >= 15 && user.currentDay <= 21 && logsInCurrentZone < 2) {
-    throw new ApiError(
-      400,
-      `Please complete your Week 2 log for Zone ${user.currentZone} to proceed with your daily habits.`
-    );
-  }
+  // if (user.currentDay >= 15 && user.currentDay <= 21 && logsInCurrentZone < 2) {
+  //   throw new ApiError(
+  //     400,
+  //     `Please complete your Week 2 log for Zone ${user.currentZone} to proceed with your daily habits.`
+  //   );
+  // }
 
-  if (user.currentZone > 1 && user.currentDay === 1) {
-    const logsInPrevZone = await WeeklyLog.countDocuments({
-      patientId,
-      zoneNumber: user.currentZone - 1,
-    });
-    if (logsInPrevZone < 3) {
-      throw new ApiError(
-        400,
-        `Please complete your Week 3 log for Zone ${user.currentZone - 1} to proceed to Zone ${user.currentZone}.`
-      );
-    }
-  }
+  // if (user.currentZone > 1 && user.currentDay === 1) {
+  //   const logsInPrevZone = await WeeklyLog.countDocuments({
+  //     patientId,
+  //     zoneNumber: user.currentZone - 1,
+  //   });
+  //   if (logsInPrevZone < 3) {
+  //     throw new ApiError(
+  //       400,
+  //       `Please complete your Week 3 log for Zone ${user.currentZone - 1} to proceed to Zone ${user.currentZone}.`
+  //     );
+  //   }
+  // }
 
   const todayStart = startOfDay(new Date());
 

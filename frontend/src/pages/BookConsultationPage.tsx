@@ -12,6 +12,8 @@ import {
   Sun,
   Moon,
   Clock,
+  Stethoscope,
+  Star,
 } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -309,8 +311,75 @@ export const BookConsultationPage: React.FC = () => {
             Book a Consultation
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Schedule a session with our certified health specialists
+            Schedule a 1-on-1 session with Dr. M. Jabaarrul
           </p>
+        </motion.div>
+
+        {/* Doctor Introduction Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 }}
+          className="mb-8"
+        >
+          <Card className="card-elevated overflow-hidden">
+            <div className="gradient-teal p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                {/* Avatar circle */}
+                <div className="flex-shrink-0 h-20 w-20 rounded-full gradient-phoenix shadow-phoenix flex items-center justify-center">
+                  <Stethoscope className="h-9 w-9 text-primary-foreground" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-bold uppercase tracking-widest text-secondary-foreground/70 mb-1">
+                    Your Specialist
+                  </p>
+                  <h2 className="text-2xl font-extrabold text-secondary-foreground leading-tight">
+                    Dr. M. Jabaarrul
+                  </h2>
+                  <p className="text-secondary-foreground/80 text-sm font-semibold mt-0.5">
+                    MBBS · AFIH · Fellowship in Clinical Diabetology
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <CardContent className="p-6 space-y-5">
+              {/* Bio */}
+              <p className="text-muted-foreground leading-relaxed">
+                Dr. Jabaarrul is a qualified physician with over 15 years of clinical experience
+                in metabolic health and lifestyle transformation. He is the designer of the
+                Horizon Fit 15-Week Weight Management System and offers personalised 1-on-1
+                consultations for individuals who want direct guidance on their health journey.
+              </p>
+
+              {/* Credential chips */}
+              <div className="flex flex-wrap gap-3">
+                {[
+                  "MBBS — Medical degree",
+                  "AFIH — Occupational health",
+                  "Fellowship — Clinical Diabetology",
+                  "15+ years clinical experience",
+                ].map((credential) => (
+                  <div
+                    key={credential}
+                    className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/50 px-3 py-1.5 text-xs font-semibold text-foreground"
+                  >
+                    <Star className="h-3 w-3 text-primary shrink-0" />
+                    {credential}
+                  </div>
+                ))}
+              </div>
+
+              {/* Authority badge */}
+              <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+                <ShieldCheck className="h-5 w-5 shrink-0 text-primary mt-0.5" />
+                <p className="text-sm text-foreground leading-snug">
+                  The consultation is with a qualified MBBS physician specialised in diabetology
+                  and metabolic health — not a fitness coach or wellness influencer.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
 
         {/* Progress Steps */}

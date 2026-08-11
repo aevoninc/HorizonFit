@@ -54,23 +54,24 @@ type EnrollFormData = z.infer<typeof enrollSchema>;
 
 const PROGRAM_TIERS = {
   normal: {
-    name: "Normal Program",
+    name: "15-Week Self-Guided Weight Management System",
     price: 7000,
     features: [
-      "15 weeks of structured transformation",
-      "Personalized task allocation",
-      "Progress tracking & analytics",
-      "Access to all 5 zones",
-      "Basic dashboard",
+      "15 weeks of structured self-guided content",
+      "Personal Horizon Fit dashboard",
+      "Horizon Guide & learning videos",
+      "5 Zone-specific workbooks",
+      "Guided calculations and activities",
+      "Daily Code & weekly progress tracking",
     ],
     icon: Star,
   },
 };
 
 const programBenefits = [
-  { icon: Dumbbell, text: "15 weeks of structured transformation" },
-  { icon: Target, text: "Personalized task allocation" },
-  { icon: Award, text: "Progress tracking & analytics" },
+  { icon: Dumbbell, text: "15 weeks of structured self-guided content" },
+  { icon: Target, text: "Personal Horizon Fit dashboard" },
+  { icon: Award, text: "Daily Code & weekly progress tracking" },
 ];
 
 const STEPS = [
@@ -113,7 +114,7 @@ const LEGAL_DOCUMENTS = [
   {
     id: "terms",
     title: "Terms and Conditions",
-    checkboxLabel: "I have read and agree to the Terms and Conditions",
+    checkboxLabel: "I have read and agree to the Terms and Conditions.",
     content: `TERMS AND CONDITIONS
 Horizon Fit Health Management Private Limited
 Effective Date: 7 June 2026
@@ -146,7 +147,7 @@ Horizon Fit reserves the right to update these Terms at any time. Continued use 
   {
     id: "userAgreement",
     title: "User Agreement",
-    checkboxLabel: "I have read and agree to the User Agreement",
+    checkboxLabel: "I have read and agree to the User Agreement.",
     content: `USER AGREEMENT
 Horizon Fit Health Management Private Limited
 Effective Date: 7 June 2026
@@ -175,7 +176,7 @@ Horizon Fit records the following at the time of your acceptance: your full name
   {
     id: "disclaimer",
     title: "Disclaimer",
-    checkboxLabel: "I have read and agree to the Disclaimer",
+    checkboxLabel: "I have read and agree to the Disclaimer.",
     content: `DISCLAIMER
 Horizon Fit Health Management Private Limited
 Effective Date: 7 June 2026
@@ -201,7 +202,7 @@ The HorizonFit platform is not designed for use in emergency situations. If you 
   {
     id: "privacyPolicy",
     title: "Privacy Policy",
-    checkboxLabel: "I have read and agree to the Privacy Policy",
+    checkboxLabel: "I have read and agree to the Privacy Policy.",
     content: `PRIVACY POLICY
 Horizon Fit Health Management Private Limited
 Effective Date: 7 June 2026
@@ -246,7 +247,7 @@ Email: info@horizonfit.in`,
   {
     id: "refundPolicy",
     title: "Refund Policy",
-    checkboxLabel: "I have read and agree to the Refund Policy",
+    checkboxLabel: "I have read and agree to the Refund Policy.",
     content: `REFUND POLICY
 Horizon Fit Health Management Private Limited
 Effective Date: 7 June 2026
@@ -593,10 +594,10 @@ export const EnrollPage: React.FC = () => {
           className="mb-8 text-center"
         >
           <h1 className="text-3xl font-bold text-foreground">
-            Enroll in the 15-Week Program
+            Enrol in the 15-Week Self-Guided Weight Management System
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Doctor-personalized health transformation awaits you
+            Learn the framework. Build your plan. Follow your journey.
           </p>
         </motion.div>
 
@@ -821,7 +822,7 @@ export const EnrollPage: React.FC = () => {
                 Back
               </Button> */}
               <Button variant="phoenix" size="lg" onClick={() => setStep(2)}>
-                Continue with {selectedProgram.name}
+                Continue to Enrolment
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
@@ -879,7 +880,7 @@ export const EnrollPage: React.FC = () => {
             {/* Form */}
             <Card className="card-elevated lg:col-span-3">
               <CardHeader>
-                <CardTitle>Create Your Account</CardTitle>
+                <CardTitle>Your Details</CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit(() => { })} className="space-y-4">
@@ -976,7 +977,7 @@ export const EnrollPage: React.FC = () => {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Your account will be created automatically after successful payment.
+                      Your Horizon Fit account and dashboard access will be activated after successful payment.
                     </p>
                     <div className="flex gap-3">
                       <Button
@@ -1028,7 +1029,7 @@ export const EnrollPage: React.FC = () => {
                   Legal Agreement
                 </h2>
                 <p className="text-secondary-foreground/80 mt-1 text-sm">
-                  Please read all five documents and check each box before proceeding to payment
+                  Please read each document carefully and check each box before proceeding to payment.
                 </p>
               </div>
 
@@ -1053,7 +1054,7 @@ export const EnrollPage: React.FC = () => {
                 {/* Checkboxes */}
                 <div className="rounded-xl border border-border/60 bg-muted/20 p-5 space-y-4">
                   <p className="text-sm font-semibold text-foreground">
-                    I confirm that I have read and agree to each of the following:
+                    I confirm that I have read and agree to the following:
                   </p>
                   {LEGAL_DOCUMENTS.map((doc) => {
                     const keyMap: Record<string, keyof typeof legalAcceptances> = {
@@ -1114,8 +1115,8 @@ export const EnrollPage: React.FC = () => {
                 {/* Binding acknowledgement */}
                 <div className="rounded-lg border border-border bg-muted/30 px-5 py-4">
                   <p className="text-xs text-muted-foreground leading-relaxed text-center">
-                    By clicking <strong className="text-foreground">"Proceed to Payment"</strong>{" "}
-                    you confirm that you have read, understood, and agreed to all of the above
+                    By clicking <strong className="text-foreground">"Proceed to Payment"</strong>,{" "}
+                    you confirm that you have read, understood and agreed to the above
                     documents. This acceptance is legally binding. Horizon Fit records your name,
                     email, IP address, device information, and the timestamp of this acceptance
                     for legal and compliance purposes.
@@ -1250,10 +1251,10 @@ export const EnrollPage: React.FC = () => {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-phoenix">
                 <Flame className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="font-bold text-foreground">HorizonFit</span>
+              <span className="font-bold text-foreground">Horizon Fit</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2024 HorizonFit. All rights reserved.
+              © 2026 Horizon Fit. All rights reserved.
             </p>
             <p className="text-xs text-secondary ">
               Developed by <span className="font-medium ">Javid Shariff</span>{" "}
