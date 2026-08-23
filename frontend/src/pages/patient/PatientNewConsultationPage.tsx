@@ -51,7 +51,8 @@ function buildISODateTime(dateStr: string, timeStr: string): string {
   let [hours, minutes] = time.split(":").map(Number);
   if (period === "PM" && hours !== 12) hours += 12;
   if (period === "AM" && hours === 12) hours = 0;
-  return `${dateStr}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+  const d = new Date(`${dateStr}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
+  return d.toISOString();
 }
 
 export const PatientNewConsultationPage: React.FC = () => {
@@ -124,29 +125,44 @@ export const PatientNewConsultationPage: React.FC = () => {
   const getSlotState = (slot: TimeSlot) => {
     if (!selectedDate) return "available";
 
-    const slotISO = buildISODateTime(selectedDate, slot.time);
+    const [tStr, period] = slot.time.split(" ");
+    let [targetHours, targetMinutes] = tStr.split(":").map(Number);
+    if (period === "PM" && targetHours !== 12) targetHours += 12;
+    if (period === "AM" && targetHours === 12) targetHours = 0;
+
+    const slotISO = `${selectedDate}T${String(targetHours).padStart(2, "0")}:${String(targetMinutes).padStart(2, "0")}:00`;
     const slotDate = new Date(slotISO);
     const slotTime = slotDate.getTime();
 
     // 1. Check if it's already booked (Rule 2)
     const isBooked = bookedTimes.some((bt) => {
       const bDate = new Date(bt);
-      // Robust comparison of date parts to avoid UTC/Local offset issues
-      return (
+      if (isNaN(bDate.getTime())) return false;
+
+      const matchLocal =
         bDate.getFullYear() === slotDate.getFullYear() &&
         bDate.getMonth() === slotDate.getMonth() &&
         bDate.getDate() === slotDate.getDate() &&
-        bDate.getHours() === slotDate.getHours() &&
-        bDate.getMinutes() === slotDate.getMinutes()
-      );
+        bDate.getHours() === targetHours &&
+        bDate.getMinutes() === targetMinutes;
+
+      const matchUTC =
+        bDate.getUTCFullYear() === slotDate.getFullYear() &&
+        bDate.getUTCMonth() === slotDate.getMonth() &&
+        bDate.getUTCDate() === slotDate.getDate() &&
+        bDate.getUTCHours() === targetHours &&
+        bDate.getUTCMinutes() === targetMinutes;
+
+      const matchTimestamp = Math.abs(bDate.getTime() - slotDate.getTime()) < 5 * 60 * 1000;
+
+      return matchLocal || matchUTC || matchTimestamp;
     });
+
     if (isBooked) return "taken";
 
     // 2. Check if it's in the past or "too close" (Rule 1)
     if (isToday) {
       const now = Date.now();
-      // Requirement: At 2pm, 6pm is blocked (4h gap), 7pm is ok (5h gap).
-      // This implies a mandatory 5-hour lead time for same-day bookings.
       const fiveHoursInMs = 5 * 60 * 60 * 1000;
       if (slotTime < now + fiveHoursInMs) {
         return "past";
@@ -182,9 +198,10 @@ export const PatientNewConsultationPage: React.FC = () => {
 
     try {
       const requestedDateTime = buildISODateTime(selectedDate, selectedSlot.time);
-      const orderResponse = await patientApi.createOrder();
+      const orderResponse = await patientApi.createOrder({ requestedDateTime });
       const { orderId, amount } = orderResponse.data;
-      console.log(amount)
+      console.log(amount);
+
       openPayment({
         orderId,
         amount: amount || CONSULTATION_PRICE,
@@ -219,6 +236,11 @@ export const PatientNewConsultationPage: React.FC = () => {
               description: errorMessage,
               variant: "destructive",
             });
+            if (selectedDate) {
+              const res = await publicApi.getBookedSlots(selectedDate);
+              setBookedTimes(res.data.bookedTimes);
+              setSelectedSlot(null);
+            }
           } finally {
             setIsProcessing(false);
           }
@@ -235,13 +257,23 @@ export const PatientNewConsultationPage: React.FC = () => {
           setIsProcessing(false);
         },
       });
-    } catch (error) {
+    } catch (error: any) {
+      setIsProcessing(false);
+      const errorMessage = error.response?.data?.message || "Failed to initiate payment. Please try again.";
       toast({
-        title: "Error",
-        description: "Failed to initiate payment. Please try again.",
+        title: "Slot Unavailable",
+        description: errorMessage,
         variant: "destructive",
       });
-      setIsProcessing(false);
+      if (selectedDate) {
+        try {
+          const res = await publicApi.getBookedSlots(selectedDate);
+          setBookedTimes(res.data.bookedTimes);
+          setSelectedSlot(null);
+        } catch (e) {
+          console.error("Error refreshing slots", e);
+        }
+      }
     }
   };
 

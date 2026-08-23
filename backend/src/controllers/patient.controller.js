@@ -299,6 +299,9 @@ const getPatientProgress = asyncHandler(async (req, res) => {
 // @desc    Patient requests a consultation after choosing a specific date/time via Calendly
 // @route   POST /api/patient/consultation-request
 // @access  Private/Patient
+// @desc    Patient requests a consultation after choosing a specific date/time via Calendly
+// @route   POST /api/patient/consultation-request
+// @access  Private/Patient
 const requestConsultation = asyncHandler(async (req, res) => {
   const patientId = req.user._id;
   // Get user details from the auth middleware
@@ -318,6 +321,33 @@ const requestConsultation = asyncHandler(async (req, res) => {
     return res.status(400).json({
       message: "Missing required payment details or appointment date.",
     });
+  }
+
+  // 1.1 Slot Collision Check
+  const slotDate = new Date(requestedDateTime);
+  if (!isNaN(slotDate.getTime())) {
+    const minTime = new Date(slotDate.getTime() - 5 * 60 * 1000);
+    const maxTime = new Date(slotDate.getTime() + 5 * 60 * 1000);
+    const istOffsetMs = 5.5 * 60 * 60 * 1000;
+    const minTimeAlt1 = new Date(slotDate.getTime() + istOffsetMs - 5 * 60 * 1000);
+    const maxTimeAlt1 = new Date(slotDate.getTime() + istOffsetMs + 5 * 60 * 1000);
+    const minTimeAlt2 = new Date(slotDate.getTime() - istOffsetMs - 5 * 60 * 1000);
+    const maxTimeAlt2 = new Date(slotDate.getTime() - istOffsetMs + 5 * 60 * 1000);
+
+    const existingBooking = await ConsultationBooking.findOne({
+      $or: [
+        { requestedDateTime: { $gte: minTime, $lte: maxTime } },
+        { requestedDateTime: { $gte: minTimeAlt1, $lte: maxTimeAlt1 } },
+        { requestedDateTime: { $gte: minTimeAlt2, $lte: maxTimeAlt2 } },
+      ],
+      status: { $nin: ["Cancelled", "Awaiting Payment"] },
+    });
+
+    if (existingBooking) {
+      return res.status(400).json({
+        message: "This consultation time slot is already booked. Please select a different time slot.",
+      });
+    }
   }
 
   // 2. Security Check (Signature Verification)
@@ -407,6 +437,35 @@ const requestConsultation = asyncHandler(async (req, res) => {
 // @route   POST /api/patient/create-order
 // @access  Private/Patient
 const createOrderId = asyncHandler(async (req, res) => {
+  const { requestedDateTime } = req.body;
+  if (requestedDateTime) {
+    const slotDate = new Date(requestedDateTime);
+    if (!isNaN(slotDate.getTime())) {
+      const minTime = new Date(slotDate.getTime() - 5 * 60 * 1000);
+      const maxTime = new Date(slotDate.getTime() + 5 * 60 * 1000);
+      const istOffsetMs = 5.5 * 60 * 60 * 1000;
+      const minTimeAlt1 = new Date(slotDate.getTime() + istOffsetMs - 5 * 60 * 1000);
+      const maxTimeAlt1 = new Date(slotDate.getTime() + istOffsetMs + 5 * 60 * 1000);
+      const minTimeAlt2 = new Date(slotDate.getTime() - istOffsetMs - 5 * 60 * 1000);
+      const maxTimeAlt2 = new Date(slotDate.getTime() - istOffsetMs + 5 * 60 * 1000);
+
+      const existingBooking = await ConsultationBooking.findOne({
+        $or: [
+          { requestedDateTime: { $gte: minTime, $lte: maxTime } },
+          { requestedDateTime: { $gte: minTimeAlt1, $lte: maxTimeAlt1 } },
+          { requestedDateTime: { $gte: minTimeAlt2, $lte: maxTimeAlt2 } },
+        ],
+        status: { $nin: ["Cancelled", "Awaiting Payment"] },
+      });
+
+      if (existingBooking) {
+        return res.status(400).json({
+          message: "This consultation time slot is already booked. Please select a different time slot.",
+        });
+      }
+    }
+  }
+
   const PRICES = { consultation: CONSULTANCY_BOOKING_PRICE };
   try {
     const order = await createRazorpayOrder(PRICES.consultation);

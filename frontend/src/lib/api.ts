@@ -291,8 +291,8 @@ export const authApi = {
 
 // Public API
 export const publicApi = {
-  createOrderId: (type: 'consultation' | 'program', programType?: ProgramTier) =>
-    api.post<RazorpayOrder>('/public/create-order-id', { type, programType }),
+  createOrderId: (type: 'consultation' | 'program', programType?: ProgramTier, requestedDateTime?: string) =>
+    api.post<RazorpayOrder>('/public/create-order-id', { type, programType, requestedDateTime }),
   bookConsultation: (data: {
     name: string;
     email: string;
@@ -381,7 +381,7 @@ export const patientApi = {
     api.post('/patients/log-tracking-data', data),
 
   // Bookings/Consultations
-  createOrder: () => api.post<RazorpayOrder>('/patients/create-order'),
+  createOrder: (data?: { requestedDateTime?: string }) => api.post<RazorpayOrder>('/patients/create-order', data),
   requestConsultation: (data: {
     requestedDateTime: string;
     patientQuery?: string;

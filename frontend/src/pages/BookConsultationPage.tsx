@@ -70,7 +70,8 @@ function buildISODateTime(dateStr: string, timeStr: string): string {
   let [hours, minutes] = time.split(":").map(Number);
   if (period === "PM" && hours !== 12) hours += 12;
   if (period === "AM" && hours === 12) hours = 0;
-  return `${dateStr}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+  const d = new Date(`${dateStr}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
+  return d.toISOString();
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -153,21 +154,40 @@ export const BookConsultationPage: React.FC = () => {
 
   const getSlotState = (slot: TimeSlot) => {
     if (!selectedDate) return "available";
-    const slotISO = buildISODateTime(selectedDate, slot.time);
+
+    const [tStr, period] = slot.time.split(" ");
+    let [targetHours, targetMinutes] = tStr.split(":").map(Number);
+    if (period === "PM" && targetHours !== 12) targetHours += 12;
+    if (period === "AM" && targetHours === 12) targetHours = 0;
+
+    const slotISO = `${selectedDate}T${String(targetHours).padStart(2, "0")}:${String(targetMinutes).padStart(2, "0")}:00`;
     const slotDate = new Date(slotISO);
     const slotTime = slotDate.getTime();
 
     // 1. Check if it's already booked (Rule 2)
     const isBooked = bookedTimes.some((bt) => {
       const bDate = new Date(bt);
-      return (
+      if (isNaN(bDate.getTime())) return false;
+
+      const matchLocal =
         bDate.getFullYear() === slotDate.getFullYear() &&
         bDate.getMonth() === slotDate.getMonth() &&
         bDate.getDate() === slotDate.getDate() &&
-        bDate.getHours() === slotDate.getHours() &&
-        bDate.getMinutes() === slotDate.getMinutes()
-      );
+        bDate.getHours() === targetHours &&
+        bDate.getMinutes() === targetMinutes;
+
+      const matchUTC =
+        bDate.getUTCFullYear() === slotDate.getFullYear() &&
+        bDate.getUTCMonth() === slotDate.getMonth() &&
+        bDate.getUTCDate() === slotDate.getDate() &&
+        bDate.getUTCHours() === targetHours &&
+        bDate.getUTCMinutes() === targetMinutes;
+
+      const matchTimestamp = Math.abs(bDate.getTime() - slotDate.getTime()) < 5 * 60 * 1000;
+
+      return matchLocal || matchUTC || matchTimestamp;
     });
+
     if (isBooked) return "taken";
 
     // 2. Check if it's in the past or "too close" (Rule 1)
@@ -204,17 +224,20 @@ export const BookConsultationPage: React.FC = () => {
       toast({ title: "Payment Not Ready", variant: "destructive" });
       return;
     }
+    if (!selectedDate || !selectedSlot) {
+      toast({ title: "Please select a date and time slot", variant: "destructive" });
+      return;
+    }
 
     setIsProcessing(true);
 
     try {
-      const orderResponse = await publicApi.createOrderId("consultation");
+      const requestedDateTime = buildISODateTime(selectedDate, selectedSlot.time);
+      const orderResponse = await publicApi.createOrderId("consultation", undefined, requestedDateTime);
       const serverOrderId = orderResponse.data.orderId;
       const serverAmount = orderResponse.data.amount;
 
       if (!serverOrderId) throw new Error("Server did not return an Order ID");
-
-      const requestedDateTime = buildISODateTime(selectedDate, selectedSlot!.time);
 
       openPayment({
         orderId: serverOrderId,
@@ -244,19 +267,36 @@ export const BookConsultationPage: React.FC = () => {
             setIsProcessing(false);
             const errorMessage = error.response?.data?.message || "Booking Failed. Please contact support.";
             toast({ title: "Booking Failed", description: errorMessage, variant: "destructive" });
+            // Re-fetch booked slots to update UI if slot was taken
+            if (selectedDate) {
+              const res = await publicApi.getBookedSlots(selectedDate);
+              setBookedTimes(res.data.bookedTimes);
+              setSelectedSlot(null);
+            }
           }
         },
         onError: () => setIsProcessing(false),
         onDismiss: () => setIsProcessing(false),
       });
-    } catch (error) {
+    } catch (error: any) {
       setIsProcessing(false);
       console.error("Order Creation Error:", error);
+      const errorMessage = error.response?.data?.message || "Failed to initiate payment.";
       toast({
-        title: "Error",
-        description: "Failed to initiate payment.",
+        title: "Slot Unavailable",
+        description: errorMessage,
         variant: "destructive",
       });
+      // Re-fetch booked slots to refresh taken state
+      if (selectedDate) {
+        try {
+          const res = await publicApi.getBookedSlots(selectedDate);
+          setBookedTimes(res.data.bookedTimes);
+          setSelectedSlot(null);
+        } catch (e) {
+          console.error("Error refreshing slots", e);
+        }
+      }
     }
   };
 
