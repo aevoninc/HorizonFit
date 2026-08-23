@@ -29,6 +29,36 @@ import {
 import mongoose from "mongoose";
 import TimeSlot from "../model/timeSlot.model.js";
 
+const checkIsSlotBooked = async (requestedDateTime) => {
+  if (!requestedDateTime) return false;
+  const slotDate = new Date(requestedDateTime);
+  if (isNaN(slotDate.getTime())) return false;
+
+  const minTime = new Date(slotDate.getTime() - 5 * 60 * 1000);
+  const maxTime = new Date(slotDate.getTime() + 5 * 60 * 1000);
+
+  // Offset window (5.5 hours for IST offset) in case legacy date was saved as local or UTC string
+  const istOffsetMs = 5.5 * 60 * 60 * 1000;
+  const slotDateAlt1 = new Date(slotDate.getTime() + istOffsetMs);
+  const minTimeAlt1 = new Date(slotDateAlt1.getTime() - 5 * 60 * 1000);
+  const maxTimeAlt1 = new Date(slotDateAlt1.getTime() + 5 * 60 * 1000);
+
+  const slotDateAlt2 = new Date(slotDate.getTime() - istOffsetMs);
+  const minTimeAlt2 = new Date(slotDateAlt2.getTime() - 5 * 60 * 1000);
+  const maxTimeAlt2 = new Date(slotDateAlt2.getTime() + 5 * 60 * 1000);
+
+  const existingBooking = await ConsultationBooking.findOne({
+    $or: [
+      { requestedDateTime: { $gte: minTime, $lte: maxTime } },
+      { requestedDateTime: { $gte: minTimeAlt1, $lte: maxTimeAlt1 } },
+      { requestedDateTime: { $gte: minTimeAlt2, $lte: maxTimeAlt2 } },
+    ],
+    status: { $nin: ["Cancelled", "Awaiting Payment"] },
+  });
+
+  return !!existingBooking;
+};
+
 const newRequestConsultation = asyncHandler(async (req, res) => {
   const {
     name,
@@ -55,6 +85,14 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
   if (appointmentTime < now + 10 * 60 * 1000) { // 10 min buffer for server processing
     return res.status(400).json({
       message: "The requested appointment time is in the past or too soon. Please select a future time slot.",
+    });
+  }
+
+  // 1.2 Check for Slot Collision / Double Booking
+  const isAlreadyBooked = await checkIsSlotBooked(requestedDateTime);
+  if (isAlreadyBooked) {
+    return res.status(400).json({
+      message: "This consultation time slot is already booked. Please select a different time slot.",
     });
   }
 
@@ -334,8 +372,18 @@ const programBooking = asyncHandler(async (req, res) => {
 });
 
 const newCreateOrderId = asyncHandler(async (req, res) => {
-  const { type, programType } = req.body;
+  const { type, programType, requestedDateTime } = req.body;
   console.log("Creating order for type:", type, "and programType:", programType);
+
+  if (type === "consultation" && requestedDateTime) {
+    const isBooked = await checkIsSlotBooked(requestedDateTime);
+    if (isBooked) {
+      return res.status(400).json({
+        message: "This consultation time slot is already booked. Please select a different time slot.",
+      });
+    }
+  }
+
   // 1. Define pricing (Source of Truth)
   const PRICES = {
     normal: NORMAL_PROGRAM_BOOKING_PRICE, // or NORMAL_PROGRAM_BOOKING_PRICE
@@ -385,16 +433,17 @@ const getBookedSlots = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Date parameter is required." });
   }
 
-  // Create start and end of day in UTC/Server time
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
+  // Create start and end of day covering timezone buffers (14 hours for global/UTC offsets)
+  const dateOnly = typeof date === "string" ? date.split("T")[0] : date;
+  const startOfDay = new Date(`${dateOnly}T00:00:00.000Z`);
+  startOfDay.setHours(startOfDay.getHours() - 14);
 
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
+  const endOfDay = new Date(`${dateOnly}T23:59:59.999Z`);
+  endOfDay.setHours(endOfDay.getHours() + 14);
 
   const bookings = await ConsultationBooking.find({
     requestedDateTime: { $gte: startOfDay, $lte: endOfDay },
-    status: { $in: ["Confirmed", "Payment Successful", "Rescheduled"] },
+    status: { $nin: ["Cancelled", "Awaiting Payment"] },
   }).select("requestedDateTime");
 
   // Send back the raw dates, frontend will handle matching
