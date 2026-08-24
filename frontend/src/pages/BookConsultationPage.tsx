@@ -355,95 +355,56 @@ export const BookConsultationPage: React.FC = () => {
           </p>
         </motion.div>
 
-        {/* Doctor Introduction Card */}
+        {/* Doctor Header Banner / Profile Card */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12 }}
-          className="mb-8"
+          transition={{ delay: 0.1 }}
+          className="mb-10"
         >
-          <Card className="card-elevated overflow-hidden">
-            <div className="gradient-teal p-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-                {/* Avatar circle */}
-                <div className="flex-shrink-0 h-20 w-20 rounded-full gradient-phoenix shadow-phoenix flex items-center justify-center">
-                  <Stethoscope className="h-9 w-9 text-primary-foreground" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-bold uppercase tracking-widest text-secondary-foreground/70 mb-1">
-                    Your Specialist
-                  </p>
-                  <h2 className="text-2xl font-extrabold text-secondary-foreground leading-tight">
-                    Dr. M. Jabaarrul
-                  </h2>
-                  <p className="text-secondary-foreground/80 text-sm font-semibold mt-0.5">
-                    MBBS · AFIH · Fellowship in Clinical Diabetology
-                  </p>
+          <div className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
+              <div className="flex-shrink-0">
+                <div className="h-28 w-28 rounded-2xl gradient-teal p-1 shadow-sm flex items-center justify-center overflow-hidden">
+                  <img
+                    src="/DoctorImg.jpeg"
+                    alt="Dr. M. Jabaarrul"
+                    className="h-full w-full rounded-[12px] object-cover"
+                  />
                 </div>
               </div>
-            </div>
-
-            <CardContent className="p-6 space-y-5">
-              {/* Bio */}
-              <p className="text-muted-foreground leading-relaxed">
-                Dr. Jabaarrul is a qualified physician with over 15 years of clinical experience
-                in metabolic health and lifestyle transformation. He is the designer of the
-                Horizon Fit 15-Week Weight Management System and offers personalised 1-on-1
-                consultations for individuals who want direct guidance on their health journey.
-              </p>
-
-              {/* Credential chips */}
-              <div className="flex flex-wrap gap-3">
-                {[
-                  "MBBS — Medical degree",
-                  "AFIH — Occupational health",
-                  "Fellowship — Clinical Diabetology",
-                  "15+ years clinical experience",
-                ].map((credential) => (
-                  <div
-                    key={credential}
-                    className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/50 px-3 py-1.5 text-xs font-semibold text-foreground"
-                  >
-                    <Star className="h-3 w-3 text-primary shrink-0" />
-                    {credential}
-                  </div>
-                ))}
-              </div>
-
-              {/* Authority badge */}
-              <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-                <ShieldCheck className="h-5 w-5 shrink-0 text-primary mt-0.5" />
-                <p className="text-sm text-foreground leading-snug">
-                  The consultation is with a qualified MBBS physician specialised in diabetology
-                  and metabolic health — not a fitness coach or wellness influencer.
+              <div className="flex-1 space-y-1">
+                <div className="inline-flex items-center gap-2 rounded-full bg-secondary/10 px-3 py-1 text-xs font-bold text-secondary uppercase">
+                  <span>1-on-1 Clinical Assessment</span>
+                </div>
+                <h2 className="text-2xl font-bold text-foreground pt-1">
+                  Dr. M. Jabaarrul
+                </h2>
+                <p className="text-xs font-semibold text-muted-foreground">
+                  MBBS · AFIH · Fellowship in Clinical Diabetology
+                </p>
+                <p className="text-xs text-muted-foreground pt-2 max-w-xl leading-relaxed">
+                  Doctor-led metabolic health evaluation for weight loss, prediabetes, liver health, and cardiometabolic risk factors.
                 </p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </motion.div>
 
-        {/* Progress Steps */}
-        <div className="mb-8 flex justify-center">
-          <div className="flex items-center gap-4">
-            <div
-              className={`flex h-10 w-10 items-center justify-center rounded-full ${step >= 1 ? "gradient-phoenix" : "bg-muted"}`}
-            >
-              <span
-                className={step >= 1 ? "text-primary-foreground font-semibold" : "text-muted-foreground"}
-              >
-                1
-              </span>
-            </div>
-            <div className={`h-1 w-16 rounded ${step >= 2 ? "gradient-phoenix" : "bg-muted"}`} />
-            <div
-              className={`flex h-10 w-10 items-center justify-center rounded-full ${step >= 2 ? "gradient-phoenix" : "bg-muted"}`}
-            >
-              <span
-                className={step >= 2 ? "text-primary-foreground font-semibold" : "text-muted-foreground"}
-              >
-                2
-              </span>
-            </div>
+        {/* Progress Indicator Header */}
+        <div className="mb-10 flex items-center justify-center gap-4 text-sm font-semibold">
+          <div className={`flex items-center gap-2 ${step >= 1 ? "text-primary font-bold" : "text-muted-foreground"}`}>
+            <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs ${step >= 1 ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+              01
+            </span>
+            <span>Appointment Details</span>
+          </div>
+          <span className="text-muted-foreground/40 font-normal">→</span>
+          <div className={`flex items-center gap-2 ${step >= 2 ? "text-primary font-bold" : "text-muted-foreground"}`}>
+            <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs ${step >= 2 ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+              02
+            </span>
+            <span>Payment</span>
           </div>
         </div>
 
@@ -452,98 +413,85 @@ export const BookConsultationPage: React.FC = () => {
             {step === 1 && (
               <motion.div
                 key="step1"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="grid gap-6 lg:grid-cols-2"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="grid gap-8 lg:grid-cols-2"
               >
                 {/* Personal Info */}
-                <Card className="card-elevated">
-                  <CardHeader>
-                    <CardTitle>Personal Information</CardTitle>
+                <Card className="rounded-3xl border border-border/80 shadow-sm p-2">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg font-bold text-foreground">Patient Information</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Full Name</Label>
-                      <Input id="name" placeholder="John Smith" {...register("name")} />
-                      {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="name" className="text-xs font-semibold">Full Name</Label>
+                      <Input id="name" placeholder="John Smith" className="rounded-xl" {...register("name")} />
+                      {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" placeholder="john@example.com" {...register("email")} />
-                      {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="email" className="text-xs font-semibold">Email Address</Label>
+                      <Input id="email" type="email" placeholder="john@example.com" className="rounded-xl" {...register("email")} />
+                      {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <Input id="phone" placeholder="+91 98765 43210" {...register("phone")} />
-                      {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="phone" className="text-xs font-semibold">Phone Number</Label>
+                      <Input id="phone" placeholder="+91 98765 43210" className="rounded-xl" {...register("phone")} />
+                      {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="patientQuery">Your Query (Optional)</Label>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="patientQuery" className="text-xs font-semibold">Health Concern / Notes (Optional)</Label>
                       <Textarea
                         id="patientQuery"
-                        placeholder="Tell us about your health goals or concerns..."
+                        placeholder="Briefly describe your primary health goal or concern..."
+                        className="rounded-xl resize-none min-h-[90px]"
                         {...register("patientQuery")}
                       />
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Right Column: Date + Slot + Type */}
+                {/* Date & Time Selection */}
                 <div className="space-y-6">
-                  {/* Date Picker */}
-                  <Card className="card-elevated">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-secondary" />
-                        Select Date
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Input
-                        id="selectedDate"
-                        type="date"
-                        min={todayDateString()}
-                        value={selectedDate}
-                        onChange={(e) => {
-                          setSelectedDate(e.target.value);
-                          setSelectedSlot(null);
-                        }}
-                        className="text-foreground"
-                      />
-                    </CardContent>
-                  </Card>
-
-                  {/* Time Slot Picker */}
-                  <Card className="card-elevated">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-secondary" />
-                        Select Time Slot
+                  <Card className="rounded-3xl border border-border/80 shadow-sm p-2">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
+                        <Calendar className="h-4 w-4 text-primary" />
+                        Select Date & Time
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-5">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="selectedDate" className="text-xs font-semibold">Consultation Date</Label>
+                        <Input
+                          id="selectedDate"
+                          type="date"
+                          min={todayDateString()}
+                          value={selectedDate}
+                          onChange={(e) => {
+                            setSelectedDate(e.target.value);
+                            setSelectedSlot(null);
+                          }}
+                          className="rounded-xl"
+                        />
+                      </div>
+
                       {slotsLoading ? (
                         <div className="flex items-center justify-center py-6">
-                          <Loader2 className="h-6 w-6 animate-spin text-secondary" />
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
                         </div>
                       ) : availableSlots.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          No time slots available. Please check back later.
+                        <p className="text-xs text-muted-foreground text-center py-4">
+                          No slots available for this date.
                         </p>
                       ) : (
-                        <>
-                          {/* Morning Slots */}
+                        <div className="space-y-4">
+                          {/* Morning */}
                           {morningSlots.length > 0 && (
-                            <div className="relative space-y-2">
-                              {bookingLoading && (
-                                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-[1px] rounded-lg">
-                                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                                </div>
-                              )}
-                              <div className="flex items-center gap-2 text-sm font-semibold text-amber-600">
-                                <Sun className="h-4 w-4" />
-                                Morning
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600">
+                                <Sun className="h-3.5 w-3.5" />
+                                Morning Slots
                               </div>
                               <div className="grid grid-cols-3 gap-2">
                                 {morningSlots.map((slot) => {
@@ -555,24 +503,14 @@ export const BookConsultationPage: React.FC = () => {
                                       type="button"
                                       disabled={state !== "available"}
                                       onClick={() => setSelectedSlot(slot)}
-                                      className={`relative rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-200 ${state === "taken" || state === "past"
-                                        ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60 border-transparent"
+                                      className={`rounded-xl border px-2.5 py-2 text-xs font-semibold transition-all ${state === "taken" || state === "past"
+                                        ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50 border-transparent"
                                         : isSelected
-                                          ? "border-secondary bg-secondary text-white shadow-md scale-105"
-                                          : "border-border bg-card hover:border-secondary/60 hover:bg-secondary/5 text-foreground"
+                                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                                          : "border-border/80 bg-card hover:border-primary/50 text-foreground"
                                         }`}
                                     >
                                       {slot.time}
-                                      {state === "past" && (
-                                        <span className="absolute -top-2 -right-1 bg-amber-500 text-[10px] text-white px-1.5 py-0.5 rounded-full shadow-sm">
-                                          Past
-                                        </span>
-                                      )}
-                                      {state === "taken" && (
-                                        <span className="absolute -top-2 -right-1 bg-destructive text-[10px] text-white px-1.5 py-0.5 rounded-full shadow-sm">
-                                          Taken
-                                        </span>
-                                      )}
                                     </button>
                                   );
                                 })}
@@ -580,17 +518,12 @@ export const BookConsultationPage: React.FC = () => {
                             </div>
                           )}
 
-                          {/* Evening Slots */}
+                          {/* Evening */}
                           {eveningSlots.length > 0 && (
-                            <div className="relative space-y-2">
-                              {bookingLoading && (
-                                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-[1px] rounded-lg">
-                                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                                </div>
-                              )}
-                              <div className="flex items-center gap-2 text-sm font-semibold text-indigo-600">
-                                <Moon className="h-4 w-4" />
-                                Evening
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600">
+                                <Moon className="h-3.5 w-3.5" />
+                                Evening Slots
                               </div>
                               <div className="grid grid-cols-3 gap-2">
                                 {eveningSlots.map((slot) => {
@@ -602,89 +535,42 @@ export const BookConsultationPage: React.FC = () => {
                                       type="button"
                                       disabled={state !== "available"}
                                       onClick={() => setSelectedSlot(slot)}
-                                      className={`relative rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-200 ${state === "taken" || state === "past"
-                                        ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60 border-transparent"
+                                      className={`rounded-xl border px-2.5 py-2 text-xs font-semibold transition-all ${state === "taken" || state === "past"
+                                        ? "bg-muted text-muted-foreground cursor-not-allowed opacity-50 border-transparent"
                                         : isSelected
-                                          ? "border-secondary bg-secondary text-white shadow-md scale-105"
-                                          : "border-border bg-card hover:border-secondary/60 hover:bg-secondary/5 text-foreground"
+                                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                                          : "border-border/80 bg-card hover:border-primary/50 text-foreground"
                                         }`}
                                     >
                                       {slot.time}
-                                      {state === "past" && (
-                                        <span className="absolute -top-2 -right-1 bg-amber-500 text-[10px] text-white px-1.5 py-0.5 rounded-full shadow-sm">
-                                          Past
-                                        </span>
-                                      )}
-                                      {state === "taken" && (
-                                        <span className="absolute -top-2 -right-1 bg-destructive text-[10px] text-white px-1.5 py-0.5 rounded-full shadow-sm">
-                                          Taken
-                                        </span>
-                                      )}
                                     </button>
                                   );
                                 })}
                               </div>
                             </div>
                           )}
-
-                          {selectedSlot && selectedDate && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="rounded-lg bg-secondary/10 border border-secondary/30 px-4 py-2.5 text-sm font-medium text-secondary"
-                            >
-                              ✅ Selected: {new Date(selectedDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })} at {selectedSlot.time}
-                            </motion.div>
-                          )}
-                        </>
+                        </div>
                       )}
                     </CardContent>
                   </Card>
 
-                  {/* Consultation Type */}
-                  <Card className="card-elevated">
-                    <CardHeader>
-                      <CardTitle>Consultation Type</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <RadioGroup
-                        value={selectedType}
-                        onValueChange={(value) => setValue("consultationType", value)}
-                        className="space-y-3"
-                      >
-                        {consultationTypes.map((type) => (
-                          <label
-                            key={type.value}
-                            className={`flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-all ${selectedType === type.value
-                              ? "border-secondary bg-secondary/5 shadow-sm"
-                              : "border-border hover:border-secondary/50"
-                              }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <RadioGroupItem value={type.value} />
-                              <div>
-                                <p className="font-medium text-foreground">{type.label}</p>
-                                <p className="text-sm text-muted-foreground">{type.description}</p>
-                              </div>
-                            </div>
-                            <span className="text-lg font-bold text-primary">₹{type.price}</span>
-                          </label>
-                        ))}
-                      </RadioGroup>
-                    </CardContent>
-                  </Card>
-                </div>
+                  {/* Summary Callout & Action */}
+                  <div className="flex flex-col gap-3">
+                    <div className="rounded-2xl border border-border/80 bg-card p-4 flex items-center justify-between text-sm">
+                      <span className="font-semibold text-muted-foreground">Metabolic Assessment Fee</span>
+                      <span className="text-xl font-bold text-foreground">₹500</span>
+                    </div>
 
-                <div className="lg:col-span-2">
-                  <Button
-                    type="button"
-                    variant="phoenix"
-                    size="lg"
-                    className="w-full"
-                    onClick={handleSubmit(validateAndProceed)}
-                  >
-                    Continue to Payment
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="phoenix"
+                      size="xl"
+                      className="w-full rounded-2xl font-bold shadow-phoenix"
+                      onClick={handleSubmit(validateAndProceed)}
+                    >
+                      Proceed to Payment
+                    </Button>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -692,58 +578,58 @@ export const BookConsultationPage: React.FC = () => {
             {step === 2 && (
               <motion.div
                 key="step2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
               >
-                <Card className="card-elevated mx-auto max-w-lg">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CreditCard className="h-5 w-5 text-secondary" />
+                <Card className="rounded-3xl border border-border/80 shadow-sm mx-auto max-w-lg p-4">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-xl font-bold text-foreground">
+                      <CreditCard className="h-5 w-5 text-primary" />
                       Payment Summary
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="rounded-lg bg-muted/50 p-4 space-y-3">
+                    <div className="rounded-2xl bg-muted/40 p-5 space-y-4 border border-border/60">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-semibold text-foreground">{selectedConsultation?.label}</p>
-                          <p className="text-sm text-muted-foreground">{selectedConsultation?.description}</p>
+                          <p className="font-bold text-foreground text-base">Metabolic Health Assessment</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">1-on-1 Consultation with Dr. M. Jabaarrul</p>
                         </div>
-                        <span className="text-2xl font-bold text-primary">₹{selectedConsultation?.price}</span>
+                        <span className="text-2xl font-extrabold text-primary">₹500</span>
                       </div>
+
                       {selectedDate && selectedSlot && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground border-t border-border pt-3">
-                          <Calendar className="h-4 w-4 text-secondary" />
+                        <div className="flex items-center gap-2 text-xs font-semibold text-foreground border-t border-border/60 pt-3">
+                          <Calendar className="h-4 w-4 text-secondary shrink-0" />
                           <span>
-                            {new Date(selectedDate).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
+                            {new Date(selectedDate).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
                             {" "}at{" "}
-                            <span className="font-semibold text-foreground">{selectedSlot.time}</span>
+                            <span className="text-primary">{selectedSlot.time}</span>
                           </span>
                         </div>
                       )}
                     </div>
 
-                    <div className="space-y-3 border-t border-border pt-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <ShieldCheck className="h-4 w-4 text-green-500" />
-                        Secure payment via Razorpay
+                    <div className="space-y-2 text-xs text-muted-foreground font-medium">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>Secure processing via Razorpay</span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Check className="h-4 w-4 text-green-500" />
-                        Instant booking confirmation
+                      <div className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>Instant booking confirmation details sent to email</span>
                       </div>
-
                     </div>
 
-                    <div className="flex gap-3">
-                      <Button type="button" variant="outline" className="flex-1" onClick={() => setStep(1)}>
+                    <div className="flex gap-3 pt-2">
+                      <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={() => setStep(1)}>
                         Back
                       </Button>
                       <Button
                         type="button"
                         variant="phoenix"
-                        className="flex-1"
+                        className="flex-1 rounded-xl font-bold shadow-phoenix"
                         onClick={handlePayment}
                         disabled={isLoading || !isLoaded}
                       >
@@ -753,7 +639,7 @@ export const BookConsultationPage: React.FC = () => {
                             Processing...
                           </>
                         ) : (
-                          <>Pay ₹{selectedConsultation?.price}</>
+                          <>Pay ₹500</>
                         )}
                       </Button>
                     </div>
@@ -764,6 +650,38 @@ export const BookConsultationPage: React.FC = () => {
           </AnimatePresence>
         </form>
       </div>
-    </div >
+
+      {/* FOOTER */}
+      <footer className="border-t border-border/60 bg-gradient-to-b from-card to-muted/40 py-10 mt-16">
+        <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="text-center md:text-left">
+              <div className="text-xl font-black tracking-tight text-foreground flex items-center justify-center md:justify-start gap-2">
+                <span className="text-primary">HORIZON</span> FIT
+              </div>
+              <p className="text-xs font-medium text-muted-foreground mt-0.5">Doctor-Led Metabolic Health Transformation</p>
+            </div>
+
+            <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-xs font-semibold text-muted-foreground">
+              <Link to="/" className="hover:text-secondary transition-colors">About Horizon Fit</Link>
+              <span>|</span>
+              <Link to="/book-consultation" className="hover:text-secondary transition-colors">Contact</Link>
+              <span>|</span>
+              <Link to="/enroll" className="hover:text-secondary transition-colors">Privacy Policy</Link>
+              <span>|</span>
+              <Link to="/enroll" className="hover:text-secondary transition-colors">Terms & Conditions</Link>
+              <span>|</span>
+              <Link to="/enroll" className="hover:text-secondary transition-colors">Disclaimer</Link>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-border/40 text-center text-xs text-muted-foreground font-medium">
+            © {new Date().getFullYear()} Horizon Fit. All rights reserved.
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 };
+
+export default BookConsultationPage;

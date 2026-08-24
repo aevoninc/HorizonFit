@@ -54,8 +54,8 @@ type EnrollFormData = z.infer<typeof enrollSchema>;
 
 const PROGRAM_TIERS = {
   normal: {
-    name: "15-Week Self-Guided Weight Management System",
-    price: 7000,
+    name: "15-Week Self-Guided Weight Loss System",
+    price: 6999,
     features: [
       "15 weeks of structured self-guided content",
       "Personal Horizon Fit dashboard",
@@ -594,7 +594,7 @@ export const EnrollPage: React.FC = () => {
           className="mb-8 text-center"
         >
           <h1 className="text-3xl font-bold text-foreground">
-            Enrol in the 15-Week Self-Guided Weight Management System
+            Enrol in the 15-Week Self-Guided Weight Loss System
           </h1>
           <p className="mt-2 text-muted-foreground">
             Learn the framework. Build your plan. Follow your journey.
@@ -796,9 +796,9 @@ export const EnrollPage: React.FC = () => {
                   <CardContent className="space-y-4">
                     <div className="text-center py-4">
                       <span className="text-4xl font-bold text-gradient-phoenix">
-                        ₹{program.price.toLocaleString()} <span className="text-xl font-normal text-muted-foreground">+ GST</span>
+                        ₹{program.price.toLocaleString()}
                       </span>
-                      <p className="text-muted-foreground">One-time payment</p>
+                      <p className="text-muted-foreground">One-time payment (Inclusive of GST)</p>
                     </div>
                     <div className="space-y-3">
                       {program.features.map((feature) => (

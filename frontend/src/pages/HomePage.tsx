@@ -102,7 +102,7 @@ export const HomePage: React.FC = () => {
               <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
                 <Button size="xl" variant="phoenix" className="shadow-phoenix rounded-full px-8 font-semibold group" asChild>
                   <Link to="/self-guided-system">
-                    Explore Weight Management System
+                    Explore Weight Loss System
                     <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                   </Link>
                 </Button>
@@ -127,14 +127,14 @@ export const HomePage: React.FC = () => {
               variants={containerVariants}
               className="max-w-3xl mx-auto text-center mb-16"
             >
-              <motion.span variants={itemVariants} className="text-xs font-bold tracking-widest text-primary uppercase">
-                Holistic Care
-              </motion.span>
-              <motion.h2 variants={itemVariants} className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              <motion.h2 variants={itemVariants} className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
                 A Comprehensive Approach to Metabolic Health
               </motion.h2>
               <motion.p variants={itemVariants} className="mt-4 text-muted-foreground text-base sm:text-lg leading-relaxed">
-                Metabolic health influences how the body manages energy, glucose, body weight and other interconnected health functions. Horizon Fit brings these areas together through structured assessment, education, personalised guidance and progressive health management.
+                Metabolic health influences how the body manages energy, glucose, body weight and other interconnected health functions.
+              </motion.p>
+              <motion.p variants={itemVariants} className="mt-3 text-muted-foreground text-base sm:text-lg leading-relaxed font-medium">
+                Horizon Fit brings these areas together through structured assessment, education, personalised guidance and progressive health management.
               </motion.p>
             </motion.div>
 
@@ -147,8 +147,8 @@ export const HomePage: React.FC = () => {
             >
               {[
                 {
-                  title: "Weight Management",
-                  desc: "Structured support for healthy and sustainable weight management.",
+                  title: "Weight Loss",
+                  desc: "Structured support for healthy and sustainable weight loss.",
                   icon: Scale,
                   gradient: "from-amber-500/10 via-primary/5 to-transparent",
                   iconBg: "gradient-phoenix text-white shadow-phoenix",
@@ -180,6 +180,13 @@ export const HomePage: React.FC = () => {
                   icon: Stethoscope,
                   gradient: "from-cyan-500/10 via-secondary/5 to-transparent",
                   iconBg: "gradient-teal text-white shadow-teal",
+                },
+                {
+                  title: "Hormonal & Metabolic Health",
+                  desc: "Understanding metabolic factors associated with hormonal and metabolic health.",
+                  icon: Sparkles,
+                  gradient: "from-purple-500/10 via-secondary/5 to-transparent",
+                  iconBg: "bg-purple-600 text-white shadow-md",
                 },
               ].map((area, idx) => (
                 <motion.div
@@ -268,10 +275,10 @@ export const HomePage: React.FC = () => {
                     <span>Self-Guided Pathway</span>
                   </div>
                   <h3 className="mt-4 text-2xl font-bold text-foreground">
-                    15-Week Self-Guided Weight Management System
+                    15-Week Self-Guided Weight Loss System
                   </h3>
                   <p className="mt-4 text-muted-foreground leading-relaxed text-sm sm:text-base">
-                    A comprehensive self-guided program designed to help you understand weight management, learn the Horizon Fit framework, work through the accompanying workbook and follow a structured 15-week journey.
+                    A comprehensive self-guided program designed to help you understand weight loss, learn the Horizon Fit framework, work through the accompanying workbook and follow a structured 15-week journey.
                   </p>
 
                   <div className="mt-6 p-4 rounded-2xl bg-muted/60 border border-border/50 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-foreground">
@@ -290,7 +297,7 @@ export const HomePage: React.FC = () => {
                 <div className="mt-8 pt-6 border-t border-border/40">
                   <Button variant="outline" className="w-full sm:w-auto rounded-full font-semibold border-primary/30 text-primary hover:bg-primary/10 hover:text-primary" asChild>
                     <Link to="/self-guided-system">
-                      Explore the Weight Management System
+                      Explore the Weight Loss System
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
@@ -317,7 +324,7 @@ export const HomePage: React.FC = () => {
                     A Personalised Journey Built Around Your Health
                   </h3>
                   <p className="mt-4 text-muted-foreground leading-relaxed text-sm sm:text-base">
-                    For individuals seeking personalised support for weight management, prediabetes, fatty liver, cardiometabolic health or other metabolic health concerns.
+                    For individuals seeking personalised support for weight loss, prediabetes, fatty liver, cardiometabolic health or other metabolic health concerns.
                   </p>
                   <p className="mt-3 text-muted-foreground leading-relaxed text-sm sm:text-base font-medium text-foreground/90">
                     Your journey begins with a Metabolic Health Assessment, followed by individualised planning, implementation and ongoing guidance based on your health profile and goals.
@@ -345,7 +352,7 @@ export const HomePage: React.FC = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <span className="text-xs font-bold tracking-widest text-secondary uppercase">Tailored Care</span>
+              {/* <span className="text-xs font-bold tracking-widest text-secondary uppercase">Tailored Care</span> */}
               <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
                 Designed Around the Individual
               </h2>
@@ -361,7 +368,7 @@ export const HomePage: React.FC = () => {
         </section>
 
         {/* THE HORIZON FIT FRAMEWORK */}
-        <section className="py-24 border-t border-border/40">
+        {/* <section className="py-24 border-t border-border/40">
           <div className="container mx-auto px-6 lg:px-12 max-w-6xl">
             <div className="text-center mb-16 max-w-2xl mx-auto">
               <span className="text-xs font-bold tracking-widest text-primary uppercase">Progressive System</span>
@@ -371,7 +378,7 @@ export const HomePage: React.FC = () => {
               <p className="mt-3 text-muted-foreground font-medium">A Progressive Pathway From Understanding to Action</p>
             </div>
 
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
               {[
                 { step: "ASSESS", desc: "Understand your current health profile.", color: "border-primary/40 text-primary" },
                 { step: "UNDERSTAND", desc: "Identify the factors that matter most.", color: "border-secondary/40 text-secondary" },
@@ -398,7 +405,7 @@ export const HomePage: React.FC = () => {
               ))}
             </div>
           </div>
-        </section>
+        </section> */}
 
         {/* MEET THE FOUNDER */}
         <section className="py-20 bg-gradient-to-b from-muted/30 to-background border-t border-border/40">
@@ -406,10 +413,12 @@ export const HomePage: React.FC = () => {
             <div className="rounded-3xl border border-secondary/30 bg-gradient-to-br from-card via-card to-secondary/5 p-8 sm:p-12 shadow-lg relative overflow-hidden">
               <div className="flex flex-col md:flex-row gap-8 items-center md:items-start text-center md:text-left">
                 <div className="flex-shrink-0">
-                  <div className="h-32 w-32 rounded-3xl gradient-teal p-1 shadow-teal flex items-center justify-center">
-                    <div className="h-full w-full rounded-[22px] bg-card flex items-center justify-center text-secondary">
-                      <User className="h-14 w-14" />
-                    </div>
+                  <div className="h-36 w-36 rounded-3xl gradient-teal p-1 shadow-teal flex items-center justify-center overflow-hidden">
+                    <img
+                      src="/DoctorImg.jpeg"
+                      alt="Dr. M. Jabaarrul"
+                      className="h-full w-full rounded-[22px] object-cover"
+                    />
                   </div>
                 </div>
                 <div>
@@ -429,7 +438,7 @@ export const HomePage: React.FC = () => {
                   <div className="mt-6">
                     <Button variant="teal" className="rounded-full shadow-teal font-semibold text-xs" asChild>
                       <Link to="/book-consultation">
-                        Meet Dr. Jabaarrul
+                        Meet Dr. MJA
                         <ArrowRight className="ml-2 h-3.5 w-3.5" />
                       </Link>
                     </Button>
@@ -448,8 +457,7 @@ export const HomePage: React.FC = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <span className="text-xs font-bold tracking-widest text-secondary uppercase">Our Mission</span>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
                 The Horizon Fit Vision
               </h2>
               <p className="mt-2 text-lg font-semibold text-primary">
@@ -474,7 +482,7 @@ export const HomePage: React.FC = () => {
         <section className="py-24 bg-muted/30 border-t border-border/40">
           <div className="container mx-auto px-6 lg:px-12 max-w-3xl">
             <div className="text-center mb-12">
-              <span className="text-xs font-bold tracking-widest text-primary uppercase">Got Questions?</span>
+              {/* <span className="text-xs font-bold tracking-widest text-primary uppercase">Got Questions?</span> */}
               <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
                 Frequently Asked Questions
               </h2>
@@ -488,19 +496,19 @@ export const HomePage: React.FC = () => {
                 },
                 {
                   q: "What areas of metabolic health does Horizon Fit address?",
-                  a: "Horizon Fit addresses weight management, prediabetes and glucose health, fatty liver and liver health, cardiometabolic health, and other areas of metabolic health.",
+                  a: "Horizon Fit addresses weight loss, prediabetes and glucose health, fatty liver and liver health, cardiometabolic health, and other areas of metabolic health.",
                 },
                 {
                   q: "What is the difference between the Self-Guided and Personalised pathways?",
-                  a: "The Self-Guided Pathway enables you to learn and work through the Horizon Fit Weight Management System independently using structured videos, workbooks, guided activities and progress tracking. The Personalised Pathway begins with a doctor-led assessment, followed by guidance and a structured plan based on your health profile, priorities and goals.",
+                  a: "The Self-Guided Pathway enables you to learn and work through the Horizon Fit Weight Loss System independently using structured videos, workbooks, guided activities and progress tracking. The Personalised Pathway begins with a doctor-led assessment, followed by guidance and a structured plan based on your health profile, priorities and goals.",
                 },
                 {
-                  q: "Is the Weight Management System self-guided?",
-                  a: "Yes. The 15-Week Self-Guided Weight Management System provides structured videos, Zone-specific workbooks, guided calculations, activities and progress tracking to help you work through your own weight-management journey.",
+                  q: "Is the Weight Loss System self-guided?",
+                  a: "Yes. The 15-Week Self-Guided Weight Loss System provides structured videos, Zone-specific workbooks, guided calculations, activities and progress tracking to help you work through your own weight-loss journey.",
                 },
                 {
                   q: "How do I know which pathway is right for me?",
-                  a: "If you are looking for a structured, self-guided approach to weight management, you can explore the 15-Week Self-Guided Weight Management System. If you are seeking personalised guidance for weight management or another metabolic health concern, you can begin with a Metabolic Health Assessment.",
+                  a: "If you are looking for a structured, self-guided approach to weight loss, you can explore the 15-Week Self-Guided Weight Loss System. If you are seeking personalised guidance for weight loss or another metabolic health concern, you can begin with a Metabolic Health Assessment.",
                 },
                 {
                   q: "What happens during the Metabolic Health Assessment?",
@@ -550,7 +558,7 @@ export const HomePage: React.FC = () => {
                 </Button>
                 <Button size="xl" variant="phoenix" className="shadow-phoenix rounded-full px-8 font-semibold" asChild>
                   <Link to="/self-guided-system">
-                    Explore Weight Management System
+                    Explore Weight Loss System
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
@@ -571,15 +579,16 @@ export const HomePage: React.FC = () => {
               <p className="text-xs font-semibold text-muted-foreground mt-1">Doctor-Led Metabolic Health Transformation</p>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-semibold text-muted-foreground">
+            <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-xs font-semibold text-muted-foreground">
               <Link to="/" className="hover:text-secondary transition-colors">About Horizon Fit</Link>
-              <Link to="/enroll" className="hover:text-secondary transition-colors">Programs</Link>
-              <Link to="/self-guided-system" className="hover:text-secondary transition-colors">Weight Management</Link>
-              <Link to="/book-consultation" className="hover:text-secondary transition-colors">Metabolic Health Assessment</Link>
-              <Link to="/auth" className="hover:text-secondary transition-colors">FAQs</Link>
+              <span>|</span>
               <Link to="/book-consultation" className="hover:text-secondary transition-colors">Contact</Link>
-              <span className="hover:text-secondary cursor-pointer">Privacy</span>
-              <span className="hover:text-secondary cursor-pointer">Terms</span>
+              <span>|</span>
+              <Link to="/enroll" className="hover:text-secondary transition-colors">Privacy Policy</Link>
+              <span>|</span>
+              <Link to="/enroll" className="hover:text-secondary transition-colors">Terms & Conditions</Link>
+              <span>|</span>
+              <Link to="/enroll" className="hover:text-secondary transition-colors">Disclaimer</Link>
             </div>
           </div>
 
