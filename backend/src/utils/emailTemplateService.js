@@ -8,7 +8,7 @@
 // BASE SHELL
 // ─────────────────────────────────────────────
 const renderBaseTemplate = (title, content, link, buttonText) => {
-    return `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="UTF-8">
@@ -74,10 +74,11 @@ const renderBaseTemplate = (title, content, link, buttonText) => {
         </tr>
         <!-- Footer -->
         <tr>
-          <td class="footer">
-            <p>&copy; ${new Date().getFullYear()} HorizonFit &ndash; Horizon Fit Health Management Pvt. Ltd.</p>
-            <p>This is an automated message. Please do not reply to this email.</p>
-            <p>For support: <a href="mailto:info@horizonfit.in" style="color:#14b8a6;">info@horizonfit.in</a></p>
+          <td class="footer" style="background-color:#f8fafc; padding:28px 24px; text-align:center; border-top:1px solid #e2e8f0;">
+            <p style="font-weight:700; color:#475569; font-size:13px; margin:0 0 4px 0; font-family:Arial,sans-serif;">HorizonFit &ndash; Horizon Fit Health Management Pvt. Ltd.</p>
+            <p style="color:#64748b; font-size:12px; margin:0 0 10px 0; font-family:Arial,sans-serif; font-style:italic;">Doctor-Led Metabolic Health Transformation</p>
+            <p style="color:#94a3b8; font-size:11px; margin:4px 0; font-family:Arial,sans-serif;">This is an automated transactional email. For inquiries or support: <a href="mailto:info@horizonfit.in" style="color:#14b8a6; text-decoration:none; font-weight:600;">info@horizonfit.in</a></p>
+            <p style="color:#cbd5e1; font-size:10px; margin:8px 0 0 0; font-family:Arial,sans-serif;">&copy; ${new Date().getFullYear()} HorizonFit. All rights reserved.</p>
           </td>
         </tr>
       </table>
@@ -99,12 +100,98 @@ const infoRow = (label, value) => `
   </tr>
 </table>`;
 
+// Helper: Parse and normalize Zoom URLs for universal web & mobile app compatibility
+const parseZoomUrl = (url) => {
+  if (!url) return { canonicalUrl: '', deepLink: '', meetingId: '', rawMeetingId: '', passcode: '' };
+  try {
+    let cleanUrl = url.trim();
+    // Normalize us05web.zoom.us or similar cluster subdomains to canonical universal zoom.us domain
+    cleanUrl = cleanUrl.replace(/https?:\/\/us\d+web\.zoom\.us/i, 'https://zoom.us');
+
+    const parsed = new URL(cleanUrl);
+    const pathSegments = parsed.pathname.split('/').filter(Boolean);
+    const rawMeetingId = pathSegments[pathSegments.length - 1] || '';
+    const passcode = parsed.searchParams.get('pwd') || '';
+
+    let deepLink = '';
+    if (rawMeetingId && /^\d+$/.test(rawMeetingId)) {
+      deepLink = `zoomus://zoom.us/join?confno=${rawMeetingId}`;
+      if (passcode) deepLink += `&pwd=${passcode}`;
+    } else {
+      deepLink = cleanUrl;
+    }
+
+    const formattedMeetingId = rawMeetingId ? rawMeetingId.replace(/(\d{3})(\d{3,4})(\d{4})/, '$1 $2 $3') : '';
+
+    return {
+      canonicalUrl: cleanUrl,
+      deepLink,
+      meetingId: formattedMeetingId,
+      rawMeetingId,
+      passcode,
+    };
+  } catch (e) {
+    return { canonicalUrl: url, deepLink: url, meetingId: '', rawMeetingId: '', passcode: '' };
+  }
+};
+
+const zoomLinkBlock = (zoomLink) => {
+  if (!zoomLink) return '';
+  const { canonicalUrl, deepLink, rawMeetingId, passcode } = parseZoomUrl(zoomLink);
+
+  return `
+    <div style="background-color:#f0fdfa; border:1px solid #99f6e4; border-radius:12px; padding:20px 16px; margin:22px 0; text-align:center;">
+      <p style="font-size:11px; font-family:Arial,sans-serif; color:#0d9488; text-transform:uppercase; letter-spacing:0.08em; font-weight:700; margin:0 0 4px 0;">&#128249; Video Consultation</p>
+      <h3 style="font-size:16px; color:#134e4a; margin:0 0 16px 0; font-family:Arial,sans-serif; font-weight:700;">Zoom Meeting Access</h3>
+
+      <!-- Action Buttons -->
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:16px;">
+        <tr>
+          <td align="center">
+            <a href="${canonicalUrl}" target="_blank" rel="noopener noreferrer" class="btn" style="background-color:#14b8a6; color:#ffffff !important; padding:12px 28px; font-weight:700; text-decoration:none; border-radius:8px; font-size:14px; display:inline-block; font-family:Arial,sans-serif; box-shadow:0 2px 4px rgba(20,184,166,0.2);">Join Zoom Session</a>
+          </td>
+        </tr>
+        ${deepLink && deepLink.startsWith('zoomus://') ? `
+        <tr>
+          <td align="center" style="padding-top:10px;">
+            <a href="${deepLink}" style="font-size:12px; font-family:Arial,sans-serif; color:#0d9488; font-weight:600; text-decoration:none; display:inline-block; padding:6px 14px; background-color:#ccfbf1; border-radius:6px; border:1px solid #99f6e4;">&#128241; Tap to Open in Mobile Zoom App</a>
+          </td>
+        </tr>
+        ` : ''}
+      </table>
+
+      ${(rawMeetingId || passcode) ? `
+      <!-- Mobile-Responsive Credentials Card (Stacked Table - Zero Overlap) -->
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top:16px; background-color:#ffffff; border:1px solid #ccfbf1; border-radius:10px; overflow:hidden;">
+        ${rawMeetingId ? `
+        <tr>
+          <td style="padding:12px 14px; border-bottom:1px solid #f0fdfa; text-align:left; font-family:Arial,sans-serif;">
+            <span style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.06em; font-weight:700; display:block; margin-bottom:4px;">Meeting ID (Tap to Copy)</span>
+            <code style="font-size:15px; font-family:Courier,monospace; font-weight:700; color:#0f766e; letter-spacing:0.5px; background-color:#f8fafc; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0; display:inline-block; -webkit-user-select:all; user-select:all;">${rawMeetingId}</code>
+          </td>
+        </tr>
+        ` : ''}
+        ${passcode ? `
+        <tr>
+          <td style="padding:12px 14px; text-align:left; font-family:Arial,sans-serif; background-color:#fafafa;">
+            <span style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.06em; font-weight:700; display:block; margin-bottom:4px;">Passcode (Tap to Copy)</span>
+            <code style="font-size:15px; font-family:Courier,monospace; font-weight:700; color:#0f766e; letter-spacing:0.5px; background-color:#ffffff; padding:4px 8px; border-radius:4px; border:1px solid #14b8a6; display:inline-block; -webkit-user-select:all; user-select:all;">${passcode}</code>
+          </td>
+        </tr>
+        ` : ''}
+      </table>
+      ` : ''}
+
+      <p style="font-size:11px; color:#64748b; margin:14px 0 0 0; word-break:break-all; font-family:Arial,sans-serif;">Direct URL: <a href="${canonicalUrl}" target="_blank" style="color:#0d9488; text-decoration:underline;">${canonicalUrl}</a></p>
+    </div>`;
+};
+
 // ─────────────────────────────────────────────
 // 1. PATIENT WELCOME EMAIL
 // ─────────────────────────────────────────────
 const patientWelcomeTemplate = (patientName, assignedDoctorName, email, password) => {
-    const title = `Welcome to HorizonFit, ${patientName}!`;
-    const content = `
+  const title = `Welcome to HorizonFit, ${patientName}!`;
+  const content = `
     <p>Dear <strong>${patientName}</strong>,</p>
     <p>I am thrilled to welcome you to the HorizonFit family. Your 15-week journey toward peak vitality starts today.</p>
 
@@ -135,23 +222,23 @@ const patientWelcomeTemplate = (patientName, assignedDoctorName, email, password
 
     <p>Your assigned specialist is <strong>${assignedDoctorName}</strong>. They will be reviewing your logs and guiding your progress throughout the program.</p>
   `;
-    return renderBaseTemplate(title, content, 'https://horizonfit.in/#/auth', 'Start My Journey');
+  return renderBaseTemplate(title, content, 'https://horizonfit.in/#/auth', 'Start My Journey');
 };
 
 // ─────────────────────────────────────────────
 // 2. CONSULTATION BOOKING CONFIRMATION
 // ─────────────────────────────────────────────
-const consultationBookingTemplate = (recipientName, otherPartyName, date, time, recipientRole = 'patient', bookingId = 'N/A', mobileNumber = 'N/A') => {
-    const formattedDate = new Date(date).toLocaleDateString('en-IN', {
-        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
-    });
+const consultationBookingTemplate = (recipientName, otherPartyName, date, time, recipientRole = 'patient', bookingId = 'N/A', mobileNumber = 'N/A', zoomLink = null) => {
+  const formattedDate = new Date(date).toLocaleDateString('en-IN', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  });
 
-    let title = '';
-    let content = '';
+  let title = '';
+  let content = '';
 
-    if (recipientRole === 'patient') {
-        title = 'Your Consultation is Confirmed';
-        content = `
+  if (recipientRole === 'patient') {
+    title = 'Your Consultation is Confirmed';
+    content = `
       <p>Dear <strong>${recipientName}</strong>,</p>
       <p>Your upcoming consultation with <strong>${otherPartyName}</strong> has been successfully scheduled.</p>
 
@@ -172,10 +259,12 @@ const consultationBookingTemplate = (recipientName, otherPartyName, date, time, 
         </table>
       </div>
 
+      ${zoomLinkBlock(zoomLink)}
+
       <div class="success-box">
         <p style="font-weight:700;color:#166534;margin-bottom:10px;">&#10003; Next Steps</p>
         <ul style="margin:0;padding-left:20px;color:#166534;font-size:14px;font-family:Arial,sans-serif;line-height:1.8;">
-          <li>Please join the session 5 minutes early for a stable connection.</li>
+          <li>Please join the Zoom meeting 5 minutes early for a stable connection.</li>
           <li>Save your Booking ID above &mdash; it is required for program enrollment.</li>
           <li>Cancellations are eligible for a refund within 24 hours of booking.</li>
         </ul>
@@ -183,9 +272,9 @@ const consultationBookingTemplate = (recipientName, otherPartyName, date, time, 
 
       <p style="color:#64748b;font-size:13px;font-style:italic;">At HorizonFit, personalized care is the cornerstone of sustainable health. We look forward to seeing you soon.</p>
     `;
-    } else if (recipientRole === 'doctor') {
-        title = 'New Consultation Scheduled';
-        content = `
+  } else if (recipientRole === 'doctor') {
+    title = 'New Consultation Scheduled';
+    content = `
       <p>Dear <strong>${recipientName}</strong>,</p>
       <p>A new consultation has been added to your schedule.</p>
 
@@ -198,12 +287,14 @@ const consultationBookingTemplate = (recipientName, otherPartyName, date, time, 
         ${infoRow('Booking Ref', `<span style="font-family:Courier,monospace;word-break:break-all;">${bookingId}</span>`)}
       </div>
 
+      ${zoomLinkBlock(zoomLink)}
+
       <p>Please review the patient&rsquo;s preliminary query and health history on your specialist dashboard before the session.</p>
     `;
-    } else {
-        // Admin
-        title = 'System: New Consultation Booked';
-        content = `
+  } else {
+    // Admin
+    title = 'System: New Consultation Booked';
+    content = `
       <p>A new consultation has been recorded in the system.</p>
 
       <div class="info-box">
@@ -215,29 +306,31 @@ const consultationBookingTemplate = (recipientName, otherPartyName, date, time, 
         ${infoRow('Time', time)}
         ${infoRow('Booking Ref', `<span style="font-family:Courier,monospace;word-break:break-all;">${bookingId}</span>`)}
       </div>
-    `;
-    }
 
-    return renderBaseTemplate(title, content, 'https://horizonfit.in/#/auth', 'Open Dashboard');
+      ${zoomLinkBlock(zoomLink)}
+    `;
+  }
+
+  return renderBaseTemplate(title, content, zoomLink || 'https://horizonfit.in/#/auth', zoomLink ? 'Join Zoom Session' : 'Open Dashboard');
 };
 
 // ─────────────────────────────────────────────
 // 3. CONSULTATION STATUS UPDATE
 // ─────────────────────────────────────────────
-const consultationUpdateTemplate = (recipientName, otherPartyName, status, dateTime) => {
-    const title = `Appointment ${status}`;
-    const formattedDate = new Date(dateTime).toLocaleString('en-IN', {
-        weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
+const consultationUpdateTemplate = (recipientName, otherPartyName, status, dateTime, zoomLink = null) => {
+  const title = `Appointment ${status}`;
+  const formattedDate = new Date(dateTime).toLocaleString('en-IN', {
+    weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
 
-    const statusMap = {
-        Confirmed: { color: '#059669', bg: '#f0fdf4', border: '#bbf7d0', msg: 'Your session is confirmed. Please join via your dashboard link 5 minutes before the start time.' },
-        Completed: { color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', msg: 'Your session has concluded. Any notes or recommendations will be available on your dashboard within 24 hours.' },
-        Cancelled: { color: '#dc2626', bg: '#fef2f2', border: '#fecaca', msg: 'This appointment has been cancelled. If eligible for a refund, it will be processed to your original payment method within 5-7 business days.' },
-    };
-    const s = statusMap[status] || { color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', msg: '' };
+  const statusMap = {
+    Confirmed: { color: '#059669', bg: '#f0fdf4', border: '#bbf7d0', msg: 'Your session is confirmed. Please join via the Zoom link below 5 minutes before your start time.' },
+    Completed: { color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', msg: 'Your session has concluded. Any notes or recommendations will be available on your dashboard within 24 hours.' },
+    Cancelled: { color: '#dc2626', bg: '#fef2f2', border: '#fecaca', msg: 'This appointment has been cancelled. If eligible for a refund, it will be processed to your original payment method within 5-7 business days.' },
+  };
+  const s = statusMap[status] || { color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', msg: '' };
 
-    const content = `
+  const content = `
     <p>Dear <strong>${recipientName}</strong>,</p>
     <p>The status of your appointment with <strong>${otherPartyName}</strong> has been updated.</p>
 
@@ -255,18 +348,20 @@ const consultationUpdateTemplate = (recipientName, otherPartyName, status, dateT
       </tr>
     </table>
 
+    ${zoomLinkBlock(zoomLink)}
+
     ${s.msg ? `<p style="color:#475569;text-align:center;font-size:14px;font-family:Arial,sans-serif;">${s.msg}</p>` : ''}
   `;
 
-    return renderBaseTemplate(title, content, 'https://horizonfit.in/#/auth', 'View Details');
+  return renderBaseTemplate(title, content, zoomLink || 'https://horizonfit.in/#/auth', zoomLink ? 'Join Zoom Meeting' : 'View Details');
 };
 
 // ─────────────────────────────────────────────
 // 4. PASSWORD RESET
 // ─────────────────────────────────────────────
 const passwordResetTemplate = (userName, resetLink) => {
-    const title = 'Password Reset Request';
-    const content = `
+  const title = 'Password Reset Request';
+  const content = `
     <p>Hello <strong>${userName}</strong>,</p>
     <p>We received a request to reset the password for your HorizonFit account. Click the button below to set a new password.</p>
 
@@ -274,23 +369,23 @@ const passwordResetTemplate = (userName, resetLink) => {
       &#9888; This link is valid for <strong>60 minutes</strong> only. If you did not request a reset, you can safely ignore this email.
     </p>
   `;
-    return renderBaseTemplate(title, content, resetLink, 'Reset My Password');
+  return renderBaseTemplate(title, content, resetLink, 'Reset My Password');
 };
 
 // ─────────────────────────────────────────────
 // 5. PROGRAM ENROLLMENT CONFIRMATION
 // ─────────────────────────────────────────────
 const programBookingTemplate = (patientName, specialistName, startDate, planTier, paymentId, email, password, bookingId) => {
-    const title = 'Enrollment Confirmed &#127881;';
-    const isPatient = Boolean(email && password);
+  const title = 'Enrollment Confirmed &#127881;';
+  const isPatient = Boolean(email && password);
 
-    const content = `
+  const content = `
     ${isPatient
-            ? `<p>Congratulations <strong>${patientName}</strong>!</p>
+      ? `<p>Congratulations <strong>${patientName}</strong>!</p>
          <p>You have successfully enrolled in the <strong>HorizonFit 15-Week Transformation Program</strong>. Your journey to better health begins now.</p>`
-            : `<p>A new patient enrollment has been completed.</p>
+      : `<p>A new patient enrollment has been completed.</p>
          <p><strong>Patient:</strong> ${patientName}</p>`
-        }
+    }
 
     <div class="info-box">
       <p style="font-size:12px;font-family:Arial,sans-serif;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;margin-bottom:14px;">Enrollment Summary</p>
@@ -319,15 +414,15 @@ const programBookingTemplate = (patientName, specialistName, startDate, planTier
     ` : ''}
   `;
 
-    return renderBaseTemplate(title, content, 'https://horizonfit.in/#/auth', 'Access My Dashboard');
+  return renderBaseTemplate(title, content, 'https://horizonfit.in/#/auth', 'Access My Dashboard');
 };
 
 // ─────────────────────────────────────────────
 // 6. TASK ASSIGNMENT
 // ─────────────────────────────────────────────
 const taskAssignmentTemplate = (recipientName, otherPartyName, taskName, dueDate, taskDescription) => {
-    const title = 'New Task Assigned';
-    const content = `
+  const title = 'New Task Assigned';
+  const content = `
     <p>Hello <strong>${recipientName}</strong>,</p>
     <p>A new care task has been assigned to your profile by <strong>${otherPartyName}</strong>.</p>
 
@@ -341,14 +436,14 @@ const taskAssignmentTemplate = (recipientName, otherPartyName, taskName, dueDate
       </tr>
     </table>
   `;
-    return renderBaseTemplate(title, content, 'https://horizonfit.in/#/auth', 'View Task');
+  return renderBaseTemplate(title, content, 'https://horizonfit.in/#/auth', 'View Task');
 };
 
 export {
-    consultationUpdateTemplate,
-    consultationBookingTemplate,
-    passwordResetTemplate,
-    patientWelcomeTemplate,
-    taskAssignmentTemplate,
-    programBookingTemplate,
+  consultationUpdateTemplate,
+  consultationBookingTemplate,
+  passwordResetTemplate,
+  patientWelcomeTemplate,
+  taskAssignmentTemplate,
+  programBookingTemplate,
 };

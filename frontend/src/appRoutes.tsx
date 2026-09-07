@@ -5,6 +5,7 @@ import { BookConsultationPage } from "./pages/BookConsultationPage";
 import { EnrollPage } from "./pages/EnrollPage";
 import { BookingSuccessPage } from "./pages/BookingSuccessPage";
 import { SelfGuidedSystemPage } from "./pages/SelfGuidedSystemPage";
+import { LegalPage } from "./pages/LegalPage";
 
 // Doctor Pages
 import { DoctorPatientsPage } from "./pages/doctor/DoctorPatientsPage";
@@ -43,6 +44,10 @@ export const AppRoutes = () => {
       <Route path="/enroll" element={<EnrollPage />} />
       <Route path="/self-guided-system" element={<SelfGuidedSystemPage />} />
       <Route path="/booking-success" element={<BookingSuccessPage />} />
+      <Route path="/privacy-policy" element={<LegalPage defaultTab="privacy-policy" />} />
+      <Route path="/terms-and-conditions" element={<LegalPage defaultTab="terms-and-conditions" />} />
+      <Route path="/disclaimer" element={<LegalPage defaultTab="disclaimer" />} />
+      <Route path="/legal" element={<LegalPage />} />
 
       {/* Doctor Routes */}
       <Route

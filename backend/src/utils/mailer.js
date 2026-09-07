@@ -28,17 +28,39 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+// Helper to format date cleanly for subject lines
+const formatSubjectDate = (dateVal) => {
+    try {
+        const d = new Date(dateVal);
+        if (isNaN(d.getTime())) return String(dateVal);
+        return d.toLocaleDateString('en-IN', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    } catch {
+        return String(dateVal);
+    }
+};
+
 // =================================================================
 // 2. CORE SEND FUNCTION
 // =================================================================
 
 const sendEmail = async (recipient, subject, text, html) => {
     const mailOptions = {
-        from: process.env.EMAIL_FROM || 'HorizonFit <no-reply@aevon.in>',
+        from: process.env.EMAIL_FROM || 'HorizonFit <info@horizonfit.in>',
         to: recipient,
         subject: subject,
         text: text,
         html: html,
+        headers: {
+            'List-Unsubscribe': '<mailto:info@horizonfit.in?subject=unsubscribe>, <https://horizonfit.in/unsubscribe>',
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
     };
     try {
         await transporter.sendMail(mailOptions);
@@ -56,10 +78,11 @@ const sendEmail = async (recipient, subject, text, html) => {
 /**
  * Sends a consultation booking confirmation.
  */
-const sendConsultationBookingEmail = async ({ recipient, personName, otherPartyName, date, time, recipientRole, bookingId, mobileNumber }) => {
-    const subject = `Your HorizonFit Consultation Details - ${date}`;
-    const htmlBody = consultationBookingTemplate(personName, otherPartyName, date, time, recipientRole, bookingId, mobileNumber);
-    const textBody = `Hello ${personName}, your consultation with ${otherPartyName} is confirmed for ${date} at ${time}. Booking ID: ${bookingId}`;
+const sendConsultationBookingEmail = async ({ recipient, personName, otherPartyName, date, time, recipientRole, bookingId, mobileNumber, zoomLink }) => {
+    const formattedDateStr = formatSubjectDate(date);
+    const subject = `Your HorizonFit Consultation is Confirmed — ${formattedDateStr}`;
+    const htmlBody = consultationBookingTemplate(personName, otherPartyName, date, time, recipientRole, bookingId, mobileNumber, zoomLink);
+    const textBody = `Hello ${personName}, your consultation with ${otherPartyName} is confirmed for ${date} at ${time}. Booking ID: ${bookingId}${zoomLink ? `. Zoom link: ${zoomLink}` : ''}`;
 
     await sendEmail(recipient, subject, textBody, htmlBody);
 };
@@ -67,10 +90,13 @@ const sendConsultationBookingEmail = async ({ recipient, personName, otherPartyN
 /**
  * Sends a consultation update email (Status changes like Completed, Cancelled).
  */
-const sendConsultationUpdateEmail = async ({ recipient, personName, otherPartyName, status, dateTime }) => {
-    const subject = `Update: Consultation is ${status}`;
-    const htmlBody = consultationUpdateTemplate(personName, otherPartyName, status, dateTime);
-    const textBody = `Hello ${personName}, your consultation status with ${otherPartyName} has been updated to ${status}.`;
+const sendConsultationUpdateEmail = async ({ recipient, personName, otherPartyName, status, dateTime, zoomLink }) => {
+    const formattedDateStr = formatSubjectDate(dateTime);
+    const subject = status === 'Confirmed'
+        ? `Your HorizonFit Consultation is Confirmed — ${formattedDateStr}`
+        : `Update: Consultation is ${status} — ${formattedDateStr}`;
+    const htmlBody = consultationUpdateTemplate(personName, otherPartyName, status, dateTime, zoomLink);
+    const textBody = `Hello ${personName}, your consultation status with ${otherPartyName} has been updated to ${status}.${zoomLink ? ` Zoom link: ${zoomLink}` : ''}`;
 
     await sendEmail(recipient, subject, textBody, htmlBody);
 };

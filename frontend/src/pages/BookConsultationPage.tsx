@@ -14,6 +14,9 @@ import {
   Clock,
   Stethoscope,
   Star,
+  CheckCircle,
+  Mail,
+  AlertTriangle,
 } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -24,6 +27,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useRazorpay, RazorpayResponse } from "@/hooks/useRazorpay";
 import { publicApi, TimeSlot } from "@/lib/api";
@@ -82,6 +91,8 @@ export const BookConsultationPage: React.FC = () => {
   const { isLoaded, isLoading: paymentLoading, openPayment } = useRazorpay();
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [bookedEmail, setBookedEmail] = useState("");
 
   // Slot state
   const [selectedDate, setSelectedDate] = useState("");
@@ -261,8 +272,9 @@ export const BookConsultationPage: React.FC = () => {
               orderId: response.razorpay_order_id,
               razorpaySignature: response.razorpay_signature,
             });
+            setBookedEmail(data.email);
+            setShowSuccessModal(true);
             toast({ title: "Booking Confirmed! 🎉" });
-            navigate("/booking-success");
           } catch (error: any) {
             setIsProcessing(false);
             const errorMessage = error.response?.data?.message || "Booking Failed. Please contact support.";
@@ -667,11 +679,11 @@ export const BookConsultationPage: React.FC = () => {
               <span>|</span>
               <Link to="/book-consultation" className="hover:text-secondary transition-colors">Contact</Link>
               <span>|</span>
-              <Link to="/enroll" className="hover:text-secondary transition-colors">Privacy Policy</Link>
+              <Link to="/privacy-policy" className="hover:text-secondary transition-colors">Privacy Policy</Link>
               <span>|</span>
-              <Link to="/enroll" className="hover:text-secondary transition-colors">Terms & Conditions</Link>
+              <Link to="/terms-and-conditions" className="hover:text-secondary transition-colors">Terms & Conditions</Link>
               <span>|</span>
-              <Link to="/enroll" className="hover:text-secondary transition-colors">Disclaimer</Link>
+              <Link to="/disclaimer" className="hover:text-secondary transition-colors">Disclaimer</Link>
             </div>
           </div>
 
@@ -680,6 +692,58 @@ export const BookConsultationPage: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Post-Booking Confirmation Popup */}
+      <Dialog open={showSuccessModal} onOpenChange={(open) => {
+        if (!open) {
+          setShowSuccessModal(false);
+          navigate("/booking-success", { state: { email: bookedEmail } });
+        }
+      }}>
+        <DialogContent className="sm:max-w-md text-center">
+          <DialogHeader className="items-center">
+            <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-teal-100 text-teal-600">
+              <CheckCircle className="h-10 w-10 text-teal-600" />
+            </div>
+            <DialogTitle className="text-2xl font-bold text-foreground text-center">
+              Booking Confirmed!
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-left">
+            <p className="text-sm text-muted-foreground text-center">
+              Your consultation has been scheduled. Details & your Zoom meeting link have been sent to:
+            </p>
+
+            <div className="flex items-center justify-center gap-2 rounded-lg bg-teal-50 border border-teal-200 p-3 text-sm font-semibold text-teal-800">
+              <Mail className="h-4 w-4 text-teal-600 shrink-0" />
+              <span className="break-all">{bookedEmail}</span>
+            </div>
+
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900 flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-950 mb-0.5">Check your Spam folder</p>
+                <p className="text-amber-900/90 leading-relaxed">
+                  If you don't see the email in your main inbox within 5 minutes, please check your <strong>Spam / Junk</strong> folder.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <Button
+              className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold h-11"
+              onClick={() => {
+                setShowSuccessModal(false);
+                navigate("/booking-success", { state: { email: bookedEmail } });
+              }}
+            >
+              View Booking Details
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

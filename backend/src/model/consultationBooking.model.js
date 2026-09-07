@@ -82,6 +82,12 @@ const BookingSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+
+    zoomLink: {
+      type: String,
+      default: null,
+      trim: true,
+    },
   },
   { timestamps: true },
 );

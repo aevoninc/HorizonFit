@@ -584,11 +584,11 @@ export const HomePage: React.FC = () => {
               <span>|</span>
               <Link to="/book-consultation" className="hover:text-secondary transition-colors">Contact</Link>
               <span>|</span>
-              <Link to="/enroll" className="hover:text-secondary transition-colors">Privacy Policy</Link>
+              <Link to="/privacy-policy" className="hover:text-secondary transition-colors">Privacy Policy</Link>
               <span>|</span>
-              <Link to="/enroll" className="hover:text-secondary transition-colors">Terms & Conditions</Link>
+              <Link to="/terms-and-conditions" className="hover:text-secondary transition-colors">Terms & Conditions</Link>
               <span>|</span>
-              <Link to="/enroll" className="hover:text-secondary transition-colors">Disclaimer</Link>
+              <Link to="/disclaimer" className="hover:text-secondary transition-colors">Disclaimer</Link>
             </div>
           </div>
 

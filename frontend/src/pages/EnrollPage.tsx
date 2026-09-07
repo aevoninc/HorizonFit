@@ -594,7 +594,7 @@ export const EnrollPage: React.FC = () => {
           className="mb-8 text-center"
         >
           <h1 className="text-3xl font-bold text-foreground">
-            Enrol in the 15-Week Self-Guided Weight Loss System
+            Enroll in the 15-Week Self-Guided Weight Loss System
           </h1>
           <p className="mt-2 text-muted-foreground">
             Learn the framework. Build your plan. Follow your journey.
@@ -1253,8 +1253,15 @@ export const EnrollPage: React.FC = () => {
               </div>
               <span className="font-bold text-foreground">Horizon Fit</span>
             </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground font-semibold">
+              <Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+              <span>|</span>
+              <Link to="/terms-and-conditions" className="hover:text-primary transition-colors">Terms & Conditions</Link>
+              <span>|</span>
+              <Link to="/disclaimer" className="hover:text-primary transition-colors">Disclaimer</Link>
+            </div>
             <p className="text-sm text-muted-foreground">
-              © 2026 Horizon Fit. All rights reserved.
+              © {new Date().getFullYear()} Horizon Fit. All rights reserved.
             </p>
             <p className="text-xs text-secondary ">
               Developed by <span className="font-medium ">Javid Shariff</span>{" "}
