@@ -146,6 +146,7 @@ export interface Consultation {
   type: string;
   status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
   notes?: string;
+  zoomLink?: string;
 }
 
 export interface PatientBooking {
@@ -157,6 +158,7 @@ export interface PatientBooking {
   doctorName?: string;
   refundId?: string;
   patientQuery?: string;
+  zoomLink?: string;
 }
 
 export interface PatientProgress {

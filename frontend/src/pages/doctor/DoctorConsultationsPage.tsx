@@ -23,7 +23,7 @@ import { doctorApi, Consultation, TimeSlot } from '@/lib/api';
 type ConsultationStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
 const statusColors: Record<ConsultationStatus, string> = {
-  pending:   'bg-yellow-100 text-yellow-700 border-yellow-200',
+  pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
   confirmed: 'bg-blue-100 text-blue-700 border-blue-200',
   completed: 'bg-green-100 text-green-700 border-green-200',
   cancelled: 'bg-red-100 text-red-700 border-red-200',
@@ -119,11 +119,10 @@ const TimeSlotManager: React.FC = () => {
             <motion.div
               key={slot._id}
               layout
-              className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-all ${
-                slot.isActive
-                  ? 'border-secondary/40 bg-secondary/5 text-foreground'
-                  : 'border-dashed border-muted-foreground/30 bg-muted/30 text-muted-foreground opacity-60'
-              }`}
+              className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-all ${slot.isActive
+                ? 'border-secondary/40 bg-secondary/5 text-foreground'
+                : 'border-dashed border-muted-foreground/30 bg-muted/30 text-muted-foreground opacity-60'
+                }`}
             >
               <span className="font-medium">{slot.time}</span>
               <button
@@ -266,13 +265,13 @@ export const DoctorConsultationsPage: React.FC = () => {
       const response = isNewRequestPath
         ? await doctorApi.getNewConsultancyRequests()
         : await doctorApi.getConsultations();
-        let bookingsArray: Consultation[] = [];
-        if (Array.isArray(response.data)) {
-          bookingsArray = response.data;
-        } else if (response.data && Array.isArray((response.data as any).bookings)) {
-          bookingsArray = (response.data as any).bookings;
-        }
-        console.log(bookingsArray)
+      let bookingsArray: Consultation[] = [];
+      if (Array.isArray(response.data)) {
+        bookingsArray = response.data;
+      } else if (response.data && Array.isArray((response.data as any).bookings)) {
+        bookingsArray = (response.data as any).bookings;
+      }
+      console.log(bookingsArray)
       setConsultations(bookingsArray);
     } catch {
       setConsultations([]);
@@ -311,7 +310,7 @@ export const DoctorConsultationsPage: React.FC = () => {
     }
   };
 
-  const pendingCount   = consultations.filter(c => c.status === 'pending').length;
+  const pendingCount = consultations.filter(c => c.status === 'pending').length;
   const confirmedCount = consultations.filter(c => c.status === 'confirmed').length;
   const completedCount = consultations.filter(c => c.status === 'completed').length;
   const cancelledCount = consultations.filter(c => c.status === 'cancelled').length;
@@ -365,10 +364,10 @@ export const DoctorConsultationsPage: React.FC = () => {
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-4">
         {[
-          { count: pendingCount,   label: 'Pending',   icon: Clock,       bg: 'bg-yellow-100', color: 'text-yellow-600' },
-          { count: confirmedCount, label: 'Confirmed',  icon: Calendar,    bg: 'bg-blue-100',   color: 'text-blue-600' },
-          { count: completedCount, label: 'Completed',  icon: CheckCircle, bg: 'bg-green-100',  color: 'text-green-600' },
-          { count: cancelledCount, label: 'Cancelled',  icon: XCircle,     bg: 'gradient-phoenix text-primary-foreground', color: 'text-primary-foreground' },
+          { count: pendingCount, label: 'Pending', icon: Clock, bg: 'bg-yellow-100', color: 'text-yellow-600' },
+          { count: confirmedCount, label: 'Confirmed', icon: Calendar, bg: 'bg-blue-100', color: 'text-blue-600' },
+          { count: completedCount, label: 'Completed', icon: CheckCircle, bg: 'bg-green-100', color: 'text-green-600' },
+          { count: cancelledCount, label: 'Cancelled', icon: XCircle, bg: 'gradient-phoenix text-primary-foreground', color: 'text-primary-foreground' },
         ].map(({ count, label, icon: Icon, bg, color }) => (
           <Card key={label} className="card-elevated">
             <CardContent className="p-6">
@@ -487,6 +486,49 @@ export const DoctorConsultationsPage: React.FC = () => {
                 <p className="text-sm text-muted-foreground">{selectedConsultation.date} at {selectedConsultation.time}</p>
                 <p className="text-sm text-muted-foreground">{selectedConsultation.type}</p>
               </div>
+              {selectedConsultation.zoomLink && (() => {
+                let rawMeetingId = "";
+                let passcode = "";
+                try {
+                  const url = new URL(selectedConsultation.zoomLink);
+                  const pathSegments = url.pathname.split("/").filter(Boolean);
+                  rawMeetingId = pathSegments[pathSegments.length - 1] || "";
+                  passcode = url.searchParams.get("pwd") || "";
+                } catch (e) { }
+
+                return (
+                  <div className="rounded-lg border border-teal-200 bg-teal-50/60 p-3 text-xs space-y-2">
+                    <div className="flex items-center justify-between font-semibold text-teal-800">
+                      <span className="flex items-center gap-1">📹 Zoom Meeting Link</span>
+                      <a
+                        href={selectedConsultation.zoomLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-teal-700 font-medium underline hover:text-teal-900"
+                      >
+                        Join Meeting
+                      </a>
+                    </div>
+                    <p className="text-teal-800 break-all select-all font-mono bg-white/90 p-2 rounded border border-teal-100">{selectedConsultation.zoomLink}</p>
+                    {(rawMeetingId || passcode) && (
+                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-teal-100 text-[11px]">
+                        {rawMeetingId && (
+                          <div className="bg-white/80 p-1.5 rounded border border-teal-100">
+                            <span className="text-teal-600 block text-[9px] font-semibold uppercase">Meeting ID</span>
+                            <span className="font-mono font-bold text-teal-900 select-all">{rawMeetingId}</span>
+                          </div>
+                        )}
+                        {passcode && (
+                          <div className="bg-white/80 p-1.5 rounded border border-teal-100">
+                            <span className="text-teal-600 block text-[9px] font-semibold uppercase">Passcode</span>
+                            <span className="font-mono font-bold text-teal-900 select-all">{passcode}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select value={newStatus} onValueChange={v => setNewStatus(v as ConsultationStatus)}>

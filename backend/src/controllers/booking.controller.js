@@ -28,6 +28,7 @@ import {
 } from "../constants.js";
 import mongoose from "mongoose";
 import TimeSlot from "../model/timeSlot.model.js";
+import { generateZoomMeetingLink } from "../utils/zoom.service.js";
 
 const checkIsSlotBooked = async (requestedDateTime) => {
   if (!requestedDateTime) return false;
@@ -110,7 +111,18 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
       .json({ message: "Security Check Failed: Invalid Signature" });
   }
 
-  // 3. Save to Database
+  // 3. Generate Zoom Meeting Link automatically
+  let zoomLink = null;
+  try {
+    zoomLink = await generateZoomMeetingLink({
+      topic: `HorizonFit Consultation - ${name}`,
+      startTime: requestedDateTime,
+    });
+  } catch (zoomErr) {
+    console.error("Failed to generate Zoom link during booking:", zoomErr);
+  }
+
+  // 4. Save to Database
   // Note: We use paymentToken as the transactionId because it is the unique payment reference
   const booking = await ConsultationBooking.create({
     patientName: name, // Added name to DB record
@@ -123,6 +135,7 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
     orderId,
     paymentSignature: razorpaySignature,
     amountPaid: CONSULTANCY_BOOKING_PRICE,
+    zoomLink: zoomLink,
   });
 
   // 5. Final Success Response
@@ -130,6 +143,7 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
     message: "Consultation booked successfully!",
     bookingId: booking._id,
     transactionId: paymentToken,
+    zoomLink: zoomLink,
   });
 
   // Fire and forget emails so the user doesn't wait
@@ -146,6 +160,7 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
         recipientRole: 'doctor',
         bookingId: booking._id,
         mobileNumber: mobileNumber,
+        zoomLink: zoomLink,
       }),
 
       // 2. Email to Admin
@@ -158,6 +173,7 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
         recipientRole: 'admin',
         bookingId: booking._id,
         mobileNumber: mobileNumber,
+        zoomLink: zoomLink,
       }),
       // 3. Email to Patient
       sendConsultationBookingEmail({
@@ -168,6 +184,7 @@ const newRequestConsultation = asyncHandler(async (req, res) => {
         time: new Date(requestedDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         recipientRole: 'patient',
         bookingId: booking._id,
+        zoomLink: zoomLink,
       }),
     ])
 

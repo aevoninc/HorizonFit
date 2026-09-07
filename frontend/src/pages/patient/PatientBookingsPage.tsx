@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, XCircle, AlertCircle, CheckCircle, Loader2, RefreshCw, CreditCard } from 'lucide-react';
+import { Calendar, Clock, XCircle, AlertCircle, CheckCircle, Loader2, RefreshCw, CreditCard, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -212,6 +212,26 @@ export const PatientBookingsPage: React.FC = () => {
                         <p className="mb-4 text-sm text-muted-foreground italic">
                           "{booking.patientQuery}"
                         </p>
+                      )}
+
+                      {booking.zoomLink && (
+                        <div className="mb-4 rounded-lg border border-teal-200 bg-teal-50/60 p-3 text-xs space-y-1.5">
+                          <div className="flex items-center justify-between font-semibold text-teal-900">
+                            <span className="flex items-center gap-1.5">
+                              <Video className="h-4 w-4 text-teal-600" />
+                              Zoom Meeting Link
+                            </span>
+                            <a
+                              href={booking.zoomLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded font-medium transition-colors"
+                            >
+                              Join Meeting
+                            </a>
+                          </div>
+                          <p className="text-teal-700 break-all select-all font-mono bg-white/90 p-1.5 rounded border border-teal-100">{booking.zoomLink}</p>
+                        </div>
                       )}
 
                       {/* Refund Logic UI */}

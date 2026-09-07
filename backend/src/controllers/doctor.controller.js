@@ -21,6 +21,7 @@ import DailyLog from "../model/normalPlanModels/dailyLog.model.js";
 import PatientZoneProgress from "../model/normalPlanModels/patientZoneProgress.model.js";
 import HabitLog from "../model/habitLog.model.js";
 import RecommendationsCache from "../model/normalPlanModels/recommendationsCache.model.js";
+import { generateZoomMeetingLink } from "../utils/zoom.service.js";
 
 export async function createDoctor(name, email, password, mobileNumber) {
 
@@ -368,6 +369,7 @@ const getConsultationRequests = asyncHandler(async (req, res) => {
       status: statusMap[booking.status] || "pending", // Fallback to pending
       type: booking.patientQuery || "General Consultation",
       notes: booking.notes || booking.cancellationReason || "",
+      zoomLink: booking.zoomLink || "",
     };
   });
 
@@ -412,6 +414,11 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
       .json({ message: "Invalid booking status provided." });
   }
 
+  const existingBooking = await ConsultationBooking.findById(id);
+  if (!existingBooking) {
+    return res.status(404).json({ message: "Booking not found." });
+  }
+
   const updateData = { status: dbStatus, notes: notes || undefined };
 
   if (dbStatus === "Confirmed" || dbStatus === "Rescheduled") {
@@ -422,6 +429,19 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
       });
     }
     updateData.confirmedDateTime = new Date(confirmedDateTime);
+
+    // Auto-generate Zoom meeting link if one doesn't exist yet
+    if (!existingBooking.zoomLink) {
+      try {
+        const zoomLink = await generateZoomMeetingLink({
+          topic: `HorizonFit Consultation - ${existingBooking.patientName || "Patient"}`,
+          startTime: confirmedDateTime || existingBooking.requestedDateTime,
+        });
+        updateData.zoomLink = zoomLink;
+      } catch (zoomErr) {
+        console.error("Failed to generate Zoom link during status update:", zoomErr);
+      }
+    }
   }
 
   // 2. Perform the update
@@ -430,10 +450,6 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
     { $set: updateData },
     { new: true }
   );
-
-  if (!updatedBooking) {
-    return res.status(404).json({ message: "Booking not found." });
-  }
 
   // 3. Success Response sent FIRST to avoid frontend waiting for emails
   res.status(200).json({
@@ -459,7 +475,8 @@ const updateConsultationStatus = asyncHandler(async (req, res) => {
           otherPartyName: DOCTOR_NAME || "Your Specialist",
           status: dbStatus,
           dateTime:
-            updatedBooking.confirmedDateTime || updatedBooking.requestedDateTime
+            updatedBooking.confirmedDateTime || updatedBooking.requestedDateTime,
+          zoomLink: updatedBooking.zoomLink || "",
         });
         console.log("Completed")
       }
@@ -575,6 +592,7 @@ const getNewConsultancyRequest = asyncHandler(async (req, res) => {
       status: statusMap[booking.status] || "pending", // Fallback to pending
       type: booking.patientQuery || "General Consultation",
       notes: booking.notes || booking.cancellationReason || "",
+      zoomLink: booking.zoomLink || "",
     };
   });
 

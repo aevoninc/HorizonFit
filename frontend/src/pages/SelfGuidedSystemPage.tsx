@@ -113,7 +113,7 @@ export const SelfGuidedSystemPage: React.FC = () => {
 
                             {/* Main Title */}
                             <h1 className="text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl leading-[1.15] text-foreground">
-                                15-Week Self-Guided Weight Management System
+                                15-Week Self-Guided Weight Loss System
                             </h1>
 
                             {/* Tagline */}
@@ -533,7 +533,7 @@ export const SelfGuidedSystemPage: React.FC = () => {
 
                             <div className="mt-8 space-y-4">
                                 {[
-                                    "Want a structured approach to weight management",
+                                    "Want a structured approach to weight loss",
                                     "Prefer to learn and work through a system independently",
                                     "Want practical tools to apply what they learn",
                                     "Are ready to work with their own measurements and information",
@@ -609,7 +609,7 @@ export const SelfGuidedSystemPage: React.FC = () => {
                                 Learn the framework. Build your plan. Follow your journey.
                             </p>
                             <p className="mt-4 text-base font-semibold text-muted-foreground">
-                                Horizon Fit 15-Week Self-Guided Weight Management System
+                                Horizon Fit 15-Week Self-Guided Weight Loss System
                             </p>
 
                             <div className="mt-8 flex justify-center">
@@ -658,7 +658,7 @@ export const SelfGuidedSystemPage: React.FC = () => {
                                 },
                                 {
                                     q: "Is this a medical consultation or treatment program?",
-                                    a: "No. This is a self-guided educational and lifestyle-management program for weight management. It does not replace individual medical diagnosis or treatment.",
+                                    a: "No. This is a self-guided educational and lifestyle-management program for weight loss. It does not replace individual medical diagnosis or treatment.",
                                 },
                             ].map((faq, idx) => (
                                 <AccordionItem key={idx} value={`item-${idx}`} className="rounded-2xl border border-border/70 bg-card px-6 py-1 shadow-sm transition-all hover:border-primary/40">
@@ -683,7 +683,7 @@ export const SelfGuidedSystemPage: React.FC = () => {
                                 <span>IMPORTANT INFORMATION</span>
                             </div>
                             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                                This is a self-guided educational and lifestyle-management program for weight management. It provides structured learning, workbooks, tools and tracking features and does not replace individual medical diagnosis or treatment. If you have a medical condition, significant symptoms or specific healthcare needs, seek appropriate medical advice.
+                                This is a self-guided educational and lifestyle-management program for weight loss. It provides structured learning, workbooks, tools and tracking features and does not replace individual medical diagnosis or treatment. If you have a medical condition, significant symptoms or specific healthcare needs, seek appropriate medical advice.
                             </p>
                         </div>
                     </div>
@@ -698,12 +698,12 @@ export const SelfGuidedSystemPage: React.FC = () => {
                             <div className="text-2xl font-black tracking-tight text-foreground flex items-center justify-center md:justify-start gap-2">
                                 <span className="text-primary">HORIZON</span> FIT
                             </div>
-                            <p className="text-xs font-semibold text-muted-foreground mt-1">15-Week Self-Guided Weight Management System</p>
+                            <p className="text-xs font-semibold text-muted-foreground mt-1">15-Week Self-Guided Weight Loss System</p>
                         </div>
 
                         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-semibold text-muted-foreground">
                             <Link to="/" className="hover:text-primary transition-colors">Home</Link>
-                            <Link to="/self-guided-system" className="hover:text-primary transition-colors">Weight Management System</Link>
+                            <Link to="/self-guided-system" className="hover:text-primary transition-colors">Weight Loss System</Link>
                             <Link to="/enroll" className="hover:text-primary transition-colors">Enrol Now</Link>
                             <Link to="/book-consultation" className="hover:text-primary transition-colors">Book Assessment</Link>
                             <Link to="/auth" className="hover:text-primary transition-colors">Client Login</Link>
