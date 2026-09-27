@@ -23,8 +23,9 @@ app.use(
     origin: [
       process.env.CORS_ORIGIN,
       process.env.FRONTEND_URL,
-      "https://report.horizonfit.in",
       "https://www.horizonfit.in",
+      "https://assessment.horizonfit.in",
+      "https://www.assessment.horizonfit.in",
       "http://localhost:5173",
       "http://localhost:8080",
       "http://localhost:3000",
