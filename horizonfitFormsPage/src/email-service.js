@@ -22,7 +22,7 @@ export function prepareEmailPayload(formData, filename, delivery = {}) {
     subject,
     attachmentFilename: delivery.filename || filename,
     status: respondentEmailSent === true
-      ? 'Saved report link emailed to you.'
+      ? 'Report PDF emailed to you.'
       : respondentEmailSent === false
         ? 'Report saved, but the email could not be sent.'
         : 'Report saved and ready to access here.'

@@ -175,8 +175,13 @@ const sendHealthAssessmentEmail = async ({ formData, filename, pdfBuffer, report
             from: process.env.EMAIL_FROM || 'HorizonFit <info@horizonfit.in>',
             to: formData.email,
             subject: 'Your HorizonFit Health Insight Report is ready',
-            text: `Hello ${formData.fullName}, your Health Insight Report is ready. Open your saved report: ${reportUrl}`,
-            html: `<p>Hello ${escapeEmailHtml(formData.fullName)},</p><p>Your HorizonFit Health Insight Report is ready.</p><p><a href="${escapeEmailHtml(reportUrl)}">Open your saved report</a></p>`,
+            text: `Hello ${formData.fullName}, your HorizonFit Health Insight Report is attached as a PDF.`,
+            html: `<p>Hello ${escapeEmailHtml(formData.fullName)},</p><p>Your HorizonFit Health Insight Report is attached as a PDF.</p>`,
+            attachments: [{
+                filename,
+                content: pdfBuffer,
+                contentType: 'application/pdf',
+            }],
         }),
     ]);
 
@@ -187,9 +192,9 @@ const sendHealthAssessmentEmail = async ({ formData, filename, pdfBuffer, report
         console.error(`[EMAIL] Failed to send assessment to clinical inbox: ${clinicDelivery.reason.message}`);
     }
     if (respondentDelivery.status === 'fulfilled') {
-        console.log('[EMAIL] Saved report link sent to respondent');
+        console.log('[EMAIL] Health assessment PDF sent to respondent');
     } else {
-        console.error(`[EMAIL] Failed to send saved report link to respondent: ${respondentDelivery.reason.message}`);
+        console.error(`[EMAIL] Failed to send assessment PDF to respondent: ${respondentDelivery.reason.message}`);
     }
 
     return {
