@@ -23,6 +23,8 @@ app.use(
     origin: [
       process.env.CORS_ORIGIN,
       process.env.FRONTEND_URL,
+      "https://report.horizonfit.in",
+      "https://assessment.horizonfit.in",
       "http://localhost:5173",
       "http://localhost:8080",
       "http://localhost:3000",
@@ -47,12 +49,14 @@ import patientRoutes from "./routes/patient.route.js";
 import bookingRoutes from "./routes/booking.route.js";
 import normalPlanPatientRoutes from "./routes/normalPlanPatient.route.js";
 import normalPlanDoctorRoutes from "./routes/normalPlanDoctor.route.js";
+import healthAssessmentRoutes from "./routes/healthAssessment.route.js";
 
 // Define Routes
 app.use("/api/v1/auth", authLimiter, authRoutes);
 app.use("/api/v1/doctor", doctorRoutes);
 app.use("/api/v1/patients", patientRoutes);
 app.use("/api/v1/public", bookingRoutes);
+app.use("/api/v1/public", healthAssessmentRoutes);
 app.use("/api/v1/doctor/normal-plan", normalPlanDoctorRoutes);
 app.use("/api/v1/patient/normal-plan", normalPlanPatientRoutes);
 

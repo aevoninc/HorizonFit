@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Horizon Fit | Metabolic Health Assessment</title>
+  <meta name="description"
+    content="Doctor-Led Metabolic Health Risk Assessment. Discover your metabolic markers and receive your personalized Horizon Fit Health Insight Report." />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/horizonfit_logo.png" />
+
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <!-- Interactive Report Preview Modal -->
+  <div id="report-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-container report-modal-container">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <h3>Horizon Fit Basic Metabolic Health Screening Report</h3>
+        </div>
+        <div class="modal-actions">
+          <button id="modal-download-btn" class="btn btn-primary btn-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download PDF
+          </button>
+          <button id="close-report-modal" class="btn-icon" aria-label="Close modal">✕</button>
+        </div>
+      </div>
+      <div class="modal-body report-modal-body" id="report-modal-content">
+        <!-- Rendered Report Sheets -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Email Transmission Modal -->
+  <div id="email-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-container email-modal-container">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="status-indicator-dot"></div>
+          <h3>Secure Email Dispatch Summary</h3>
+        </div>
+        <button id="close-email-modal" class="btn-icon" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body email-modal-body" id="email-modal-content">
+        <!-- Rendered Email Dispatch Info -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>

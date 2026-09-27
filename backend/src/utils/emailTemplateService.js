@@ -100,6 +100,46 @@ const infoRow = (label, value) => `
   </tr>
 </table>`;
 
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}[character]));
+
+const healthAssessmentTemplate = (formData, filename) => {
+  const conditions = Array.isArray(formData.conditions)
+    ? formData.conditions.join(', ')
+    : formData.conditions || 'None reported';
+  const rows = [
+    ['Name', formData.fullName],
+    ['Mobile', formData.mobile],
+    ['Email', formData.email],
+    ['Age', formData.age ? `${formData.age} years` : 'Not specified'],
+    ['Gender', formData.gender],
+    ['Height', formData.height ? `${formData.height} cm` : 'Not specified'],
+    ['Weight', formData.weight ? `${formData.weight} kg` : 'Not specified'],
+    ['Waist circumference', formData.waist ? `${formData.waist} cm` : 'Not specified'],
+    ['Family history of diabetes', formData.familyDiabetes],
+    ['High blood sugar / prediabetes', formData.highBloodSugar],
+    ['High blood pressure', formData.highBP],
+    ['Physical activity', formData.physicalActivity],
+    ['Reported conditions', conditions],
+    ['Primary goal', formData.primaryGoal],
+    ['Assessment date', formData.assessmentDate],
+  ];
+  const content = `
+    <p>A new Horizon Fit Metabolic Health Assessment has been submitted.</p>
+    <div class="info-box">
+      ${rows.map(([label, value]) => infoRow(escapeHtml(label), escapeHtml(value || 'Not specified'))).join('')}
+    </div>
+    <p>The completed Basic Metabolic Health Screening Report is attached as <strong>${escapeHtml(filename)}</strong>.</p>
+  `;
+
+  return renderBaseTemplate('New Health Assessment Submission', content, null, null);
+};
+
 // Helper: Parse and normalize Zoom URLs for universal web & mobile app compatibility
 const parseZoomUrl = (url) => {
   if (!url) return { canonicalUrl: '', deepLink: '', meetingId: '', rawMeetingId: '', passcode: '' };
@@ -446,4 +486,5 @@ export {
   patientWelcomeTemplate,
   taskAssignmentTemplate,
   programBookingTemplate,
+  healthAssessmentTemplate,
 };
