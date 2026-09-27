@@ -1,4 +1,13 @@
+import { createHash, randomBytes } from 'crypto';
 import { sendHealthAssessmentEmail } from '../utils/mailer.js';
+import HealthAssessmentReport from '../model/healthAssessmentReport.model.js';
+
+const hashAccessToken = (token) => createHash('sha256').update(token).digest('hex');
+const normalizeEmail = (email) => email.trim().toLowerCase();
+const normalizeMobile = (mobile) => {
+    const digits = mobile.replace(/\D/g, '');
+    return digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+};
 
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
@@ -13,7 +22,7 @@ export const validateHealthAssessmentForm = (formData) => {
     if (typeof formData.email !== 'string' || !isValidEmail(formData.email) || formData.email.length > 254) {
         return 'A valid email address is required.';
     }
-    if (typeof formData.mobile !== 'string' || formData.mobile.replace(/\D/g, '').length < 10 || formData.mobile.length > 30) {
+    if (typeof formData.mobile !== 'string' || normalizeMobile(formData.mobile).length !== 10 || formData.mobile.length > 30) {
         return 'A valid mobile number is required.';
     }
 
@@ -54,19 +63,97 @@ export const submitHealthAssessment = async (req, res) => {
     }
 
     const filename = makeReportFilename(formData);
+    const normalizedEmail = normalizeEmail(formData.email);
+    const normalizedMobile = normalizeMobile(formData.mobile);
+    const storedFormData = {
+        fullName: formData.fullName,
+        mobile: normalizedMobile,
+        email: normalizedEmail,
+        age: formData.age,
+        gender: formData.gender,
+        height: formData.height,
+        weight: formData.weight,
+        waist: formData.waist,
+        familyDiabetes: formData.familyDiabetes,
+        highBloodSugar: formData.highBloodSugar,
+        highBP: formData.highBP,
+        physicalActivity: formData.physicalActivity,
+        conditions: formData.conditions,
+        primaryGoal: formData.primaryGoal,
+        contactPreference: formData.contactPreference,
+        assessmentDate: formData.assessmentDate,
+        confirmedAccurate: formData.confirmedAccurate,
+    };
+    const accessToken = randomBytes(32).toString('base64url');
+    const reportUrl = new URL('/', process.env.ASSESSMENT_APP_URL || 'https://assessment.horizonfit.in');
+    reportUrl.hash = `token=${accessToken}`;
+
     try {
+        const [emailMatch, mobileMatch] = await Promise.all([
+            HealthAssessmentReport.findOne({ email: normalizedEmail }),
+            HealthAssessmentReport.findOne({ mobile: normalizedMobile }),
+        ]);
+
+        if ((emailMatch && emailMatch.mobile !== normalizedMobile)
+            || (mobileMatch && mobileMatch.email !== normalizedEmail)
+            || (emailMatch && mobileMatch && !emailMatch._id.equals(mobileMatch._id))) {
+            return res.status(409).json({
+                message: 'That email or phone number is already linked to a different assessment. Use the same email and phone together, or contact Horizon Fit for help.',
+            });
+        }
+
+        const reportRecord = emailMatch || mobileMatch;
+        const reportUpdate = {
+            email: normalizedEmail,
+            mobile: normalizedMobile,
+            accessTokenHash: hashAccessToken(accessToken),
+            formData: storedFormData,
+        };
+
+        if (reportRecord) {
+            await HealthAssessmentReport.findByIdAndUpdate(reportRecord._id, { $set: reportUpdate }, { runValidators: true });
+        } else {
+            await HealthAssessmentReport.create(reportUpdate);
+        }
+
         const delivery = await sendHealthAssessmentEmail({
-            formData,
+            formData: storedFormData,
             filename,
             pdfBuffer: req.file.buffer,
+            reportUrl: reportUrl.toString(),
         });
         return res.status(200).json({
-            message: 'Assessment submitted and report emailed successfully.',
+            message: 'Assessment saved.',
             recipient: delivery.recipient,
             filename,
+            accessToken,
+            emailDelivery: {
+                clinic: delivery.clinicEmailSent,
+                respondent: delivery.reportLinkSent,
+            },
         });
     } catch (error) {
+        if (error.code === 11000) {
+            return res.status(409).json({
+                message: 'That email or phone number is already linked to a different assessment. Use the same email and phone together, or contact Horizon Fit for help.',
+            });
+        }
         console.error('[EMAIL] Health assessment delivery failed:', error.message);
-        return res.status(502).json({ message: 'The assessment was received, but the report email could not be sent. Please try again.' });
+        return res.status(500).json({ message: 'The assessment could not be saved. Please try again.' });
     }
+};
+
+export const getHealthAssessmentReport = async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.set('Referrer-Policy', 'no-referrer');
+
+    const match = req.get('Authorization')?.match(/^Bearer ([A-Za-z0-9_-]{43})$/);
+    if (!match) return res.status(401).json({ message: 'A valid report access link is required.' });
+
+    const report = await HealthAssessmentReport.findOne({
+        accessTokenHash: hashAccessToken(match[1]),
+    }).lean();
+
+    if (!report) return res.status(404).json({ message: 'This saved report could not be found.' });
+    return res.status(200).json({ formData: report.formData, updatedAt: report.updatedAt });
 };

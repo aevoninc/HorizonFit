@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import rateLimit from 'express-rate-limit';
-import { submitHealthAssessment } from '../controllers/healthAssessment.controller.js';
+import { getHealthAssessmentReport, submitHealthAssessment } from '../controllers/healthAssessment.controller.js';
 
 const router = express.Router();
 const upload = multer({
@@ -15,6 +15,13 @@ const assessmentLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
+const reportAccessLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 60,
+    message: { message: 'Too many report access attempts. Please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 const receiveReport = (req, res, next) => upload.single('report')(req, res, (error) => {
     if (error instanceof multer.MulterError) {
         const status = error.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
@@ -24,5 +31,6 @@ const receiveReport = (req, res, next) => upload.single('report')(req, res, (err
 });
 
 router.post('/health-assessment', assessmentLimiter, receiveReport, submitHealthAssessment);
+router.get('/health-assessment/report', reportAccessLimiter, getHealthAssessmentReport);
 
 export default router;
