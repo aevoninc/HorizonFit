@@ -12,6 +12,10 @@ import { formatFilename, prepareEmailPayload } from './email-service.js';
 // Application State
 let state = JSON.parse(JSON.stringify(INITIAL_STATE));
 let activeEmailPayload = null;
+const reportTokenFromLink = new URLSearchParams(window.location.hash.slice(1)).get('token');
+const savedReportToken = reportTokenFromLink || localStorage.getItem('horizonfit-report-token');
+let reportPageLoading = false;
+let reportPageError = '';
 
 const appEl = document.getElementById('app');
 const reportModalEl = document.getElementById('report-modal');
@@ -81,15 +85,17 @@ function render() {
     <main class="assessment-main">
   `;
 
-  if (step === 0) {
+  if (reportPageLoading || reportPageError) {
+    html += renderReportAccessPage();
+  } else if (step === 0) {
     html += renderLandingPage();
-  } else if (step >= 1 && step <= 2) {
+  } else if (step >= 1 && step <= 5) {
     html += renderFormStep(step);
-  } else if (step === 3) {
+  } else if (step === 6) {
     html += renderReviewPage();
-  } else if (step === 4) {
+  } else if (step === 7) {
     html += renderProcessingState();
-  } else if (step === 5) {
+  } else if (step === 8) {
     html += renderSuccessPage();
   }
 
@@ -97,6 +103,89 @@ function render() {
   appEl.innerHTML = html;
 
   attachEventListeners();
+}
+
+function renderReportAccessPage() {
+  if (reportPageLoading) {
+    return `
+      <div class="assessment-card report-access-card" aria-live="polite">
+        <div class="processing-spinner"></div>
+        <h1 class="page-title">Loading your Health Insight Report</h1>
+      </div>
+    `;
+  }
+
+  if (reportPageError) {
+    return `
+      <div class="assessment-card report-access-card" role="alert">
+        <div class="page-eyebrow">REPORT ACCESS</div>
+        <h1 class="page-title">This report link is unavailable</h1>
+        <p class="page-subtitle">${escapeHtml(reportPageError)}</p>
+        <button class="btn btn-continue" id="retake-assessment-btn">Start a new assessment</button>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="assessment-card report-access-card" role="alert">
+      <div class="page-eyebrow">REPORT ACCESS</div>
+      <h1 class="page-title">Your saved report could not be loaded</h1>
+      <p class="page-subtitle">${escapeHtml(reportPageError)}</p>
+      <button class="btn btn-continue" id="retake-assessment-btn">Start a new assessment</button>
+    </div>
+  `;
+}
+
+function getApiBaseUrl() {
+  const configuredApiUrl = import.meta.env.VITE_API_URL;
+  const defaultApiUrl = import.meta.env.PROD
+    ? 'https://horizonfit.onrender.com/api/v1'
+    : 'http://localhost:3000/api/v1';
+  const shouldUseDefaultApi = !configuredApiUrl || (import.meta.env.PROD && /localhost|127\.0\.0\.1/i.test(configuredApiUrl));
+  return (shouldUseDefaultApi ? defaultApiUrl : configuredApiUrl).replace(/\/+$/, '');
+}
+
+async function loadReportPage() {
+  const accessToken = reportTokenFromLink || localStorage.getItem('horizonfit-report-token');
+  if (!accessToken) {
+    reportPageError = 'Open the private report link sent to your email to view this report.';
+    render();
+    return;
+  }
+
+  localStorage.setItem('horizonfit-report-token', accessToken);
+  if (reportTokenFromLink) history.replaceState(null, '', window.location.pathname);
+  reportPageLoading = true;
+  render();
+
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/public/health-assessment/report`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const report = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(report.message || 'The report could not be loaded.');
+
+    state.formData = { ...state.formData, ...report.formData };
+    const filename = formatFilename(state.formData.fullName, state.formData.assessmentDate);
+    const pdfBytes = await generateHealthInsightPdf(state.formData);
+    state.formData.generatedPdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
+    state.formData.generatedPdfUrl = URL.createObjectURL(state.formData.generatedPdfBlob);
+    state.formData.generatedPdfFilename = filename;
+    state.currentStep = 8;
+    reportPageError = '';
+  } catch (error) {
+    reportPageError = error.message || 'The report could not be loaded.';
+    if (responseHasInvalidReportToken(error)) {
+      localStorage.removeItem('horizonfit-report-token');
+    }
+  } finally {
+    reportPageLoading = false;
+    render();
+  }
+}
+
+function responseHasInvalidReportToken(error) {
+  return error.message.includes('could not be found') || error.message.includes('access link is required');
 }
 
 /**
@@ -110,27 +199,31 @@ function renderLandingPage() {
         BEGIN YOUR HORIZON FIT JOURNEY
       </div>
 
-      <h1 class="landing-title">A clearer picture of your metabolic health.</h1>
+      <h1 class="landing-title">
+        Better Health Begins<br>With Understanding.
+      </h1>
 
       <div class="landing-subtitle-group">
-        <p class="landing-lead">A considered first step toward better health.</p>
+        <p class="landing-lead">Understand where you are. Identify what matters.</p>
         <p class="landing-description">
-          Share a few details about your health and lifestyle. Our clinical team will receive your screening and a personalized Horizon Fit Health Insight Report.
+          Begin with the pathway aligned with your goals and health priorities. Receive your Doctor-Led Horizon Fit Health Insight Report upon completion.
         </p>
       </div>
 
       <div class="landing-actions">
         <button class="btn-cta-primary" id="start-assessment-btn">
-          Start your health assessment
+          Book Metabolic Health Assessment
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
         </button>
-        <a class="btn-cta-secondary" href="https://horizonfit.in" target="_blank" rel="noopener noreferrer">Discover HorizonFit.in <span aria-hidden="true">↗</span></a>
+        <button class="btn-cta-secondary" id="secondary-cta-btn">
+          Explore Weight Loss System
+        </button>
       </div>
 
       <div class="landing-trust-bar">
         <div class="trust-item">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"></path></svg>
-          2 simple steps
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          15 questions
         </div>
         <div class="trust-item">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
@@ -146,12 +239,15 @@ function renderLandingPage() {
 }
 
 /**
- * Two-part health assessment
+ * Five-part health assessment
  */
 function renderFormStep(step) {
   const stepConfig = {
-    1: { num: '01 / 02', pct: '50%', title: 'Let’s start with you.', subtitle: 'Your details help us prepare your health screening.' },
-    2: { num: '02 / 02', pct: '100%', title: 'Tell us about your health.', subtitle: 'A few details about your measurements, history, lifestyle, and goals complete your screening.' }
+    1: { num: '01 / 05', pct: '20%', title: "Let's start with the basics.", subtitle: 'Tell us a little about yourself.' },
+    2: { num: '02 / 05', pct: '40%', title: "Let's understand your current profile.", subtitle: 'These measurements help us understand your current health profile.' },
+    3: { num: '03 / 05', pct: '60%', title: "Let's understand your health history.", subtitle: 'Personal and family health context helps calibrate screening accuracy.' },
+    4: { num: '04 / 05', pct: '80%', title: 'Tell us about your lifestyle.', subtitle: 'Movement patterns and diagnosed metabolic conditions.' },
+    5: { num: '05 / 05', pct: '100%', title: 'What would you most like to improve?', subtitle: 'Select your primary objective and communication preference.' }
   };
   const curr = stepConfig[step];
 
@@ -180,7 +276,7 @@ function renderFormStep(step) {
             ← Back
           </button>
           <button type="submit" class="btn btn-continue" id="continue-step-btn">
-            ${state.returnToReview ? 'Return to Review →' : (step === 2 ? 'Review Assessment →' : 'Continue →')}
+            ${state.returnToReview ? 'Return to Review →' : (step === 5 ? 'Review Assessment →' : 'Continue →')}
           </button>
         </div>
       </form>
@@ -190,8 +286,11 @@ function renderFormStep(step) {
 
 function getStepName(step) {
   switch (step) {
-    case 1: return 'About you';
-    case 2: return 'Your health profile';
+    case 1: return 'Personal Information';
+    case 2: return 'Body Measurements';
+    case 3: return 'Health History';
+    case 4: return 'Lifestyle & Conditions';
+    case 5: return 'Goals & Follow-up';
     default: return '';
   }
 }
@@ -307,7 +406,7 @@ function renderStepContent(step) {
 
     return `
       <section class="form-step-section">
-        <div class="form-section-heading"><span>01</span><div><h3>Measurements</h3><p>Use your most recent measurements.</p></div></div>
+        <div class="form-section-heading"><div><h3>Measurements</h3><p>Use your most recent measurements.</p></div></div>
         <div class="form-fields-grid form-fields-grid-three">
       <!-- Height -->
       <div class="form-group">
@@ -395,20 +494,6 @@ function renderStepContent(step) {
       </div>
       </section>
 
-      <section class="form-step-section">
-        <div class="form-section-heading"><span>02</span><div><h3>Health history</h3><p>Tell us about relevant health indicators.</p></div></div>
-        ${renderStepContent(3)}
-      </section>
-
-      <section class="form-step-section">
-        <div class="form-section-heading"><span>03</span><div><h3>Lifestyle and conditions</h3><p>Help us understand your everyday health context.</p></div></div>
-        ${renderStepContent(4)}
-      </section>
-
-      <section class="form-step-section">
-        <div class="form-section-heading"><span>04</span><div><h3>Your priorities</h3><p>Choose what matters most to you right now.</p></div></div>
-        ${renderStepContent(5)}
-      </section>
     `;
   }
 
@@ -584,7 +669,7 @@ function renderStepContent(step) {
 }
 
 /**
- * Step 3: Review Assessment Page
+ * Step 6: Review Assessment Page
  */
 function renderReviewPage() {
   const d = state.formData;
@@ -667,7 +752,7 @@ function renderReviewPage() {
         <div class="review-section-card">
           <div class="review-section-header">
             <span class="review-section-title">HEALTH HISTORY</span>
-            <button type="button" class="btn-review-edit" data-jump-step="2">
+            <button type="button" class="btn-review-edit" data-jump-step="3">
               ✏️ Edit
             </button>
           </div>
@@ -691,7 +776,7 @@ function renderReviewPage() {
         <div class="review-section-card">
           <div class="review-section-header">
             <span class="review-section-title">LIFESTYLE</span>
-            <button type="button" class="btn-review-edit" data-jump-step="2">
+            <button type="button" class="btn-review-edit" data-jump-step="4">
               ✏️ Edit
             </button>
           </div>
@@ -711,7 +796,7 @@ function renderReviewPage() {
         <div class="review-section-card">
           <div class="review-section-header">
             <span class="review-section-title">HEALTH GOAL</span>
-            <button type="button" class="btn-review-edit" data-jump-step="2">
+            <button type="button" class="btn-review-edit" data-jump-step="5">
               ✏️ Edit
             </button>
           </div>
@@ -786,7 +871,7 @@ function renderProcessingState() {
 }
 
 /**
- * Step 5: Completion / Success Page
+ * Step 8: Completion / Success Page
  */
 function renderSuccessPage() {
   const d = state.formData;
@@ -802,7 +887,7 @@ function renderSuccessPage() {
       <p class="success-subtitle">Thank you, ${firstName}.</p>
 
       <p class="success-text">
-        Your assessment is complete. Your responses and Health Insight Report have been securely sent to the Horizon Fit clinical team.
+        Your assessment is complete. Your report is saved and ready to view or download from this page.
       </p>
 
       <div class="success-status-box">
@@ -812,12 +897,24 @@ function renderSuccessPage() {
         </div>
         <div class="status-row">
           <span class="status-dot"></span>
-          <span>Health screening report emailed securely to the Horizon Fit clinical team</span>
+          <span>${state.emailDelivery?.clinic === true ? 'The report was emailed to the Horizon Fit clinical team.' : state.emailDelivery?.clinic === false ? 'The report is saved, but the clinical email could not be sent.' : 'Your health screening report is saved securely.'}</span>
         </div>
         ${d.contactPreference === 'Yes' ? `
           <div class="status-row">
             <span class="status-dot"></span>
             <span>A Horizon Fit team member will contact you on WhatsApp (+91 ${escapeHtml(d.mobile)}) to discuss your responses.</span>
+          </div>
+        ` : ''}
+        ${state.emailDelivery?.respondent === false ? `
+          <div class="status-row">
+            <span class="status-dot"></span>
+            <span>The report is available here, but we could not confirm the email to ${escapeHtml(d.email)}.</span>
+          </div>
+        ` : ''}
+        ${state.emailDelivery?.respondent === true ? `
+          <div class="status-row">
+            <span class="status-dot"></span>
+            <span>A saved-report link was emailed to ${escapeHtml(d.email)}.</span>
           </div>
         ` : ''}
       </div>
@@ -849,7 +946,7 @@ function renderSuccessPage() {
  * Handles the animated processing sequence and triggers PDF & email generation
  */
 async function startProcessingSequence() {
-  state.currentStep = 4;
+  state.currentStep = 7;
   render();
 
   const step1 = document.getElementById('proc-step-1');
@@ -862,6 +959,8 @@ async function startProcessingSequence() {
   setTimeout(() => step2?.classList.add('is-done'), 900);
 
   const filename = formatFilename(state.formData.fullName, state.formData.assessmentDate);
+  let reportAccessToken = '';
+  let emailDelivery = {};
 
   try {
     const pdfBytes = await generateHealthInsightPdf(state.formData);
@@ -876,12 +975,7 @@ async function startProcessingSequence() {
     submission.append('formData', JSON.stringify(assessmentData));
     submission.append('report', pdfBlob, filename);
 
-    const configuredApiUrl = import.meta.env.VITE_API_URL;
-    const defaultApiUrl = import.meta.env.PROD
-      ? 'https://horizonfit.onrender.com/api/v1'
-      : 'http://localhost:3000/api/v1';
-    const shouldUseDefaultApi = !configuredApiUrl || (import.meta.env.PROD && /localhost|127\.0\.0\.1/i.test(configuredApiUrl));
-    const apiBaseUrl = (shouldUseDefaultApi ? defaultApiUrl : configuredApiUrl).replace(/\/+$/, '');
+    const apiBaseUrl = getApiBaseUrl();
 
     console.log('[Assessment] Submitting to:', `${apiBaseUrl}/public/health-assessment`);
 
@@ -900,14 +994,17 @@ async function startProcessingSequence() {
         : delivery.message || 'The report could not be sent. Please try again.';
       throw new Error(message);
     }
+    if (!delivery.accessToken) throw new Error('The report was sent, but its secure access link was not returned.');
 
+    reportAccessToken = delivery.accessToken;
+    emailDelivery = delivery.emailDelivery || {};
     activeEmailPayload = prepareEmailPayload(state.formData, filename, delivery);
     state.errors.submission = '';
   } catch (err) {
     console.error('[Assessment] Submission error:', err);
     const userMessage = err.message || 'The report could not be sent. Please try again.';
     state.errors.submission = userMessage;
-    state.currentStep = 3;
+    state.currentStep = 6;
     render();
     // Scroll to error message so user sees it
     setTimeout(() => {
@@ -927,7 +1024,9 @@ async function startProcessingSequence() {
     });
   } catch (e) { }
 
-  state.currentStep = 5;
+  localStorage.setItem('horizonfit-report-token', reportAccessToken);
+  state.emailDelivery = emailDelivery;
+  state.currentStep = 8;
   render();
 }
 
@@ -1102,7 +1201,7 @@ function openEmailModal() {
       </div>
       <div class="email-meta-row">
         <span class="email-meta-key">Status:</span>
-        <span class="email-meta-val" style="color: #10B981; font-weight: 700;">✓ ${escapeHtml(activeEmailPayload.status)}</span>
+        <span class="email-meta-val" style="color: ${activeEmailPayload.status.startsWith('Saved report link emailed') ? '#10B981' : '#B45309'}; font-weight: 700;">${escapeHtml(activeEmailPayload.status)}</span>
       </div>
     </div>
 
@@ -1120,11 +1219,25 @@ function attachEventListeners() {
     state.currentStep = 1;
     render();
   });
+  document.getElementById('header-cta-btn')?.addEventListener('click', () => {
+    if (state.currentStep === 0) {
+      state.currentStep = 1;
+      render();
+    }
+  });
+  document.getElementById('secondary-cta-btn')?.addEventListener('click', () => {
+    window.open('https://horizonfit.in', '_blank');
+  });
+  document.getElementById('nav-brand-logo')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    state.currentStep = 0;
+    render();
+  });
   // Step Form Back Buttons
   document.getElementById('back-step-btn')?.addEventListener('click', () => {
     if (state.returnToReview) {
       state.returnToReview = false;
-      state.currentStep = 3;
+      state.currentStep = 6;
       render();
     } else if (state.currentStep > 1) {
       state.currentStep -= 1;
@@ -1146,7 +1259,7 @@ function attachEventListeners() {
   });
 
   document.getElementById('back-from-review-btn')?.addEventListener('click', () => {
-    state.currentStep = 2;
+    state.currentStep = 5;
     render();
   });
 
@@ -1165,7 +1278,7 @@ function attachEventListeners() {
 
   // Complete Assessment Button
   document.getElementById('complete-assessment-btn')?.addEventListener('click', () => {
-    const { isValid, errors } = validateStep(3, state.formData);
+    const { isValid, errors } = validateStep(6, state.formData);
     if (!isValid) {
       state.errors = errors;
       render();
@@ -1185,9 +1298,18 @@ function attachEventListeners() {
   document.getElementById('success-view-email-btn')?.addEventListener('click', () => {
     openEmailModal();
   });
+  document.getElementById('report-view-btn')?.addEventListener('click', () => {
+    openReportPreviewModal();
+  });
+  document.getElementById('report-download-btn')?.addEventListener('click', () => {
+    triggerPdfDownload();
+  });
   document.getElementById('retake-assessment-btn')?.addEventListener('click', () => {
+    localStorage.removeItem('horizonfit-report-token');
     state = JSON.parse(JSON.stringify(INITIAL_STATE));
+    state.currentStep = 1;
     activeEmailPayload = null;
+    reportPageError = '';
     render();
   });
 
@@ -1254,11 +1376,11 @@ function attachEventListeners() {
 
       if (state.returnToReview) {
         state.returnToReview = false;
-        state.currentStep = 3; // ✅ return to review
-      } else if (step === 2) {
-        state.currentStep = 3; // ✅ step 2 is the last form step, go to review
+        state.currentStep = 6;
+      } else if (step === 5) {
+        state.currentStep = 6;
       } else {
-        state.currentStep = step + 1; // ✅ step 1 → step 2 normally
+        state.currentStep = step + 1;
       }
       render();
     });
@@ -1342,4 +1464,8 @@ function escapeHtml(str) {
 }
 
 // Initial Boot
-render();
+if (savedReportToken) {
+  loadReportPage();
+} else {
+  render();
+}

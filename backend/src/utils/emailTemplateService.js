@@ -108,7 +108,7 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character
   "'": '&#39;',
 }[character]));
 
-const healthAssessmentTemplate = (formData, filename) => {
+const healthAssessmentTemplate = (formData, filename, reportUrl) => {
   const conditions = Array.isArray(formData.conditions)
     ? formData.conditions.join(', ')
     : formData.conditions || 'None reported';
@@ -135,6 +135,7 @@ const healthAssessmentTemplate = (formData, filename) => {
       ${rows.map(([label, value]) => infoRow(escapeHtml(label), escapeHtml(value || 'Not specified'))).join('')}
     </div>
     <p>The completed Basic Metabolic Health Screening Report is attached as <strong>${escapeHtml(filename)}</strong>.</p>
+    <p>The respondent can access their saved report securely at <a href="${escapeHtml(reportUrl)}">${escapeHtml(reportUrl)}</a>.</p>
   `;
 
   return renderBaseTemplate('New Health Assessment Submission', content, null, null);

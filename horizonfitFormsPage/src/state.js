@@ -3,7 +3,7 @@
  */
 
 export const INITIAL_STATE = {
-  currentStep: 0, // 0: Landing, 1: Basics, 2: Health profile, 3: Review, 4: Processing, 5: Success
+  currentStep: 0, // 0: Landing, 1-5: Assessment, 6: Review, 7: Processing, 8: Success
   returnToReview: false,
   formData: {
     fullName: '',
@@ -60,10 +60,10 @@ export function getTodayFormatted() {
 
 export function validateStep(step, data) {
   const errors = {};
-  if (step === 3 && !data.confirmedAccurate) {
+  if (step === 6 && !data.confirmedAccurate) {
     errors.confirmedAccurate = 'Please confirm that your provided information is accurate before submitting.';
   }
-  const stepsToValidate = step === 2 ? [2, 3, 4, 5] : (step === 3 ? [] : [step]);
+  const stepsToValidate = step === 6 ? [] : [step];
 
   for (const validationStep of stepsToValidate) {
     if (validationStep === 1) {

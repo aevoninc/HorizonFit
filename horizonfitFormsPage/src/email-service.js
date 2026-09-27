@@ -15,10 +15,16 @@ export function formatFilename(fullName, dateStr) {
 
 export function prepareEmailPayload(formData, filename, delivery = {}) {
   const subject = `New Horizon Fit Health Assessment — ${formData.fullName || 'Client'}`;
+  const respondentEmailSent = delivery.emailDelivery?.respondent;
   return {
     recipient: delivery.recipient || '',
+    clientEmail: formData.email || '',
     subject,
     attachmentFilename: delivery.filename || filename,
-    status: delivery.message || 'Report email sent successfully.'
+    status: respondentEmailSent === true
+      ? 'Saved report link emailed to you.'
+      : respondentEmailSent === false
+        ? 'Report saved, but the email could not be sent.'
+        : 'Report saved and ready to access here.'
   };
 }

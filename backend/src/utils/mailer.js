@@ -146,12 +146,12 @@ const sendTaskAssignmentEmail = async (recipient, personName, otherPartyName, ta
     await sendEmail(recipient, subject, textBody, htmlBody);
 };
 
-const buildHealthAssessmentEmail = ({ recipient, formData, filename, pdfBuffer }) => ({
+const buildHealthAssessmentEmail = ({ recipient, formData, filename, pdfBuffer, reportUrl }) => ({
     from: process.env.EMAIL_FROM || 'HorizonFit <info@horizonfit.in>',
     to: recipient,
     subject: 'New Horizon Fit Health Assessment Submission',
-    text: `A new health assessment was submitted by ${formData.fullName} (${formData.email}). The report is attached as ${filename}.`,
-    html: healthAssessmentTemplate(formData, filename),
+    text: `A new health assessment was submitted by ${formData.fullName} (${formData.email}). The report is attached as ${filename}. Respondent report link: ${reportUrl}`,
+    html: healthAssessmentTemplate(formData, filename, reportUrl),
     attachments: [{
         filename,
         content: pdfBuffer,
@@ -159,16 +159,44 @@ const buildHealthAssessmentEmail = ({ recipient, formData, filename, pdfBuffer }
     }],
 });
 
-const sendHealthAssessmentEmail = async ({ formData, filename, pdfBuffer }) => {
+const sendHealthAssessmentEmail = async ({ formData, filename, pdfBuffer, reportUrl }) => {
+    // const recipient = process.env.HEALTH_ASSESSMENT_RECIPIENT || 'info@horizonfit.in';
     const recipient = 'info@horizonfit.in';
-    const result = await transporter.sendMail(buildHealthAssessmentEmail({
+    const escapeEmailHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    })[character]);
+    const deliveries = await Promise.allSettled([
+        transporter.sendMail(buildHealthAssessmentEmail({ recipient, formData, filename, pdfBuffer, reportUrl })),
+        transporter.sendMail({
+            from: process.env.EMAIL_FROM || 'HorizonFit <info@horizonfit.in>',
+            to: formData.email,
+            subject: 'Your HorizonFit Health Insight Report is ready',
+            text: `Hello ${formData.fullName}, your Health Insight Report is ready. Open your saved report: ${reportUrl}`,
+            html: `<p>Hello ${escapeEmailHtml(formData.fullName)},</p><p>Your HorizonFit Health Insight Report is ready.</p><p><a href="${escapeEmailHtml(reportUrl)}">Open your saved report</a></p>`,
+        }),
+    ]);
+
+    const [clinicDelivery, respondentDelivery] = deliveries;
+    if (clinicDelivery.status === 'fulfilled') {
+        console.log(`[EMAIL] Health assessment sent to ${recipient}`);
+    } else {
+        console.error(`[EMAIL] Failed to send assessment to clinical inbox: ${clinicDelivery.reason.message}`);
+    }
+    if (respondentDelivery.status === 'fulfilled') {
+        console.log('[EMAIL] Saved report link sent to respondent');
+    } else {
+        console.error(`[EMAIL] Failed to send saved report link to respondent: ${respondentDelivery.reason.message}`);
+    }
+
+    return {
         recipient,
-        formData,
-        filename,
-        pdfBuffer,
-    }));
-    console.log(`[EMAIL] Health assessment sent to ${recipient}`);
-    return { recipient, messageId: result.messageId };
+        clinicEmailSent: clinicDelivery.status === 'fulfilled',
+        reportLinkSent: respondentDelivery.status === 'fulfilled',
+    };
 };
 
 

@@ -7,10 +7,12 @@ import connectdb from "./db/db.js";
 import { seedWeightLossTemplate } from "./controllers/doctor.controller.js";
 import { createDoctor } from "./controllers/doctor.controller.js";
 import TimeSlot from "./model/timeSlot.model.js";
+import HealthAssessmentReport from "./model/healthAssessmentReport.model.js";
 
 configDotenv({ path: "./.env" });
 
 await connectdb();
+await HealthAssessmentReport.createIndexes();
 
 // createDoctor("aevoninc@gmail.com","aevoninc@gmail.com","Horizon$2024$","8610622587");
 
