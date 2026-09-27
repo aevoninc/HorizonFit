@@ -83,7 +83,7 @@ export const SelfGuidedSystemPage: React.FC = () => {
                             asChild
                         >
                             <Link to="/enroll">
-                                Enrol Now
+                                Start Your Journey
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Link>
                         </Button>
@@ -135,7 +135,7 @@ export const SelfGuidedSystemPage: React.FC = () => {
                                     asChild
                                 >
                                     <Link to="/enroll">
-                                        Enrol Now
+                                        Start Your Journey
                                         <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                                     </Link>
                                 </Button>
@@ -615,7 +615,7 @@ export const SelfGuidedSystemPage: React.FC = () => {
                             <div className="mt-8 flex justify-center">
                                 <Button size="xl" variant="phoenix" className="shadow-phoenix rounded-full px-10 font-bold text-lg group" asChild>
                                     <Link to="/enroll">
-                                        Enrol Now
+                                        Start Your Journey
                                         <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                                     </Link>
                                 </Button>
@@ -704,7 +704,7 @@ export const SelfGuidedSystemPage: React.FC = () => {
                         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-semibold text-muted-foreground">
                             <Link to="/" className="hover:text-primary transition-colors">Home</Link>
                             <Link to="/self-guided-system" className="hover:text-primary transition-colors">Weight Loss System</Link>
-                            <Link to="/enroll" className="hover:text-primary transition-colors">Enrol Now</Link>
+                            <Link to="/enroll" className="hover:text-primary transition-colors">Start Your Journey</Link>
                             <Link to="/book-consultation" className="hover:text-primary transition-colors">Book Assessment</Link>
                             <Link to="/auth" className="hover:text-primary transition-colors">Client Login</Link>
                         </div>

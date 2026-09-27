@@ -9,7 +9,8 @@ import {
     passwordResetTemplate,
     patientWelcomeTemplate,
     taskAssignmentTemplate,
-    programBookingTemplate
+    programBookingTemplate,
+    healthAssessmentTemplate
 } from './emailTemplateService.js';
 
 
@@ -145,6 +146,31 @@ const sendTaskAssignmentEmail = async (recipient, personName, otherPartyName, ta
     await sendEmail(recipient, subject, textBody, htmlBody);
 };
 
+const buildHealthAssessmentEmail = ({ recipient, formData, filename, pdfBuffer }) => ({
+    from: process.env.EMAIL_FROM || 'HorizonFit <info@horizonfit.in>',
+    to: recipient,
+    subject: 'New Horizon Fit Health Assessment Submission',
+    text: `A new health assessment was submitted by ${formData.fullName} (${formData.email}). The report is attached as ${filename}.`,
+    html: healthAssessmentTemplate(formData, filename),
+    attachments: [{
+        filename,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+    }],
+});
+
+const sendHealthAssessmentEmail = async ({ formData, filename, pdfBuffer }) => {
+    const recipient = 'info@horizonfit.in';
+    const result = await transporter.sendMail(buildHealthAssessmentEmail({
+        recipient,
+        formData,
+        filename,
+        pdfBuffer,
+    }));
+    console.log(`[EMAIL] Health assessment sent to ${recipient}`);
+    return { recipient, messageId: result.messageId };
+};
+
 
 export {
     sendEmail,
@@ -153,5 +179,7 @@ export {
     sendPasswordResetEmail,
     sendPatientWelcomeEmail,
     sendTaskAssignmentEmail,
-    sendProgramBookingEmail
+    sendProgramBookingEmail,
+    buildHealthAssessmentEmail,
+    sendHealthAssessmentEmail
 };
