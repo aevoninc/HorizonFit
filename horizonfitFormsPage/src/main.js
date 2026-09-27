@@ -914,7 +914,7 @@ function renderSuccessPage() {
         ${state.emailDelivery?.respondent === true ? `
           <div class="status-row">
             <span class="status-dot"></span>
-            <span>A saved-report link was emailed to ${escapeHtml(d.email)}.</span>
+            <span>The report PDF was emailed to ${escapeHtml(d.email)}.</span>
           </div>
         ` : ''}
       </div>
