@@ -160,8 +160,7 @@ const buildHealthAssessmentEmail = ({ recipient, formData, filename, pdfBuffer }
 });
 
 const sendHealthAssessmentEmail = async ({ formData, filename, pdfBuffer }) => {
-    // const recipient = process.env.ASSESSMENT_DOCTOR_EMAIL || 'info@horizonfit.in';
-    const recipient = "javidshariff2005@gmail.com";
+    const recipient = 'info@horizonfit.in';
     const result = await transporter.sendMail(buildHealthAssessmentEmail({
         recipient,
         formData,
