@@ -5,8 +5,9 @@
 
 import confetti from 'canvas-confetti';
 import { INITIAL_STATE, SAMPLE_PROFILE, validateStep, getTodayFormatted } from './state.js';
-import { calculateBMI, evaluateWaist, generateInterpretations, getScreeningDetails } from './calculations.js';
+import { calculateBMI, generateInterpretations, getHealthHistoryRiskDetails, getLifestyleRiskDetails, getMeasurementResultDetails, getScreeningDetails } from './calculations.js';
 import { generateHealthInsightPdf, formatAssessmentDate } from './pdf-generator.js';
+import { createHealthInsightReportMarkup } from './report-template.js';
 import { formatFilename, prepareEmailPayload } from './email-service.js';
 
 // Application State
@@ -212,7 +213,7 @@ function renderLandingPage() {
 
       <div class="landing-actions">
         <button class="btn-cta-primary" id="start-assessment-btn">
-          Book Metabolic Health Assessment
+          Start Free Basic Metabolic Health Screening
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
         </button>
         <button class="btn-cta-secondary" id="secondary-cta-btn">
@@ -267,6 +268,11 @@ function renderFormStep(step) {
         <h2 class="page-title">${curr.title}</h2>
         <p class="page-subtitle">${curr.subtitle}</p>
       </div>
+
+      <aside class="form-screening-note" role="note">
+        <strong>Screening note</strong>
+        <span>This is a preliminary screening, not a medical diagnosis, and it does not rule out underlying health conditions. Further assessment may be recommended if risk factors are identified.</span>
+      </aside>
 
       <form id="step-form" novalidate>
         ${renderStepContent(step)}
@@ -386,8 +392,8 @@ function renderStepContent(step) {
         <label class="form-label">
           Gender <span class="required-asterisk">*</span>
         </label>
-        <div class="options-grid grid-cols-3">
-          ${['Male', 'Female', 'Transgender'].map(g => `
+        <div class="options-grid grid-cols-2">
+          ${['Male', 'Female'].map(g => `
             <div class="option-card ${d.gender === g ? 'is-selected' : ''}" data-field="gender" data-val="${g}">
               <div class="option-card-label">${g}</div>
               <div class="option-indicator"></div>
@@ -401,9 +407,6 @@ function renderStepContent(step) {
   }
 
   if (step === 2) {
-    const { bmi, category, riskLevel } = calculateBMI(d.height, d.weight);
-    const bmiBadgeClass = riskLevel === 'normal' ? 'bmi-desirable' : (riskLevel === 'warning' ? 'bmi-warning' : 'bmi-elevated');
-
     return `
       <section class="form-step-section">
         <div class="form-section-heading"><div><h3>Measurements</h3><p>Use your most recent measurements.</p></div></div>
@@ -472,16 +475,9 @@ function renderStepContent(step) {
       </div>
         </div>
 
-      <!-- Dynamic Live BMI Box -->
-      ${d.height && d.weight ? `
-        <div class="live-bmi-calc-box">
-          <div class="live-bmi-label">
-            <span class="live-bmi-title">Calculated BMI</span>
-            <span class="live-bmi-value">${bmi} <small style="font-size: 0.9rem; font-weight: normal; color: var(--secondary-text);">kg/m²</small></span>
-          </div>
-          <span class="live-bmi-tag ${bmiBadgeClass}">${category}</span>
-        </div>
-      ` : ''}
+      <div class="live-bmi-calc-box" id="live-bmi-preview" aria-live="polite">
+        ${renderLiveMeasurementPreview(d)}
+      </div>
 
       <!-- Informational Panel -->
       <div class="info-notice-box">
@@ -542,6 +538,10 @@ function renderStepContent(step) {
             </div>
           `).join('')}
         </div>
+      </div>
+
+      <div class="live-bmi-calc-box live-step-risk-box" id="live-history-preview" aria-live="polite">
+        ${renderLiveHistoryPreview(d)}
       </div>
     `;
   }
@@ -616,6 +616,10 @@ function renderStepContent(step) {
     }).join('')}
         </div>
         ${err.conditions ? `<div class="form-error-msg">⚠️ ${err.conditions}</div>` : ''}
+      </div>
+
+      <div class="live-bmi-calc-box live-step-risk-box" id="live-lifestyle-preview" aria-live="polite">
+        ${renderLiveLifestylePreview(d)}
       </div>
     `;
   }
@@ -1036,134 +1040,11 @@ async function startProcessingSequence() {
 function openReportPreviewModal() {
   const d = state.formData;
   const screening = getScreeningDetails(d);
-  const patientName = d.fullName || 'Sample Patient';
   const assessmentDate = formatAssessmentDate(d.assessmentDate);
 
   reportModalContentEl.innerHTML = `
     <div class="report-sheets-wrapper">
-      <div class="report-sheet">
-        <div class="template-header">
-          <div class="template-header-left">
-            <div class="template-brand-title">HORIZON FIT - BASIC METABOLIC HEALTH SCREENING</div>
-            <div class="template-report-title">Preliminary Screening Report</div>
-            <div class="template-report-sub">Assessment Date: ${escapeHtml(assessmentDate)}</div>
-          </div>
-          <div class="template-header-right">
-            <img src="/horizonfit_h_logo.png" alt="Horizon Fit" class="template-logo-img" />
-          </div>
-        </div>
-
-        <div class="template-purpose-box">
-          <div class="template-box-title">Purpose</div>
-          <div class="template-box-text">
-            A preliminary screening to identify possible metabolic health risk factors and help determine whether further assessment may be appropriate.
-          </div>
-        </div>
-
-        <div class="template-section-title">01 — HEALTH PROFILE</div>
-        <table class="template-profile-table">
-          <tr>
-            <td class="cell-label" style="width: 19%;">Full Name</td>
-            <td class="cell-val" style="width: 31%;">${escapeHtml(patientName)}</td>
-            <td class="cell-label" style="width: 25%;">Age</td>
-            <td class="cell-val" style="width: 25%;">${escapeHtml(d.age || '--')} years</td>
-          </tr>
-          <tr>
-            <td class="cell-label">Gender</td>
-            <td class="cell-val">${escapeHtml(d.gender || 'Not specified')}</td>
-            <td class="cell-label">Height</td>
-            <td class="cell-val">${escapeHtml(d.height || '--')} cm</td>
-          </tr>
-          <tr>
-            <td class="cell-label">Weight</td>
-            <td class="cell-val">${escapeHtml(d.weight || '--')} kg</td>
-            <td class="cell-label">Waist Circumference</td>
-            <td class="cell-val">${escapeHtml(d.waist || '--')} cm</td>
-          </tr>
-        </table>
-
-        <div class="template-section-title">02 — BODY MEASUREMENTS</div>
-        <table class="template-measurements-table">
-          <thead>
-            <tr>
-              <th style="width: 23%;">Measurement</th>
-              <th style="width: 17%;">Your Value</th>
-              <th style="width: 22%;">Reference</th>
-              <th style="width: 38%;">Finding</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>BMI</td>
-              <td>${screening.bmi ? screening.bmi.toFixed(1) + ' kg/m²' : '--'}</td>
-              <td>${screening.bmiReference}</td>
-              <td>${screening.bmiFinding}</td>
-            </tr>
-            <tr>
-              <td>Waist Circumference</td>
-              <td>${escapeHtml(d.waist || '--')} cm</td>
-              <td>${screening.waistRef}</td>
-              <td>${screening.waistFinding}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="template-section-title">03 — SCREENING FINDINGS</div>
-        <table class="template-findings-table">
-          <tr>
-            <td class="cell-label" style="width: 27%;">Diabetes History</td>
-            <td class="cell-val" style="width: 73%;">${screening.diabetesHistory}</td>
-          </tr>
-          <tr>
-            <td class="cell-label">Family History</td>
-            <td class="cell-val">${screening.familyHistory}</td>
-          </tr>
-          <tr>
-            <td class="cell-label">Blood Pressure History</td>
-            <td class="cell-val">${screening.bloodPressureHistory}</td>
-          </tr>
-          <tr>
-            <td class="cell-label">Physical Activity</td>
-            <td class="cell-val">${screening.physicalActivity}</td>
-          </tr>
-          <tr>
-            <td class="cell-label">Health History</td>
-            <td class="cell-val">${screening.healthHistory}</td>
-          </tr>
-        </table>
-
-        <div class="template-section-title">04 — SCREENING RESULT</div>
-        <div class="template-callout-box">
-          ${screening.screeningResult}
-        </div>
-
-        <div class="template-section-title">05 — KEY FACTORS IDENTIFIED</div>
-        <ul class="template-bullet-grid">
-          ${screening.keyFactors.map(b => `<li>${escapeHtml(b)}</li>`).join('')}
-        </ul>
-
-        <div class="template-section-title">06 — PRIMARY HEALTH GOAL</div>
-        <div class="template-goal-box">
-          ${escapeHtml(screening.primaryGoal)}
-        </div>
-
-        <div class="template-section-title">07 — RECOMMENDED NEXT STEP</div>
-        <p class="template-next-step-text">
-          ${screening.recommendedNextStep}
-        </p>
-
-        <div class="template-note-section">
-          <div class="template-note-title">IMPORTANT NOTE</div>
-          <p class="template-note-text">
-            ${screening.importantNote}
-          </p>
-        </div>
-
-        <div class="template-footer">
-          <div class="template-footer-brand">HORIZON FIT • Doctor-Led Metabolic Health Transformation</div>
-          <div class="template-footer-address">Corporate Office: No. 23, Made Koil St, Thirumurugan Nagar, Urapakkam, Chennai – 603211 • Mob: 8925534176 • horizonfit.in • info@horizonfit.in</div>
-        </div>
-      </div>
+      ${createHealthInsightReportMarkup(d, screening, assessmentDate)}
     </div>
   `;
 
@@ -1330,8 +1211,7 @@ function attachEventListeners() {
             const errDiv = el.closest('.form-group')?.querySelector('.form-error-msg');
             if (errDiv) errDiv.remove();
           }
-          // Dynamic live BMI update if height/weight changed
-          if ((fieldId === 'height' || fieldId === 'weight') && state.formData.height && state.formData.weight) {
+          if (fieldId === 'height' || fieldId === 'weight' || fieldId === 'waist') {
             updateLiveBmiPreview();
           }
         });
@@ -1355,6 +1235,12 @@ function attachEventListeners() {
           c.classList.remove('is-selected');
         });
         card.classList.add('is-selected');
+
+        if (step === 3 && ['familyDiabetes', 'highBloodSugar', 'highBP'].includes(fieldName)) {
+          updateLiveHistoryPreview();
+        } else if (step === 4 && fieldName === 'physicalActivity') {
+          updateLiveLifestylePreview();
+        }
 
         if (state.errors[fieldName]) {
           delete state.errors[fieldName];
@@ -1387,31 +1273,95 @@ function attachEventListeners() {
   }
 }
 
-/**
- * Updates live BMI preview inside Step 2 without re-rendering the whole form
- */
-function updateLiveBmiPreview() {
-  const d = state.formData;
-  const { bmi, category, riskLevel } = calculateBMI(d.height, d.weight);
-  let box = document.querySelector('.live-bmi-calc-box');
-
+function renderLiveMeasurementPreview(data) {
+  const { bmi, category, riskLevel } = calculateBMI(data.height, data.weight);
   const bmiBadgeClass = riskLevel === 'normal' ? 'bmi-desirable' : (riskLevel === 'warning' ? 'bmi-warning' : 'bmi-elevated');
+  const measurementDetails = getMeasurementResultDetails(data);
+  const waistEntered = Number.parseFloat(data.waist) > 0;
 
-  if (bmi > 0) {
-    if (!box) {
-      box = document.createElement('div');
-      box.className = 'live-bmi-calc-box';
-      const waistGroup = document.getElementById('field-waist')?.closest('.form-group');
-      waistGroup?.parentNode.insertBefore(box, waistGroup.nextSibling);
-    }
-    box.innerHTML = `
-      <div class="live-bmi-label">
-        <span class="live-bmi-title">Calculated BMI</span>
-        <span class="live-bmi-value">${bmi} <small style="font-size: 0.9rem; font-weight: normal; color: var(--secondary-text);">kg/m²</small></span>
-      </div>
-      <span class="live-bmi-tag ${bmiBadgeClass}">${category}</span>
-    `;
+  let resultMessage = 'Enter height and weight to calculate BMI. Add waist circumference to complete the measurement screening.';
+  let resultClass = '';
+
+  if (measurementDetails.length > 0) {
+    resultMessage = measurementDetails[0];
+    resultClass = resultMessage.startsWith('Your BMI is below')
+      ? 'is-attention'
+      : 'is-risk';
+  } else if (bmi > 0 && waistEntered) {
+    resultMessage = 'Your BMI and waist circumference are within the recommended reference ranges. Other assessment responses may still identify risk factors.';
+    resultClass = 'is-clear';
+  } else if (bmi > 0) {
+    resultMessage = 'Your BMI is within the recommended range. Enter waist circumference to complete the measurement screening.';
+    resultClass = 'is-clear';
+  } else if (waistEntered) {
+    resultMessage = 'Your waist circumference is within the reference threshold. Enter height and weight to complete the measurement screening.';
+    resultClass = 'is-clear';
   }
+
+  return `
+    <div class="live-bmi-summary">
+      <div class="live-bmi-label">
+        <span class="live-bmi-title">${bmi > 0 ? 'Calculated BMI' : 'Measurement screening'}</span>
+        ${bmi > 0
+      ? `<span class="live-bmi-value">${bmi} <small>kg/m²</small></span>`
+      : '<span class="live-bmi-pending">BMI pending</span>'}
+      </div>
+      ${bmi > 0 ? `<span class="live-bmi-tag ${bmiBadgeClass}">${category}</span>` : ''}
+    </div>
+    <p class="live-measurement-result ${resultClass}">${escapeHtml(resultMessage)}</p>
+  `;
+}
+
+function renderLiveHistoryPreview(data) {
+  const detail = getHealthHistoryRiskDetails(data)[0];
+  const answers = [data.familyDiabetes, data.highBloodSugar, data.highBP];
+  const allAnswered = answers.every(answer => answer === 'Yes' || answer === 'No');
+  const message = detail || (allAnswered
+    ? 'No health-history risk factors were identified from these responses.'
+    : 'Choose Yes or No for each question to see the health-history screening result.');
+  const resultClass = detail ? 'is-risk' : (allAnswered ? 'is-clear' : '');
+
+  return `
+    <span class="live-bmi-title">Health-history screening</span>
+    <p class="live-measurement-result ${resultClass}">${escapeHtml(message)}</p>
+  `;
+}
+
+function renderLiveLifestylePreview(data) {
+  const details = getLifestyleRiskDetails(data);
+  const activityAnswered = Boolean(data.physicalActivity);
+  const conditionsAnswered = (data.conditions || []).length > 0;
+  const allAnswered = activityAnswered && conditionsAnswered;
+  let message = 'Choose an activity level and select any health conditions that apply to see this screening result.';
+
+  if (details.length > 0) {
+    message = details.join(' ');
+    if (!allAnswered) message += ' Select the remaining answer to complete this section.';
+  } else if (allAnswered) {
+    message = 'No activity or selected-condition risk factors were identified from these responses.';
+  }
+
+  return `
+    <span class="live-bmi-title">Lifestyle and condition screening</span>
+    <p class="live-measurement-result ${details.length > 0 ? 'is-risk' : (allAnswered ? 'is-clear' : '')}">${escapeHtml(message)}</p>
+  `;
+}
+
+function updateLiveBmiPreview() {
+  const preview = document.getElementById('live-bmi-preview');
+  if (preview) {
+    preview.innerHTML = renderLiveMeasurementPreview(state.formData);
+  }
+}
+
+function updateLiveHistoryPreview() {
+  const preview = document.getElementById('live-history-preview');
+  if (preview) preview.innerHTML = renderLiveHistoryPreview(state.formData);
+}
+
+function updateLiveLifestylePreview() {
+  const preview = document.getElementById('live-lifestyle-preview');
+  if (preview) preview.innerHTML = renderLiveLifestylePreview(state.formData);
 }
 
 /**
@@ -1451,6 +1401,8 @@ function handleConditionToggle(val) {
     delete state.errors.conditions;
     document.querySelector('.form-group:has([data-field="condition-multiselect"]) .form-error-msg')?.remove();
   }
+
+  updateLiveLifestylePreview();
 }
 
 function escapeHtml(str) {

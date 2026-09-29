@@ -1,5 +1,7 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import html2canvas from 'html2canvas';
 import { getScreeningDetails } from './calculations.js';
+import { createHealthInsightReportMarkup } from './report-template.js';
 
 // Brand Color Palette in RGB (0-1) strictly matching official template
 const COLORS = {
@@ -67,7 +69,7 @@ export function formatAssessmentDate(dateStr) {
  * Generates the official 1-Page Horizon Fit Basic Metabolic Health Screening PDF Report
  * strictly engineered to fill the entire A4 page completely and proportionately from top to bottom.
  */
-export async function generateHealthInsightPdf(formData, logoPngBytes = null) {
+async function generateVectorHealthInsightPdf(formData, logoPngBytes = null) {
   const pdfDoc = await PDFDocument.create();
 
   // Load Standard Type 1 Fonts
@@ -80,7 +82,7 @@ export async function generateHealthInsightPdf(formData, logoPngBytes = null) {
     let bytes = logoPngBytes;
     if (!bytes && typeof window !== 'undefined') {
       try {
-        const response = await fetch('/horizonfit_h_logo.png');
+        const response = await fetch('/horizonfit_logo.png');
         if (response.ok) {
           const buffer = await response.arrayBuffer();
           bytes = new Uint8Array(buffer);
@@ -114,12 +116,18 @@ export async function generateHealthInsightPdf(formData, logoPngBytes = null) {
   const halfCount = Math.ceil(keyFactors.length / 2);
   const col1Factors = keyFactors.slice(0, halfCount);
   const col2Factors = keyFactors.slice(halfCount);
+  const bulletColWidth = (CONTENT_WIDTH / 2) - 12;
+  const col1FactorLines = col1Factors.map(factor => wrapText(factor, bulletColWidth - 10, helvetica, 8.2));
+  const col2FactorLines = col2Factors.map(factor => wrapText(factor, bulletColWidth - 10, helvetica, 8.2));
+  const bulletRowHeights = Array.from({ length: halfCount }, (_, index) => {
+    const lineCount = Math.max(col1FactorLines[index]?.length || 0, col2FactorLines[index]?.length || 0, 1);
+    return (lineCount * 9) + 5;
+  });
 
   // Dynamic spacing budget to guarantee the report gracefully fills the whole page
   const hasExtraBullets = halfCount >= 3;
   const tblRowH = hasExtraBullets ? 23.5 : 24.5;
-  const secGap = hasExtraBullets ? 15.5 : 17.5;
-  const bulletRowH = hasExtraBullets ? 15 : 17;
+  const secGap = hasExtraBullets ? 12 : 13.5;
 
   /* ========================================================
      SINGLE-PAGE BASIC METABOLIC HEALTH SCREENING REPORT
@@ -378,19 +386,27 @@ export async function generateHealthInsightPdf(formData, logoPngBytes = null) {
   });
 
   const tbl3TopY = sec3HeadingY - 11;
-  const tbl3RowH = tbl1RowH;
   const findingsRows = [
-    { label: 'Diabetes History', value: screening.diabetesHistory },
-    { label: 'Family History', value: screening.familyHistory },
-    { label: 'Blood Pressure History', value: screening.bloodPressureHistory },
-    { label: 'Physical Activity', value: screening.physicalActivity },
-    { label: 'Health History', value: screening.healthHistory }
+    {
+      label: 'Medical history',
+      value: `Family diabetes: ${formData.familyDiabetes || 'Not reported'}; Previous high blood sugar: ${formData.highBloodSugar || 'Not reported'}; High blood pressure: ${formData.highBP || 'Not reported'}`
+    },
+    {
+      label: 'Lifestyle & conditions',
+      value: `${screening.physicalActivity} ${screening.healthHistory}`
+    }
   ];
-  const tbl3TotalH = tbl3RowH * findingsRows.length;
-  const tbl3BottomY = tbl3TopY - tbl3TotalH;
-
   const fCol1X = MARGIN_LEFT;
   const fCol2X = MARGIN_LEFT + 140;
+  const findingsValueWidth = CONTENT_WIDTH - (fCol2X - MARGIN_LEFT) - 18;
+  const findingsFontSize = 7.4;
+  const findingsRowsWithLines = findingsRows.map((item) => ({
+    ...item,
+    lines: wrapText(item.value, findingsValueWidth, helvetica, findingsFontSize)
+  }));
+  const findingsRowHeights = findingsRowsWithLines.map((item) => Math.max(18, item.lines.length * 8.5 + 7));
+  const tbl3TotalH = findingsRowHeights.reduce((total, height) => total + height, 0);
+  const tbl3BottomY = tbl3TopY - tbl3TotalH;
 
   // Outer border & background
   page.drawRectangle({
@@ -411,9 +427,10 @@ export async function generateHealthInsightPdf(formData, logoPngBytes = null) {
     color: COLORS.borderLight
   });
 
-  findingsRows.forEach((item, index) => {
-    const rowY = tbl3TopY - (index + 1) * tbl3RowH;
-    // Horizontal divider under each row except the last
+  let findingRowTopY = tbl3TopY;
+  findingsRowsWithLines.forEach((item, index) => {
+    const rowHeight = findingsRowHeights[index];
+    const rowY = findingRowTopY - rowHeight;
     if (index < findingsRows.length - 1) {
       page.drawLine({
         start: { x: MARGIN_LEFT, y: rowY },
@@ -423,22 +440,25 @@ export async function generateHealthInsightPdf(formData, logoPngBytes = null) {
       });
     }
 
-    const textMidY = rowY + 8;
     page.drawText(item.label, {
       x: fCol1X + 9,
-      y: textMidY,
-      size: 8.2,
+      y: findingRowTopY - (rowHeight / 2) - 2.5,
+      size: 7.4,
       font: helveticaBold,
       color: COLORS.darkText
     });
 
-    page.drawText(item.value, {
-      x: fCol2X + 9,
-      y: textMidY,
-      size: 8.0,
-      font: helvetica,
-      color: COLORS.bodyText
+    item.lines.forEach((line, lineIndex) => {
+      page.drawText(line, {
+        x: fCol2X + 9,
+        y: findingRowTopY - 8 - (lineIndex * 8.5),
+        size: findingsFontSize,
+        font: helvetica,
+        color: COLORS.bodyText
+      });
     });
+
+    findingRowTopY = rowY;
   });
 
   // ----------------------------------------------------
@@ -474,10 +494,25 @@ export async function generateHealthInsightPdf(formData, logoPngBytes = null) {
     color: COLORS.headerTeal
   });
 
+  let resultDetailsY = calloutY - 9;
+  screening.resultDetails.forEach((detail) => {
+    wrapText(detail, CONTENT_WIDTH, helvetica, 7.4).forEach((line) => {
+      page.drawText(line, {
+        x: MARGIN_LEFT,
+        y: resultDetailsY,
+        size: 7.4,
+        font: helvetica,
+        color: COLORS.bodyText
+      });
+      resultDetailsY -= 9;
+    });
+    resultDetailsY -= 3;
+  });
+
   // ----------------------------------------------------
   // 7. SECTION 05 — KEY FACTORS IDENTIFIED (2-Column Grid)
   // ----------------------------------------------------
-  const sec5HeadingY = calloutY - secGap;
+  const sec5HeadingY = resultDetailsY - secGap;
   page.drawText('05 — KEY FACTORS IDENTIFIED', {
     x: MARGIN_LEFT,
     y: sec5HeadingY,
@@ -488,31 +523,28 @@ export async function generateHealthInsightPdf(formData, logoPngBytes = null) {
 
   const bulletsTopY = sec5HeadingY - 16;
   const colA_X = MARGIN_LEFT + 6;
-  const colB_X = MARGIN_LEFT + 250;
+  const colB_X = MARGIN_LEFT + (CONTENT_WIDTH / 2) + 2;
 
+  const drawFactorLines = (lines, x, topY) => {
+    lines.forEach((line, index) => {
+      page.drawText(`${index === 0 ? '• ' : ''}${line}`, {
+        x: x + (index === 0 ? 0 : 9),
+        y: topY - (index * 9),
+        size: 8.2,
+        font: helvetica,
+        color: COLORS.bodyText
+      });
+    });
+  };
+
+  let bulletTopY = bulletsTopY;
   for (let i = 0; i < halfCount; i++) {
-    const curY = bulletsTopY - (i * bulletRowH);
-    if (col1Factors[i]) {
-      page.drawText(`• ${col1Factors[i]}`, {
-        x: colA_X,
-        y: curY,
-        size: 8.2,
-        font: helvetica,
-        color: COLORS.bodyText
-      });
-    }
-    if (col2Factors[i]) {
-      page.drawText(`• ${col2Factors[i]}`, {
-        x: colB_X,
-        y: curY,
-        size: 8.2,
-        font: helvetica,
-        color: COLORS.bodyText
-      });
-    }
+    if (col1Factors[i]) drawFactorLines(col1FactorLines[i], colA_X, bulletTopY);
+    if (col2Factors[i]) drawFactorLines(col2FactorLines[i], colB_X, bulletTopY);
+    bulletTopY -= bulletRowHeights[i];
   }
 
-  const sec5BottomY = bulletsTopY - (halfCount * bulletRowH);
+  const sec5BottomY = bulletTopY;
 
   // ----------------------------------------------------
   // 8. SECTION 06 — PRIMARY HEALTH GOAL
@@ -619,6 +651,94 @@ export async function generateHealthInsightPdf(formData, logoPngBytes = null) {
     }
   );
 
-  // Return generated 1-Page PDF bytes
+  // Return the single-page screening report.
   return await pdfDoc.save();
+}
+
+export async function generateHealthInsightPdf(formData, logoPngBytes = null) {
+  if (typeof document === 'undefined') {
+    return generateVectorHealthInsightPdf(formData, logoPngBytes);
+  }
+
+  const screening = getScreeningDetails(formData);
+  const assessmentDate = formatAssessmentDate(formData.assessmentDate);
+  let logoSrc = '/horizonfit_logo.png';
+  if (logoPngBytes) {
+    let binary = '';
+    for (const byte of logoPngBytes) binary += String.fromCharCode(byte);
+    logoSrc = `data:image/png;base64,${btoa(binary)}`;
+  }
+
+  const renderRoot = document.createElement('div');
+  renderRoot.className = 'pdf-render-root';
+  renderRoot.innerHTML = `
+    <div class="report-sheets-wrapper">
+      ${createHealthInsightReportMarkup(formData, screening, assessmentDate, logoSrc)}
+    </div>
+  `;
+  document.body.appendChild(renderRoot);
+
+  let canvas;
+  try {
+    if (document.fonts?.ready) await document.fonts.ready;
+    await Promise.all([...renderRoot.querySelectorAll('img')].map(image => image.decode().catch(() => { })));
+    canvas = await html2canvas(renderRoot.querySelector('.report-sheet'), {
+      backgroundColor: '#ffffff',
+      logging: false,
+      scale: 2,
+      useCORS: true
+    });
+  } finally {
+    renderRoot.remove();
+  }
+
+  const imageData = canvas.toDataURL('image/png').split(',')[1];
+  const imageBytes = Uint8Array.from(atob(imageData), character => character.charCodeAt(0));
+  const pdfDoc = await PDFDocument.create();
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const page = pdfDoc.addPage([pageWidth, pageHeight]);
+  const image = await pdfDoc.embedPng(imageBytes);
+  // const margin = 28;
+  // const scale = Math.min(
+  //   (pageWidth - margin * 2) / image.width,
+  //   (pageHeight - margin * 2) / image.height
+  // );
+  // const width = image.width * scale;
+  // const height = image.height * scale;
+
+  // page.drawImage(image, {
+  //   x: (pageWidth - width) / 2,
+  //   y: (pageHeight - height) / 2,
+  //   width,
+  //   height
+  // });
+
+  // ✅ No margin — fill the entire page
+  const scaleX = pageWidth / image.width;
+  const scaleY = pageHeight / image.height;
+
+  // Use the smaller scale to maintain aspect ratio and fill as much as possible
+  const scale = Math.min(scaleX, scaleY);
+
+  const width = image.width * scale;
+  const height = image.height * scale;
+
+  // Position at top-left with no margin
+  // page.drawImage(image, {
+  //   x: (pageWidth - width) / 2,
+  //   y: pageHeight - height,  // ✅ anchor to top of page, not center
+  //   width,
+  //   height
+  // });
+
+  const padding = 20; // adjust this value to your liking
+
+  page.drawImage(image, {
+    x: padding,
+    y: padding,
+    width: pageWidth - (padding * 2),
+    height: pageHeight - (padding * 2)
+  });
+  return pdfDoc.save();
 }

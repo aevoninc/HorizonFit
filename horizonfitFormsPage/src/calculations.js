@@ -134,6 +134,56 @@ export function generateInterpretations(data) {
   };
 }
 
+export function getMeasurementResultDetails(data) {
+  const { bmi } = calculateBMI(data.height, data.weight);
+  const { isElevated: waistElevated } = evaluateWaist(data.waist, data.gender);
+  const resultDetails = [];
+
+  if (bmi >= 23.0 && waistElevated) {
+    resultDetails.push('When both BMI and waist circumference are above the recommended reference ranges, this may indicate excess body fat, particularly around the abdomen. This is associated with an increased risk of insulin resistance, type 2 diabetes, abnormal cholesterol, high blood pressure and fatty liver disease. Further assessment may help identify whether any metabolic abnormalities are present.');
+  } else if (bmi >= 23.0) {
+    resultDetails.push('An above-range BMI may indicate excess body fat and may be associated with an increased risk of insulin resistance, type 2 diabetes, abnormal cholesterol, high blood pressure and fatty liver disease. Further assessment may help identify whether any metabolic abnormalities are present.');
+  } else if (waistElevated) {
+    resultDetails.push('An increased waist circumference may indicate excess fat around the abdomen, which is associated with an increased risk of insulin resistance, type 2 diabetes, high blood pressure, abnormal cholesterol and fatty liver disease. Further assessment may help identify whether any metabolic abnormalities are present.');
+  } else if (bmi > 0 && bmi < 18.5) {
+    resultDetails.push('Your BMI is below the recommended reference range. Further assessment may help determine whether additional nutritional or health support would be appropriate.');
+  }
+
+  return resultDetails;
+}
+
+export function getHealthHistoryRiskDetails(data) {
+  const hasMedicalHistoryRisk = (
+    data.familyDiabetes === 'Yes' ||
+    data.highBloodSugar === 'Yes' ||
+    data.highBP === 'Yes'
+  );
+
+  return hasMedicalHistoryRisk
+    ? ['Your responses indicate one or more relevant health risk factors, including family history of diabetes, a personal history of prediabetes, diabetes or high blood sugar, or a history of high blood pressure. These factors may increase your risk of future metabolic and cardiovascular complications. Further assessment is recommended to evaluate your metabolic health.']
+    : [];
+}
+
+export function getLifestyleRiskDetails(data) {
+  const activity = (data.physicalActivity || '').toLowerCase();
+  const riskFactors = [];
+
+  if (activity.includes('mostly sitting') || activity.includes('minimal') || activity.includes('sedentary')) {
+    riskFactors.push('a mostly sedentary activity level');
+  } else if (activity.includes('some activity') || activity.includes('moderate')) {
+    riskFactors.push('some activity during the week');
+  }
+
+  const conditions = (data.conditions || []).filter(condition => condition !== 'None of the Above');
+  if (conditions.length > 0) {
+    riskFactors.push(`reported health conditions (${conditions.join(', ')})`);
+  }
+
+  return riskFactors.length > 0
+    ? [`Your responses include ${riskFactors.join(' and ')}, which are counted as risk factors in this screening.`]
+    : [];
+}
+
 export function getScreeningDetails(data) {
   const { bmi } = calculateBMI(data.height, data.weight);
   const { isElevated: waistElevated } = evaluateWaist(data.waist, data.gender);
@@ -171,6 +221,7 @@ export function getScreeningDetails(data) {
   const activity = (data.physicalActivity || '').toLowerCase();
   const isLowActivity = activity.includes('mostly sitting') || activity.includes('minimal') || activity.includes('sedentary');
   const isModerateActivity = activity.includes('some activity') || activity.includes('moderate');
+  const activityIsRiskFactor = isLowActivity || isModerateActivity;
 
   let physicalActivity = 'Regular physical activity identified.';
   if (isLowActivity) {
@@ -186,19 +237,33 @@ export function getScreeningDetails(data) {
     : 'No additional selected health conditions reported.';
 
   // Section 04 - Screening Result
-  const hasRiskFactors = (
-    bmi >= 23.0 ||
-    waistElevated ||
+  const hasMedicalHistoryRisk = (
     data.familyDiabetes === 'Yes' ||
     data.highBloodSugar === 'Yes' ||
-    data.highBP === 'Yes' ||
-    isLowActivity ||
+    data.highBP === 'Yes'
+  );
+
+  const hasMeasurementRisk = (bmi >= 23.0 || (bmi > 0 && bmi < 18.5) || waistElevated);
+  const hasRiskFactors = (
+    hasMeasurementRisk ||
+    hasMedicalHistoryRisk ||
+    activityIsRiskFactor ||
     hasConditions
   );
 
   const screeningResult = hasRiskFactors
-    ? 'METABOLIC RISK FACTORS IDENTIFIED — FURTHER ASSESSMENT RECOMMENDED'
-    : 'NO SIGNIFICANT METABOLIC RISK FACTORS IDENTIFIED — PROACTIVE MAINTENANCE RECOMMENDED';
+    ? 'METABOLIC RISK FACTORS IDENTIFIED'
+    : 'NO SIGNIFICANT RISK FACTORS IDENTIFIED';
+
+  const resultDetails = [
+    ...getMeasurementResultDetails(data),
+    ...getHealthHistoryRiskDetails(data),
+    ...getLifestyleRiskDetails(data)
+  ];
+
+  if (!hasRiskFactors) {
+    resultDetails.push('No significant metabolic risk factors were identified from the responses and body measurements provided in this basic screening. However, this screening does not rule out underlying metabolic abnormalities. Maintaining healthy lifestyle habits can help support your long-term metabolic health.');
+  }
 
   // Section 05 - Key Factors Identified
   const keyFactors = [];
@@ -224,8 +289,8 @@ export function getScreeningDetails(data) {
     keyFactors.push('History of high blood pressure');
   }
 
-  if (isLowActivity) {
-    keyFactors.push('Low physical activity');
+  if (activityIsRiskFactor) {
+    keyFactors.push('Low or moderate physical activity');
   }
 
   if (hasConditions) {
@@ -238,11 +303,12 @@ export function getScreeningDetails(data) {
 
   const primaryGoal = data.primaryGoal || 'Lose Weight';
 
-  const recommendedNextStep =
-    'Based on the screening responses, further metabolic health assessment may be appropriate. The Horizon Fit Detailed Metabolic Health Assessment may include detailed health and lifestyle assessment, HFMP laboratory evaluation where appropriate, doctor consultation, personalised interpretation of findings, and individualised metabolic health recommendations.';
+  const recommendedNextStep = hasRiskFactors
+    ? 'Further assessment is recommended. Consider the Horizon Fit Metabolic Panel (HFMP), followed by the Horizon Fit Detailed Metabolic Health Assessment with doctor consultation and personalised recommendations.'
+    : 'No immediate further assessment is indicated based on this screening alone. If you wish to assess your metabolic health in greater detail, you may opt for the HFMP and a doctor consultation through Horizon Fit.';
 
   const importantNote =
-    'This is a preliminary metabolic health screening based on the information provided by the individual. It is not a medical diagnosis and does not rule out any underlying health condition. Where risk factors are identified, further clinical assessment and/or laboratory evaluation may be recommended.';
+    'This is a preliminary screening, not a medical diagnosis, and it does not rule out underlying health conditions. Further assessment may be recommended if risk factors are identified.';
 
   return {
     bmi,
@@ -257,6 +323,7 @@ export function getScreeningDetails(data) {
     healthHistory,
     hasRiskFactors,
     screeningResult,
+    resultDetails,
     keyFactors,
     primaryGoal,
     recommendedNextStep,

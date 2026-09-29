@@ -346,6 +346,23 @@ p {
   line-height: 1.5;
 }
 
+.form-screening-note {
+  display: grid;
+  gap: 0.2rem;
+  margin: -0.75rem 0 1.5rem;
+  padding: 0.85rem 1rem;
+  border-left: 3px solid var(--teal);
+  background: var(--teal-subtle);
+  color: var(--secondary-text);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.form-screening-note strong {
+  color: var(--deep-teal);
+  font-size: 0.8rem;
+}
+
 /* ==========================================================================
    Page 1: Assessment Landing
    ========================================================================== */
@@ -763,9 +780,17 @@ p {
   border-radius: var(--radius-md);
   padding: 1.15rem 1.4rem;
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.85rem;
+  margin-top: 1.5rem;
+}
+
+.live-bmi-summary {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 1.5rem;
+  gap: 1rem;
 }
 
 .live-bmi-label {
@@ -787,6 +812,37 @@ p {
   font-size: 1.5rem;
   font-weight: 800;
   color: var(--dark-text);
+}
+
+.live-bmi-value small {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--secondary-text);
+}
+
+.live-bmi-pending {
+  color: var(--secondary-text);
+  font-size: 0.9rem;
+}
+
+.live-measurement-result {
+  border-top: 1px solid var(--border-light);
+  padding-top: 0.75rem;
+  color: var(--secondary-text);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.live-measurement-result.is-risk {
+  color: #7C2D12;
+}
+
+.live-measurement-result.is-clear {
+  color: #276749;
+}
+
+.live-measurement-result.is-attention {
+  color: #8A5B00;
 }
 
 .live-bmi-tag {
@@ -1344,22 +1400,39 @@ p {
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  align-items: center;
+  align-items: flex-start;
   background: #EDF2F7;
-  padding: 2rem 1rem;
+  /* padding: 2rem 1rem; */
+  padding: 0;
   border-radius: var(--radius-lg);
 }
 
 .report-sheet {
-  width: 100%;
-  max-width: 680px;
+  width: 794px;
+  /* ✅ match pdf-render-root exactly */
+  max-width: 794px;
+  /* ✅ override the 680px limit */
+  padding: 2rem 2.25rem;
+  /* ✅ reduced padding so content fills more space */
+  /* width: 100%; */
+  /* max-width: 680px; */
   box-sizing: border-box;
   background: #FFFFFF;
   border-radius: 4px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
-  padding: 2.5rem 2.75rem;
+  /* padding: 2.5rem 2.75rem; */
   position: relative;
   font-family: var(--font-body);
+}
+
+.pdf-render-root {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  /* width: 712px; */
+  width: 794px;
+  pointer-events: none;
+  z-index: -1;
 }
 
 /* Template Exact Styling */
@@ -1501,6 +1574,17 @@ p {
   letter-spacing: 0.02em;
   line-height: 1.4;
   margin-bottom: 1.25rem;
+}
+
+.template-result-details {
+  margin: -0.6rem 0 1rem;
+  color: #3E505B;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.template-result-details p+p {
+  margin-top: 0.65rem;
 }
 
 .template-bullet-grid {
