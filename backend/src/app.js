@@ -27,6 +27,7 @@ app.use(
       "https://assessment.horizonfit.in",
       "https://www.assessment.horizonfit.in",
       "http://localhost:5173",
+      "http://localhost:5177",
       "http://localhost:8080",
       "http://localhost:3000",
     ].filter(Boolean),

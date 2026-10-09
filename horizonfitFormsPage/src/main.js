@@ -269,10 +269,6 @@ function renderFormStep(step) {
         <p class="page-subtitle">${curr.subtitle}</p>
       </div>
 
-      <aside class="form-screening-note" role="note">
-        <strong>Screening note</strong>
-        <span>This is a preliminary screening, not a medical diagnosis, and it does not rule out underlying health conditions. Further assessment may be recommended if risk factors are identified.</span>
-      </aside>
 
       <form id="step-form" novalidate>
         ${renderStepContent(step)}
@@ -475,9 +471,6 @@ function renderStepContent(step) {
       </div>
         </div>
 
-      <div class="live-bmi-calc-box" id="live-bmi-preview" aria-live="polite">
-        ${renderLiveMeasurementPreview(d)}
-      </div>
 
       <!-- Informational Panel -->
       <div class="info-notice-box">
@@ -540,9 +533,6 @@ function renderStepContent(step) {
         </div>
       </div>
 
-      <div class="live-bmi-calc-box live-step-risk-box" id="live-history-preview" aria-live="polite">
-        ${renderLiveHistoryPreview(d)}
-      </div>
     `;
   }
 
@@ -618,9 +608,6 @@ function renderStepContent(step) {
         ${err.conditions ? `<div class="form-error-msg">⚠️ ${err.conditions}</div>` : ''}
       </div>
 
-      <div class="live-bmi-calc-box live-step-risk-box" id="live-lifestyle-preview" aria-live="polite">
-        ${renderLiveLifestylePreview(d)}
-      </div>
     `;
   }
 

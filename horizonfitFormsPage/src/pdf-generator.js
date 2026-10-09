@@ -138,7 +138,7 @@ async function generateVectorHealthInsightPdf(formData, logoPngBytes = null) {
   // 1. DOCUMENT HEADER
   // ----------------------------------------------------
   const titleY = 806;
-  page.drawText('HORIZON FIT - BASIC METABOLIC HEALTH SCREENING', {
+  page.drawText('HORIZON FIT – BASIC METABOLIC HEALTH RISK SCREENING', {
     x: MARGIN_LEFT,
     y: titleY,
     size: 13,
@@ -632,7 +632,7 @@ async function generateVectorHealthInsightPdf(formData, logoPngBytes = null) {
   // ----------------------------------------------------
   // 11. FOOTER (Positioned to perfectly complete the page)
   // ----------------------------------------------------
-  page.drawText('HORIZON FIT • Doctor-Led Metabolic Health Transformation', {
+  page.drawText('HORIZON FIT – Doctor-Led Metabolic Health Transformation', {
     x: MARGIN_LEFT,
     y: 48,
     size: 7.8,
@@ -678,67 +678,41 @@ export async function generateHealthInsightPdf(formData, logoPngBytes = null) {
   `;
   document.body.appendChild(renderRoot);
 
-  let canvas;
+  const canvases = [];
   try {
     if (document.fonts?.ready) await document.fonts.ready;
     await Promise.all([...renderRoot.querySelectorAll('img')].map(image => image.decode().catch(() => { })));
-    canvas = await html2canvas(renderRoot.querySelector('.report-sheet'), {
-      backgroundColor: '#ffffff',
-      logging: false,
-      scale: 2,
-      useCORS: true
-    });
+    const sheets = renderRoot.querySelectorAll('.report-sheet');
+    for (const sheet of sheets) {
+      const canvas = await html2canvas(sheet, {
+        backgroundColor: '#ffffff',
+        logging: false,
+        scale: 2,
+        useCORS: true
+      });
+      canvases.push(canvas);
+    }
   } finally {
     renderRoot.remove();
   }
 
-  const imageData = canvas.toDataURL('image/png').split(',')[1];
-  const imageBytes = Uint8Array.from(atob(imageData), character => character.charCodeAt(0));
   const pdfDoc = await PDFDocument.create();
   const pageWidth = 595.28;
   const pageHeight = 841.89;
-  const page = pdfDoc.addPage([pageWidth, pageHeight]);
-  const image = await pdfDoc.embedPng(imageBytes);
-  // const margin = 28;
-  // const scale = Math.min(
-  //   (pageWidth - margin * 2) / image.width,
-  //   (pageHeight - margin * 2) / image.height
-  // );
-  // const width = image.width * scale;
-  // const height = image.height * scale;
 
-  // page.drawImage(image, {
-  //   x: (pageWidth - width) / 2,
-  //   y: (pageHeight - height) / 2,
-  //   width,
-  //   height
-  // });
+  for (const canvas of canvases) {
+    const imageData = canvas.toDataURL('image/png').split(',')[1];
+    const imageBytes = Uint8Array.from(atob(imageData), character => character.charCodeAt(0));
+    const image = await pdfDoc.embedPng(imageBytes);
 
-  // ✅ No margin — fill the entire page
-  const scaleX = pageWidth / image.width;
-  const scaleY = pageHeight / image.height;
+    const page = pdfDoc.addPage([pageWidth, pageHeight]);
+    page.drawImage(image, {
+      x: 0,
+      y: 0,
+      width: pageWidth,
+      height: pageHeight
+    });
+  }
 
-  // Use the smaller scale to maintain aspect ratio and fill as much as possible
-  const scale = Math.min(scaleX, scaleY);
-
-  const width = image.width * scale;
-  const height = image.height * scale;
-
-  // Position at top-left with no margin
-  // page.drawImage(image, {
-  //   x: (pageWidth - width) / 2,
-  //   y: pageHeight - height,  // ✅ anchor to top of page, not center
-  //   width,
-  //   height
-  // });
-
-  const padding = 20; // adjust this value to your liking
-
-  page.drawImage(image, {
-    x: padding,
-    y: padding,
-    width: pageWidth - (padding * 2),
-    height: pageHeight - (padding * 2)
-  });
   return pdfDoc.save();
 }
