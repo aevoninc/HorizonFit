@@ -39,7 +39,7 @@ const consultationSchema = z.object({
 
 type ConsultationFormData = z.infer<typeof consultationSchema>;
 
-const CONSULTATION_PRICE = 1;
+const CONSULTATION_PRICE = 300;
 
 const DEFAULT_SLOTS: TimeSlot[] = [
   { _id: "def-1", time: "9:30 AM", period: "morning", isActive: true, sortOrder: 1 },

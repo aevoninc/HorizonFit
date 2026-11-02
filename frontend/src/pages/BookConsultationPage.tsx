@@ -52,7 +52,7 @@ const consultationTypes = [
   {
     value: "initial",
     label: "Initial Assessment",
-    price: 500,
+    price: 300,
     description: "Comprehensive health evaluation",
   },
 ];
@@ -570,7 +570,7 @@ export const BookConsultationPage: React.FC = () => {
                   <div className="flex flex-col gap-3">
                     <div className="rounded-2xl border border-border/80 bg-card p-4 flex items-center justify-between text-sm">
                       <span className="font-semibold text-muted-foreground">Metabolic Assessment Fee</span>
-                      <span className="text-xl font-bold text-foreground">₹500</span>
+                      <span className="text-xl font-bold text-foreground">₹300</span>
                     </div>
 
                     <Button
@@ -608,7 +608,7 @@ export const BookConsultationPage: React.FC = () => {
                           <p className="font-bold text-foreground text-base">Metabolic Health Assessment</p>
                           <p className="text-xs text-muted-foreground mt-0.5">1-on-1 Consultation with Dr. M. Jabaarrul</p>
                         </div>
-                        <span className="text-2xl font-extrabold text-primary">₹500</span>
+                        <span className="text-2xl font-extrabold text-primary">₹300</span>
                       </div>
 
                       {selectedDate && selectedSlot && (
@@ -651,7 +651,7 @@ export const BookConsultationPage: React.FC = () => {
                             Processing...
                           </>
                         ) : (
-                          <>Pay ₹500</>
+                          <>Pay ₹300</>
                         )}
                       </Button>
                     </div>
