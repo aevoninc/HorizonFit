@@ -141,3 +141,7 @@ dist
 
 # End of https://www.toptal.com/developers/gitignore/api/node
 config.bat
+# Environment secrets
+!.env.example
+frontend/.env
+horizonfitFormsPage/.env
