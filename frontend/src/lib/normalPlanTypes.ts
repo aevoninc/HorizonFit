@@ -92,6 +92,10 @@ export interface WeeklyLog {
 export interface NormalPlanProgress {
   patientId: string;
   currentZone: number;
+  currentDay?: number;
+  programDayNumber?: number | null;
+  totalProgramDays?: number;
+  missedWeeklyWeeks?: { programWeekNumber: number; zone: number; week: number }[];
   zones: ZoneData[];
   latestMetrics?: BodyMetrics;
   recommendations?: HealthRecommendations;

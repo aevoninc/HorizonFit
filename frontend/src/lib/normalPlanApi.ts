@@ -112,6 +112,21 @@ export interface NormalPlanPatientSummary {
   currentZone: number;
   currentDay: number;
   currentZoneWeek: number;
+  programDayNumber: number | null;
+  totalProgramDays: number;
+  todayDate: string;
+  programScheduleStartDate: string | null;
+  missedDays: {
+    programDayNumber: number;
+    zone: number;
+    dayInZone: number;
+    date: string;
+  }[];
+  missedDayCount: number;
+  missedWeeklyWeeks: { programWeekNumber: number; zone: number; week: number }[];
+  todayStatus: string;
+  scheduleComplete: boolean;
+  timeZoneConfigured: boolean;
   totalWeeksCompleted: number;
   lastLogDate: string | null;
   lastDailyLogDate: string | null;
@@ -135,6 +150,22 @@ export interface NormalPlanPatientDetail {
     name: string;
     email: string;
     currentZone: number;
+    currentDay: number;
+    programDayNumber: number | null;
+    totalProgramDays: number;
+    todayDate: string;
+    programScheduleStartDate: string | null;
+    missedDays: {
+      programDayNumber: number;
+      zone: number;
+      dayInZone: number;
+      date: string;
+    }[];
+    missedDayCount: number;
+    missedWeeklyWeeks: { programWeekNumber: number; zone: number; week: number }[];
+    todayStatus: string;
+    scheduleComplete: boolean;
+    timeZoneConfigured: boolean;
     status: string;
     programStartDate: string;
     programCompleted: boolean;

@@ -9,6 +9,7 @@ import ZoneVideo from "../model/normalPlanModels/zoneVideo.model.js";
 import PatientTrackingData from "../model/patientTrackingData.model.js";
 import WeeklyLog from "../model/normalPlanModels/weeklyLog.model.js";
 import calculateRecommendations from "../utils/healthCalculations.js";
+import { getProgramCalendar, getWeeklySchedule } from "../utils/programCalendar.js";
 import PatientProgramTask from "../model/patientProgramTask.model.js";
 import patientTaskLog from "../model/patientTaskLog.model.js";
 // ==================== ZONE & PROGRESS ====================
@@ -24,6 +25,14 @@ const getNormalPlanProgress = async (req, res) => {
     if (!normalPlanPatient) {
       return res.status(404).json({ error: "Patient account not found" });
     }
+    const programCalendar = getProgramCalendar(
+      normalPlanPatient.programStartDate,
+      [],
+      new Date(),
+      normalPlanPatient.programTimeZone || "UTC",
+    );
+    const scheduledZone = programCalendar.currentZone || normalPlanPatient.currentZone || 1;
+    const scheduledDay = programCalendar.currentDay || normalPlanPatient.currentDay || 1;
 
     // Check if progress exists, if not, initialize Zone 1
     let zone1Progress = await PatientZoneProgress.findOne({
@@ -49,7 +58,7 @@ const getNormalPlanProgress = async (req, res) => {
     // FIXED: Using instance normalPlanPatient instead of Model User
     const zoneTasks = await PatientProgramTask.find({
       patientId: req.user._id,
-      zone: normalPlanPatient.currentZone || 1,
+      zone: scheduledZone,
     });
     // Get latest individual metrics to aggregate for the UI
     const [latestWeight, latestBodyFat, latestVisceral] = await Promise.all([
@@ -90,6 +99,11 @@ const getNormalPlanProgress = async (req, res) => {
     const weeklyLogs = await WeeklyLog.find({ patientId }).sort({
       submittedAt: -1,
     });
+    const weeklySchedule = getWeeklySchedule(
+      programCalendar.programDayNumber,
+      weeklyLogs,
+      programCalendar.scheduleComplete,
+    );
 
     // Calculate if they can enter metrics (once every 7 days)
     const lastMetricsDate = latestMetricsObject?.dateRecorded;
@@ -125,7 +139,7 @@ const getNormalPlanProgress = async (req, res) => {
         })),
         // Only show tasks for the zone the user is currently in
         diyTasks:
-          zoneNumber === (normalPlanPatient.currentZone || 1) ? zoneTasks : [],
+          zoneNumber === scheduledZone ? zoneTasks : [],
         weeksInZone: progress?.weeksInZone || 0,
         minWeeksRequired: getMinWeeksRequired(zoneNumber),
       };
@@ -134,7 +148,11 @@ const getNormalPlanProgress = async (req, res) => {
     // Return clean data to the frontend
     res.json({
       patientId,
-      currentZone: normalPlanPatient.currentZone || 1,
+      currentZone: scheduledZone,
+      currentDay: scheduledDay,
+      programDayNumber: programCalendar.programDayNumber,
+      totalProgramDays: programCalendar.totalProgramDays,
+      missedWeeklyWeeks: weeklySchedule.filter((week) => week.status === "missed"),
       zones,
       latestMetrics: latestMetricsObject,
       recommendations: recommendations
@@ -161,8 +179,8 @@ const getNormalPlanProgress = async (req, res) => {
         }
         : null,
       weeklyLogs,
-      userCurrentDay: normalPlanPatient.currentDay || 1,
-      userCurrentZone: normalPlanPatient.currentZone || 1,
+      userCurrentDay: scheduledDay,
+      userCurrentZone: scheduledZone,
       totalWeeksCompleted: weeklyLogs.length,
       programCompleted: normalPlanPatient.programCompleted || false,
       canEnterMetrics,
@@ -573,20 +591,27 @@ const submitWeeklyLog = async (req, res) => {
   try {
     // Fallback: If logData is not present, assume req.body contains the fields directly
     const actualLogData = logData || req.body;
-    const actualZoneNumber = zoneNumber || actualLogData.zoneNumber;
+    const actualZoneNumber = Number(zoneNumber || actualLogData.zoneNumber);
+    if (!Number.isInteger(actualZoneNumber) || actualZoneNumber < 1 || actualZoneNumber > 5) {
+      return res.status(400).json({
+        success: false,
+        message: "Zone number must be between 1 and 5.",
+      });
+    }
 
     const user = await User.findById(patientId);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found." });
     }
 
-    if (user.programCompleted || user.status === "completed") {
-      return res.status(400).json({
-        success: false,
-        message: "🎉 Program Completed! You have completed all 15 weeks of the HorizonFit program and cannot submit further weekly logs.",
-        programCompleted: true,
-      });
-    }
+    const programCalendar = getProgramCalendar(
+      user.programStartDate,
+      [],
+      new Date(),
+      user.programTimeZone || "UTC",
+    );
+    const currentZone = programCalendar.currentZone || user.currentZone;
+    const currentDay = programCalendar.currentDay || user.currentDay;
 
     // Determine target week for this log within the zone (1, 2, or 3)
     const existingLogsInZone = await WeeklyLog.find({
@@ -595,16 +620,15 @@ const submitWeeklyLog = async (req, res) => {
     });
     const logsInZoneCount = existingLogsInZone.length;
 
-    if (logsInZoneCount >= 3) {
-      return res.status(400).json({
-        success: false,
-        message: `You have already completed all 3 weekly logs for Zone ${actualZoneNumber}.`,
-      });
-    }
-
     // Next week inside this zone is logsInZoneCount + 1
     const weekInZone = logsInZoneCount + 1;
-    const actualWeekNumber = actualLogData.weekNumber || weekInZone;
+    const actualWeekNumber = Number(actualLogData.weekNumber || weekInZone);
+    if (!Number.isInteger(actualWeekNumber) || actualWeekNumber < 1 || actualWeekNumber > 3) {
+      return res.status(400).json({
+        success: false,
+        message: "Week number must be between 1 and 3 for the selected zone.",
+      });
+    }
 
     // Validation: Prevent duplicate submission for the same week in this zone
     const existingLog = existingLogsInZone.find((l) => l.weekNumber === actualWeekNumber);
@@ -617,23 +641,26 @@ const submitWeeklyLog = async (req, res) => {
 
     // Calculate required completed day in current zone
     // Week 1 in zone requires Day 7, Week 2 requires Day 14, Week 3 requires Day 21
-    const requiredCompletedDay = weekInZone * 7;
+    const requiredCompletedDay = actualWeekNumber * 7;
     let isAllowed = false;
 
-    if (user.currentZone > actualZoneNumber) {
+    if (currentZone > actualZoneNumber) {
       isAllowed = true;
-    } else if (user.currentZone === actualZoneNumber) {
+    } else if (currentZone === actualZoneNumber) {
       // User must be at or past the required day for this week's log (e.g. Day 7 for Week 1)
-      if (user.currentDay >= requiredCompletedDay) {
+      if (currentDay >= requiredCompletedDay) {
         isAllowed = true;
       }
     }
 
     if (!isAllowed) {
-      const daysLeft = Math.max(0, requiredCompletedDay - user.currentDay);
+      const currentProgramDay =
+        programCalendar.programDayNumber || (currentZone - 1) * 21 + currentDay;
+      const requiredProgramDay = (actualZoneNumber - 1) * 21 + requiredCompletedDay;
+      const daysLeft = Math.max(0, requiredProgramDay - currentProgramDay);
       return res.status(400).json({
         success: false,
-        message: `You must complete ${daysLeft} more daily tasks (up to Day ${requiredCompletedDay} in Zone ${actualZoneNumber}) before submitting your Week ${actualWeekNumber} log.`,
+        message: `Your schedule is on Program Day ${currentProgramDay}. Week ${actualWeekNumber} is available after Program Day ${requiredProgramDay}.`,
         daysLeft,
         requiredDay: requiredCompletedDay,
       });
@@ -703,14 +730,14 @@ const submitWeeklyLog = async (req, res) => {
     // 2. Find the progress tracking record for this specific zone
     let zoneProgress = await PatientZoneProgress.findOne({
       patientId,
-      zoneNumber,
+      zoneNumber: actualZoneNumber,
     });
 
     // Fallback if record doesn't exist yet
     if (!zoneProgress) {
       zoneProgress = new PatientZoneProgress({
         patientId,
-        zoneNumber,
+        zoneNumber: actualZoneNumber,
         weeksInZone: 0,
         isUnlocked: true,
       });
@@ -731,31 +758,36 @@ const submitWeeklyLog = async (req, res) => {
       await zoneProgress.save();
 
       // B. Determine the next zone
-      const nextZoneNumber = zoneNumber + 1;
+      const nextZoneNumber = actualZoneNumber + 1;
 
       // C. Update the "Master" User Profile
       if (nextZoneNumber <= 5) {
-        await User.findByIdAndUpdate(patientId, {
-          currentZone: nextZoneNumber,
-          updatedAt: new Date(),
-        });
+        if (currentZone < nextZoneNumber) {
+          await User.findByIdAndUpdate(patientId, {
+            currentZone: nextZoneNumber,
+            updatedAt: new Date(),
+          });
+        }
 
-        // D. Initialize the record for the next zone so it's ready for next week
-        await PatientZoneProgress.findOneAndUpdate(
-          { patientId, zoneNumber: nextZoneNumber },
-          {
-            isUnlocked: true,
-            startedAt: new Date(),
-            weeksInZone: 0,
-            isCompleted: false,
-          },
-          { upsert: true }
-        );
+        if (currentZone < nextZoneNumber) {
+          await PatientZoneProgress.findOneAndUpdate(
+            { patientId, zoneNumber: nextZoneNumber },
+            {
+              isUnlocked: true,
+              startedAt: new Date(),
+              weeksInZone: 0,
+              isCompleted: false,
+            },
+            { upsert: true }
+          );
+        }
 
         return res.status(200).json({
           success: true,
-          message: `Congratulations! You have completed Zone ${zoneNumber}. You are now promoted to Zone ${nextZoneNumber}!`,
-          action: "ZONE_UPGRADE",
+          message: currentZone < nextZoneNumber
+            ? `Congratulations! You have completed Zone ${actualZoneNumber}. You are now promoted to Zone ${nextZoneNumber}!`
+            : `Missed weekly report for Zone ${actualZoneNumber} completed. Your current program zone remains Zone ${currentZone}.`,
+          action: currentZone < nextZoneNumber ? "ZONE_UPGRADE" : "HISTORICAL_WEEK_COMPLETED",
           newZone: nextZoneNumber,
         });
       } else {

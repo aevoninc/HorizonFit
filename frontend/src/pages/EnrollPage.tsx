@@ -501,6 +501,7 @@ export const EnrollPage: React.FC = () => {
               orderId: response.razorpay_order_id,
               razorpaySignature: response.razorpay_signature,
               programStartDate: new Date().toISOString(),
+              programTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
               legalAcceptance: legalAcceptancePayload,
             });
 
