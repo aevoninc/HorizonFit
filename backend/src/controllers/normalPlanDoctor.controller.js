@@ -14,6 +14,13 @@ import mongoose from "mongoose";
 import HabitGuide from "../model/habitGuide.model.js";
 import HabitLog from "../model/habitLog.model.js";
 import calculateRecommendations from "../utils/healthCalculations.js";
+import {
+  dateKeyToUtcDate,
+  getDateKey,
+  getHabitLogDateKey,
+  getProgramCalendar,
+  getWeeklySchedule,
+} from "../utils/programCalendar.js";
 
 // ==================== PATIENT MANAGEMENT ====================
 
@@ -55,24 +62,46 @@ const getNormalPlanPatients = async (req, res) => {
           patientId: userId,
         }).sort({ submittedAt: -1 });
 
-        // Calculate compliance rate based on submissions / days elapsed
+        const timeZone = user.programTimeZone || "UTC";
+        const calendarStart = user.programStartDate
+          ? getProgramCalendar(user.programStartDate, [], new Date(), timeZone).startDate
+          : null;
+        const calendarLogStart = calendarStart ? dateKeyToUtcDate(calendarStart) : null;
+        if (calendarLogStart) calendarLogStart.setUTCDate(calendarLogStart.getUTCDate() - 1);
+        const calendarLogs = calendarStart
+          ? await HabitLog.find({
+            patientId: userId,
+            date: { $gte: calendarLogStart },
+          }).select("date scheduledDate createdAt")
+          : [];
+        const programCalendarLogs = calendarLogs.filter((log) =>
+          getHabitLogDateKey(log, timeZone) >= calendarStart,
+        );
+        const programCalendar = getProgramCalendar(
+          user.programStartDate,
+          programCalendarLogs,
+          new Date(),
+          timeZone,
+        );
+        const weeklySchedule = getWeeklySchedule(
+          programCalendar.programDayNumber,
+          weeklyLogs,
+          programCalendar.scheduleComplete,
+        );
         const totalPossibleDays =
-          (user.currentZone - 1) * 21 + (user.currentDay || 0);
-        const totalLogsCount = await HabitLog.countDocuments({
-          patientId: userId,
-        });
-
+          programCalendar.programDayNumber || (user.currentZone - 1) * 21 + (user.currentDay || 0);
+        const totalLogsCount = await HabitLog.countDocuments({ patientId: userId });
         const complianceRate =
           totalPossibleDays > 0
-            ? Math.round((totalLogsCount / totalPossibleDays) * 100)
+            ? Math.round((programCalendarLogs.length / totalPossibleDays) * 100)
             : 0;
-
         const lastDailyLog = await HabitLog.findOne({ patientId: userId }).sort(
           { date: -1 },
         );
         const daysSinceLastLog = lastDailyLog
           ? Math.floor(
-            (Date.now() - new Date(lastDailyLog.date).getTime()) /
+            (dateKeyToUtcDate(programCalendar.todayDate).getTime() -
+              dateKeyToUtcDate(getHabitLogDateKey(lastDailyLog, timeZone)).getTime()) /
             (24 * 60 * 60 * 1000),
           )
           : 999;
@@ -92,9 +121,19 @@ const getNormalPlanPatients = async (req, res) => {
           name: user.name,
           email: user.email,
           mobile: user.mobileNumber,
-          currentZone: planProgress?.currentZone || 1,
-          currentDay: user.currentDay || 1,
-          currentZoneWeek: Math.ceil((user.currentDay || 1) / 7),
+          currentZone: programCalendar.currentZone || planProgress?.currentZone || 1,
+          currentDay: programCalendar.currentDay || user.currentDay || 1,
+          currentZoneWeek: Math.ceil((programCalendar.currentDay || user.currentDay || 1) / 7),
+          programDayNumber: programCalendar.programDayNumber,
+          totalProgramDays: programCalendar.totalProgramDays,
+          todayDate: programCalendar.todayDate,
+          programScheduleStartDate: programCalendar.startDate || null,
+          missedDays: programCalendar.missedDays,
+          missedDayCount: programCalendar.missedDayCount,
+          todayStatus: programCalendar.todayStatus,
+          scheduleComplete: programCalendar.scheduleComplete,
+          timeZoneConfigured: Boolean(user.programTimeZone),
+          missedWeeklyWeeks: weeklySchedule.filter((week) => week.status === "missed"),
           totalWeeksCompleted:
             planProgress?.totalWeeksCompleted || user.totalWeeksCompleted || 0,
           lastLogDate: latestWeeklyLog?.submittedAt || null,
@@ -163,6 +202,25 @@ const getNormalPlanPatientDetail = async (req, res) => {
     const habitLogs = await HabitLog.find({
       patientId,
     }).sort({ date: -1 });
+    const timeZone = normalPlanPatient.programTimeZone || "UTC";
+    const calendarStart = normalPlanPatient.programStartDate
+      ? getDateKey(normalPlanPatient.programStartDate, timeZone)
+      : null;
+    const programCalendar = getProgramCalendar(
+      normalPlanPatient.programStartDate,
+      calendarStart
+        ? habitLogs.filter((log) =>
+          getHabitLogDateKey(log, timeZone) >= calendarStart,
+        )
+        : [],
+      new Date(),
+      timeZone,
+    );
+    const weeklySchedule = getWeeklySchedule(
+      programCalendar.programDayNumber,
+      weeklyLogs,
+      programCalendar.scheduleComplete,
+    );
 
     // Map HabitLog to what frontend expects for DailyLog
     const dailyLogs = habitLogs.map((log) => ({
@@ -170,7 +228,9 @@ const getNormalPlanPatientDetail = async (req, res) => {
       patientId: log.patientId,
       zoneNumber: log.zone,
       completionDate: log.date, // Add this for compatibility if frontend uses it
-      date: log.date,
+      date: log.scheduledDate
+        ? getDateKey(log.scheduledDate, "UTC")
+        : getDateKey(log.createdAt || log.date, timeZone),
       // We map completedHabits length since frontend expects completedTasks array
       completedTasks: log.completedHabits || [],
       habitDetails: log.habitDetails || [],
@@ -226,7 +286,18 @@ const getNormalPlanPatientDetail = async (req, res) => {
         id: normalPlanPatient.patientId?._id,
         name: normalPlanPatient.name || "Unknown Patient",
         email: normalPlanPatient.email || "N/A",
-        currentZone: normalPlanPatient.currentZone,
+        currentZone: programCalendar.currentZone || normalPlanPatient.currentZone,
+        currentDay: programCalendar.currentDay || normalPlanPatient.currentDay,
+        programDayNumber: programCalendar.programDayNumber,
+        totalProgramDays: programCalendar.totalProgramDays,
+        todayDate: programCalendar.todayDate,
+        programScheduleStartDate: programCalendar.startDate || null,
+        missedDays: programCalendar.missedDays,
+        missedDayCount: programCalendar.missedDayCount,
+        todayStatus: programCalendar.todayStatus,
+        scheduleComplete: programCalendar.scheduleComplete,
+        timeZoneConfigured: Boolean(normalPlanPatient.programTimeZone),
+        missedWeeklyWeeks: weeklySchedule.filter((week) => week.status === "missed"),
         status: normalPlanPatient.status,
         programStartDate: normalPlanPatient.programStartDate,
         programCompleted: normalPlanPatient.programCompleted,

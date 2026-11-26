@@ -65,6 +65,33 @@ import {
   DailyActivityReport,
 } from "@/lib/normalPlanApi";
 
+const formatProgramDate = (date: string) => {
+  const [year, month, day] = date.split("-").map(Number);
+  return `${day}/${month}/${year}`;
+};
+
+const getPatientScheduleDate = (
+  patient: Pick<NormalPlanPatientSummary, "todayDate" | "programScheduleStartDate" | "programDayNumber" | "scheduleComplete" | "todayStatus">,
+) => {
+  const isBoundaryDate = patient.scheduleComplete || patient.todayStatus === "upcoming";
+  if (!isBoundaryDate || !patient.programDayNumber || !patient.programScheduleStartDate) {
+    return patient.todayDate;
+  }
+  const [year, month, day] = patient.programScheduleStartDate.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + patient.programDayNumber - 1))
+    .toISOString()
+    .slice(0, 10);
+};
+
+const formatWeeklyPeriod = (startDate: string | null, programWeekNumber: number) => {
+  if (!startDate) return `Program Week ${programWeekNumber}`;
+  const [year, month, day] = startDate.split("T")[0].split("-").map(Number);
+  const start = new Date(Date.UTC(year, month - 1, day + (programWeekNumber - 1) * 7));
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+  return `${formatProgramDate(start.toISOString().slice(0, 10))}–${formatProgramDate(end.toISOString().slice(0, 10))}`;
+};
+
 export const NormalPlanMonitorPage: React.FC = () => {
   const { toast } = useToast();
   const [patients, setPatients] = useState<NormalPlanPatientSummary[]>([]);
@@ -490,7 +517,7 @@ export const NormalPlanMonitorPage: React.FC = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Patient</TableHead>
-                  <TableHead>Zone</TableHead>
+                  <TableHead>Current program day</TableHead>
                   <TableHead>Weeks</TableHead>
                   <TableHead>Compliance</TableHead>
                   <TableHead>Last Daily Log</TableHead>
@@ -515,9 +542,42 @@ export const NormalPlanMonitorPage: React.FC = () => {
                         <Badge variant="outline">
                           Zone {patient.currentZone}
                         </Badge>
-                        <span className="text-xs text-muted-foreground mt-1 text-center">
-                          Day {patient.currentDay}
+                        <span className="mt-1 text-center text-xs font-medium text-foreground">
+                          {patient.programDayNumber
+                            ? `Program Day ${patient.programDayNumber}/${patient.totalProgramDays}`
+                            : "Start date needed"}
                         </span>
+                        {patient.programDayNumber && (
+                          <span className="text-center text-[11px] text-muted-foreground">
+                            Schedule date {formatProgramDate(getPatientScheduleDate(patient))} · Zone day {patient.currentDay}/21
+                          </span>
+                        )}
+                        {!patient.timeZoneConfigured && (
+                          <span className="mt-1 text-center text-[10px] text-amber-700">
+                            UTC until patient login
+                          </span>
+                        )}
+                        {patient.missedDayCount > 0 && (
+                          <Badge className="mt-1 justify-center bg-rose-100 text-rose-800 hover:bg-rose-100">
+                            {patient.missedDayCount} missed
+                          </Badge>
+                        )}
+                        {patient.missedWeeklyWeeks.length > 0 && (
+                          <Badge className="mt-1 justify-center bg-amber-100 text-amber-900 hover:bg-amber-100">
+                            {patient.missedWeeklyWeeks.length} weekly due
+                          </Badge>
+                        )}
+                        {patient.todayStatus !== "unavailable" && (
+                          <span className="mt-1 text-center text-[11px] text-muted-foreground">
+                            Today: {
+                              patient.todayStatus === "logged" ? "Logged"
+                                : patient.todayStatus === "in-progress" ? "In progress"
+                                  : patient.todayStatus === "schedule-complete" ? "Schedule complete"
+                                    : patient.todayStatus === "upcoming" ? "Upcoming"
+                                      : patient.todayStatus
+                            }
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -645,6 +705,11 @@ export const NormalPlanMonitorPage: React.FC = () => {
                   <p className="text-muted-foreground">
                     {patientDetail.patient.email}
                   </p>
+                  {!patientDetail.patient.timeZoneConfigured && (
+                    <p className="mt-1 text-xs text-amber-700">
+                      Schedule dates use UTC until the patient logs in.
+                    </p>
+                  )}
                 </div>
                 <Badge className={getStatusColor(patientDetail.patient.status)}>
                   {patientDetail.patient.status}
@@ -688,23 +753,41 @@ export const NormalPlanMonitorPage: React.FC = () => {
               </div>
 
               {/* Stats */}
-              <div className="grid gap-4 sm:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
                 <Card>
                   <CardContent className="p-4 text-center">
                     <p className="text-3xl font-bold text-secondary">
                       Zone {patientDetail.patient.currentZone}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Current Zone
+                      Schedule date {formatProgramDate(getPatientScheduleDate(patientDetail.patient))} · Zone day {patientDetail.patient.currentDay}/21
                     </p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4 text-center">
-                    <p className="text-3xl font-bold text-primary">
-                      {patientDetail.patient.totalWeeksCompleted}
+                    <p className="text-2xl font-bold text-primary">
+                      {patientDetail.patient.programDayNumber
+                        ? `${patientDetail.patient.programDayNumber}/${patientDetail.patient.totalProgramDays}`
+                        : "—"}
                     </p>
-                    <p className="text-sm text-muted-foreground">Weeks</p>
+                    <p className="text-sm text-muted-foreground">Program day</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-3xl font-bold">
+                      {patientDetail.patient.missedDayCount}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Missed days</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-3xl font-bold">
+                      {patientDetail.patient.missedWeeklyWeeks.length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Missed weekly reports</p>
                   </CardContent>
                 </Card>
                 <Card>
@@ -712,7 +795,7 @@ export const NormalPlanMonitorPage: React.FC = () => {
                     <p className="text-3xl font-bold">
                       {patientDetail.dailyLogs?.length || 0}
                     </p>
-                    <p className="text-sm text-muted-foreground">Daily Logs</p>
+                    <p className="text-sm text-muted-foreground">Daily logs</p>
                   </CardContent>
                 </Card>
                 <Card>
@@ -795,6 +878,30 @@ export const NormalPlanMonitorPage: React.FC = () => {
                 </TabsContent>
 
                 <TabsContent value="daily" className="mt-4">
+                  {patientDetail.patient.missedDays?.length > 0 && (
+                    <Card className="mb-4 border-rose-200 bg-rose-50/70">
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+                          <div>
+                            <p className="font-semibold text-rose-950">
+                              {patientDetail.patient.missedDayCount} missed program {patientDetail.patient.missedDayCount === 1 ? "day" : "days"}
+                            </p>
+                            <p className="mt-1 text-sm text-rose-900">
+                              These days passed without a daily log. The patient’s current schedule continues independently.
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {[...patientDetail.patient.missedDays].slice(-14).reverse().map((missed) => (
+                                <span key={missed.date} className="rounded-full border border-rose-200 bg-white px-3 py-1 text-xs font-medium text-rose-800">
+                                  {formatProgramDate(missed.date)} Day {missed.dayInZone} Zone {missed.zone} · Program Day {missed.programDayNumber}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                   {patientDetail.dailyLogs?.length > 0 ? (
                     <div className="space-y-3">
                       {patientDetail.dailyLogs
@@ -809,8 +916,8 @@ export const NormalPlanMonitorPage: React.FC = () => {
                                 <div>
                                   <p className="font-medium">
                                     {new Date(
-                                      log.date,
-                                    ).toLocaleDateString("en-US", {
+                                      `${log.date.slice(0, 10)}T12:00:00`,
+                                    ).toLocaleDateString(undefined, {
                                       weekday: "long",
                                       month: "short",
                                       day: "numeric",
@@ -870,6 +977,28 @@ export const NormalPlanMonitorPage: React.FC = () => {
                 </TabsContent>
 
                 <TabsContent value="weekly" className="mt-4">
+                  {patientDetail.patient.missedWeeklyWeeks.length > 0 && (
+                    <Card className="mb-4 border-amber-200 bg-amber-50/70">
+                      <CardContent className="flex items-start gap-3 p-4">
+                        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+                        <div>
+                          <p className="font-semibold text-amber-950">
+                            {patientDetail.patient.missedWeeklyWeeks.length} weekly {patientDetail.patient.missedWeeklyWeeks.length === 1 ? "report is" : "reports are"} overdue
+                          </p>
+                          <p className="mt-1 text-sm text-amber-900">
+                            The patient can submit these past reports without changing their current program day.
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {patientDetail.patient.missedWeeklyWeeks.map((week) => (
+                              <Badge key={`${week.zone}-${week.week}`} variant="outline" className="border-amber-300 bg-white text-amber-900">
+                                {formatWeeklyPeriod(patientDetail.patient.programScheduleStartDate, week.programWeekNumber)} · Zone {week.zone}, Week {week.week}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                   {patientDetail.weeklyLogs?.length > 0 ? (
                     <div className="space-y-3">
                       {patientDetail.weeklyLogs.map((log) => (

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { AxiosError } from 'axios';
 import { motion } from 'framer-motion';
 import {
   Calendar,
@@ -21,8 +22,10 @@ import { WeeklyLog, BodyMetrics, COMPLIANCE_OPTIONS } from '@/lib/normalPlanType
 import { useToast } from '@/hooks/use-toast';
 
 interface WeeklyLogFormProps {
+  missedWeeks?: { programWeekNumber: number; zone: number; week: number }[];
   currentZone: number;
   currentWeek: number;
+  programStartDate?: string;
   userCurrentDay?: number;
   userCurrentZone?: number;
   lastLog?: WeeklyLog;
@@ -33,11 +36,26 @@ interface WeeklyLogFormProps {
   canSubmit: boolean;
   daysUntilDue?: number;
   allLogs: WeeklyLog[];
+  onZoneChange?: (zoneNumber: number) => void;
 }
 
+const formatProgramDate = (date: Date) =>
+  `${date.getUTCDate()}/${date.getUTCMonth() + 1}/${date.getUTCFullYear()}`;
+
+const getWeekPeriodLabel = (startDate: string | undefined, zone: number, week: number) => {
+  if (!startDate) return `Zone ${zone} · Week ${week}`;
+  const [year, month, day] = startDate.split('-').map(Number);
+  const start = new Date(Date.UTC(year, month - 1, day + (zone - 1) * 21 + (week - 1) * 7));
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+  return `Zone ${zone} · Week ${week} · ${formatProgramDate(start)}–${formatProgramDate(end)}`;
+};
+
 export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
+  missedWeeks = [],
   currentZone,
   currentWeek,
+  programStartDate,
   userCurrentDay = 1,
   userCurrentZone = 1,
   lastLog,
@@ -48,9 +66,11 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
   canSubmit,
   daysUntilDue,
   allLogs = [],
+  onZoneChange,
 }) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedWeek, setSelectedWeek] = useState<{ zone: number; week: number } | null>(null);
   const [formData, setFormData] = useState({
     weight: latestMetrics?.weight?.toString() || '',
     bodyFat: latestMetrics?.bodyFatPercentage?.toString() || '',
@@ -58,6 +78,12 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
     compliance: '' as WeeklyLog['compliance'] | '',
     notes: '',
   });
+
+  useEffect(() => {
+    if (selectedWeek && selectedWeek.zone !== currentZone) {
+      setSelectedWeek(null);
+    }
+  }, [currentZone, selectedWeek]);
 
   const handleSubmit = async () => {
     if (!formData.weight || !formData.bodyFat || !formData.visceralFat || !formData.compliance) {
@@ -72,14 +98,14 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
     setIsSubmitting(true);
     try {
       await onSubmit({
-        weekNumber: currentWeek,
-        zoneNumber: currentZone,
+        weekNumber: targetWeek,
+        zoneNumber: targetZone,
         metrics: {
           weight: parseFloat(formData.weight),
           bodyFatPercentage: parseFloat(formData.bodyFat),
           visceralFat: parseFloat(formData.visceralFat),
           loggedAt: new Date().toISOString(),
-          zoneNumber: currentZone,
+          zoneNumber: targetZone,
         },
         compliance: formData.compliance as WeeklyLog['compliance'],
         completedTasks,
@@ -88,13 +114,20 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
       });
 
       toast({
-        title: 'Weekly Log Submitted!',
-        description: 'Your progress has been recorded.',
+        title: isMakeupLog ? 'Missed weekly log completed' : 'Weekly Log Submitted!',
+        description: isMakeupLog
+          ? `Your report for Zone ${targetZone}, Week ${targetWeek} has been recorded.`
+          : 'Your progress has been recorded.',
       });
-    } catch (error: any) {
+      setSelectedWeek(null);
+      onZoneChange?.(userCurrentZone);
+    } catch (error: unknown) {
+      const message = error instanceof AxiosError
+        ? (error.response?.data as { message?: string } | undefined)?.message
+        : error instanceof Error ? error.message : undefined;
       toast({
         title: 'Error',
-        description: error.response?.data?.message || error.message || 'Failed to submit weekly log. Please try again.',
+        description: message || 'Failed to submit weekly log. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -108,15 +141,20 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
   );
 
   const mostRecentLog = sortedLogs[0];
+  const targetZone = selectedWeek?.zone ?? currentZone;
+  const targetWeek = selectedWeek?.week ?? currentWeek;
+  const isMakeupLog = Boolean(selectedWeek);
+  const isPastZone = !selectedWeek && userCurrentZone > currentZone;
+  const currentTargetLogged = allLogs.some(
+    (log) => log.zoneNumber === targetZone && log.weekNumber === targetWeek,
+  );
 
   // Calculate required completed day for the current week log (Week 1 = Day 7, Week 2 = Day 14, Week 3 = Day 21)
   const requiredCompletedDay = currentWeek * 7;
-  let isDue = false;
+  let isDue = Boolean(selectedWeek);
   let daysUntilDueCalculated = 0;
 
-  if (userCurrentZone > currentZone) {
-    isDue = true;
-  } else if (userCurrentZone === currentZone) {
+  if (!selectedWeek && userCurrentZone === currentZone) {
     if (userCurrentDay >= requiredCompletedDay) {
       isDue = true;
     } else {
@@ -185,30 +223,98 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
     );
   };
 
+  const selectMissedWeek = (zone: number, week: number) => {
+    setSelectedWeek({ zone, week });
+    onZoneChange?.(zone);
+    setFormData({
+      weight: latestMetrics?.weight?.toString() || "",
+      bodyFat: latestMetrics?.bodyFatPercentage?.toString() || "",
+      visceralFat: latestMetrics?.visceralFat?.toString() || "",
+      compliance: "",
+      notes: "",
+    });
+  };
+
   return (
     <div className="space-y-10 group">
+      {missedWeeks.length > 0 && (
+        <Card className="border-rose-200 bg-rose-50/70">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base text-rose-900">
+              <AlertCircle className="h-5 w-5" />
+              Missed weekly reports
+            </CardTitle>
+            <p className="text-sm text-rose-800">
+              Choose a past report to complete it. This will not change your current program day.
+            </p>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {missedWeeks.map((missed) => (
+              <Button
+                key={`${missed.zone}-${missed.week}`}
+                type="button"
+                variant={selectedWeek?.zone === missed.zone && selectedWeek.week === missed.week ? "default" : "outline"}
+                onClick={() => selectMissedWeek(missed.zone, missed.week)}
+                className={selectedWeek?.zone === missed.zone && selectedWeek.week === missed.week
+                  ? ""
+                  : "border-rose-300 bg-white text-rose-900 hover:bg-rose-100"}
+              >
+                Complete {getWeekPeriodLabel(programStartDate, missed.zone, missed.week)}
+              </Button>
+            ))}
+          </CardContent>
+        </Card>
+      )}
       {/* 1. Submission Section (Form, Required Message, or Program Completed Banner) */}
-      {currentZone === 5 && allLogs.filter(l => l.zoneNumber === 5).length >= 3 ? (
+      {allLogs.filter((log) => log.zoneNumber === currentZone).length >= 3 && missedWeeks.length === 0 ? (
         <Card className="rounded-3xl gradient-phoenix text-white p-10 text-center space-y-4 shadow-2xl border-none">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-md mx-auto shadow-inner">
             <CheckCircle className="h-8 w-8 text-yellow-200" />
           </div>
-          <h3 className="text-2xl font-black tracking-tight">🎉 All Weekly Logs Completed!</h3>
+          <h3 className="text-2xl font-black tracking-tight">All Zone {currentZone} Weekly Reports Completed</h3>
           <p className="text-base text-white/90 max-w-lg mx-auto font-medium leading-relaxed">
-            Congratulations! You have submitted all 15 weekly logs across all 5 zones. The program has ended and no further logs are required.
+            All three weekly reports for this zone are recorded.
           </p>
+        </Card>
+      ) : !selectedWeek && currentTargetLogged ? (
+        <Card className="border-green-200 bg-green-50/70">
+          <CardContent className="flex items-start gap-3 p-5">
+            <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+            <div>
+              <p className="font-semibold text-green-900">
+                Zone {targetZone}, Week {targetWeek} already submitted
+              </p>
+              <p className="mt-1 text-sm text-green-800">
+                Choose a missed report above if another week still needs to be completed.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : isPastZone ? (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="flex items-start gap-3 p-5">
+            <Calendar className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+            <div>
+              <p className="font-semibold text-amber-950">Zone {currentZone} is in your history</p>
+              <p className="mt-1 text-sm text-amber-900">
+                Select one of its missed weekly reports above to complete it. Your current zone stays unchanged.
+              </p>
+            </div>
+          </CardContent>
         </Card>
       ) : !isDue ? (
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-2">
             <Lock className="h-5 w-5 text-amber-600" />
-            <h3 className="text-lg font-bold text-foreground">Next Weekly Submission</h3>
+            <h3 className="text-lg font-bold text-foreground">
+              {isMakeupLog ? "Make-up Weekly Report" : "Next Weekly Submission"}
+            </h3>
           </div>
           <Card className="card-elevated border-amber-200 bg-amber-50/50">
             <CardHeader>
               <CardTitle className="text-lg text-amber-800 flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                Week {currentWeek} Progress Report Locked
+                Week {targetWeek} Progress Report Locked
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -222,7 +328,9 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-2">
             <Send className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-bold text-foreground">New Weekly Submission</h3>
+            <h3 className="text-lg font-bold text-foreground">
+              {isMakeupLog ? "Make-up Weekly Report" : "New Weekly Submission"}
+            </h3>
           </div>
 
           {!canSubmit ? (
@@ -252,15 +360,20 @@ export const WeeklyLogForm: React.FC<WeeklyLogFormProps> = ({
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2 text-xl font-bold">
                       <Calendar className="h-6 w-6 text-secondary" />
-                      Week {currentWeek} Progress Report
+                      {isMakeupLog ? "Make-up · " : ""}Week {targetWeek} Progress Report
                     </CardTitle>
-                    <Badge variant="secondary" className="px-3 py-1">Zone {currentZone}</Badge>
+                    <Badge variant="secondary" className="px-3 py-1">Zone {targetZone}</Badge>
                   </div>
 
                   <div className="inline-flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full text-xs font-bold self-start border border-amber-100">
                     <AlertCircle className="h-3 w-3" />
-                    <span>7-Day Update Due Now</span>
+                    <span>{isMakeupLog ? "Past weekly report" : "7-Day Update Due Now"}</span>
                   </div>
+                  {isMakeupLog && (
+                    <p className="max-w-2xl text-sm text-muted-foreground">
+                      This report will be recorded for Zone {targetZone}, Week {targetWeek}, with today as its submission date. Measurements are entered now, so use historical values only if you have them.
+                    </p>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-8">

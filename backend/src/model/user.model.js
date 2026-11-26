@@ -37,6 +37,7 @@ const UserSchema = new mongoose.Schema(
       required: true,
     },
     programStartDate: { type: Date, default: null },
+    programTimeZone: { type: String, default: null },
     programBookingId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "ProgramBooking",

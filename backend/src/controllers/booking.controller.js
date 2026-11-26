@@ -4,6 +4,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import User from "../model/user.model.js";
 import ConsultationBooking from "../model/consultationBooking.model.js";
 import programBookingModel from "../model/programBooking.model.js";
+import { isValidTimeZone } from "../utils/programCalendar.js";
 import {
   processPayment,
   processRefund,
@@ -204,6 +205,7 @@ const programBooking = asyncHandler(async (req, res) => {
     planTier,
     assignedCategory,
     programStartDate,
+    programTimeZone,
     paymentToken, // razorpay_payment_id
     orderId, // razorpay_order_id
     razorpaySignature,
@@ -229,6 +231,9 @@ const programBooking = asyncHandler(async (req, res) => {
       .json({ message: "All fields and payment details are required." });
   }
   const startDate = programStartDate || new Date();
+  if (programTimeZone && !isValidTimeZone(programTimeZone)) {
+    return res.status(400).json({ message: "Invalid program timezone." });
+  }
   // 2. Pricing Logic (Source of Truth)
   const PRICES = {
     normal: NORMAL_PROGRAM_BOOKING_PRICE,
@@ -307,6 +312,7 @@ const programBooking = asyncHandler(async (req, res) => {
           assignedCategory, // e.g., "Weight Loss"
           planTier: actualPlanTier, // e.g., "normal" or "premium"
           programStartDate: programStartDate || new Date(),
+          programTimeZone: programTimeZone || null,
           programBookingId: booking._id,
         },
       ],
