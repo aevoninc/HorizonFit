@@ -5,15 +5,40 @@ import ApiResponse from "../utils/ApiResponse.js";
 import HabitGuide, { HABIT_CODE_LIST } from "../model/habitGuide.model.js";
 import HabitLog from "../model/habitLog.model.js";
 import User from "../model/user.model.js";
-import PatientZoneProgress from "../model/normalPlanModels/patientZoneProgress.model.js";
-import WeeklyLog from "../model/normalPlanModels/weeklyLog.model.js";
+import {
+  dateKeyToUtcDate,
+  getDateKey,
+  getHabitLogDateKey,
+  getProgramCalendar,
+  isValidTimeZone,
+} from "../utils/programCalendar.js";
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
-function startOfDay(date) {
-  const d = new Date(date);
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
+function getPatientTimeZone(req, savedTimeZone) {
+  const requestedTimeZone = req.query.timeZone || (req.body && req.body.timeZone);
+  if (requestedTimeZone && !isValidTimeZone(requestedTimeZone)) {
+    throw new ApiError(400, "Invalid program timezone");
+  }
+  return savedTimeZone || requestedTimeZone || "UTC";
+}
+
+async function findHabitLogForDate(patientId, date, timeZone) {
+  const start = dateKeyToUtcDate(date);
+  const legacyStart = new Date(start);
+  legacyStart.setUTCDate(legacyStart.getUTCDate() - 1);
+  const legacyEnd = new Date(start);
+  legacyEnd.setUTCDate(legacyEnd.getUTCDate() + 2);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+  const candidates = await HabitLog.find({
+    patientId,
+    $or: [
+      { scheduledDate: { $gte: start, $lt: end } },
+      { scheduledDate: null, date: { $gte: legacyStart, $lt: legacyEnd } },
+    ],
+  });
+  return candidates.find((log) => getHabitLogDateKey(log, timeZone) === date) || null;
 }
 
 // ─── PATIENT CONTROLLERS ────────────────────────────────────────────────────
@@ -22,15 +47,37 @@ function startOfDay(date) {
  * GET /api/v1/patients/program-status
  */
 export const getProgramStatus = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("currentZone currentDay programCompleted status");
+  const user = await User.findById(req.user._id).select("currentZone currentDay programStartDate programTimeZone programCompleted status");
   if (!user) throw new ApiError(404, "User not found");
 
+  const requestedTimeZone = req.query.timeZone;
+  if (requestedTimeZone && !isValidTimeZone(requestedTimeZone)) {
+    throw new ApiError(400, "Invalid program timezone");
+  }
+  if (!user.programTimeZone && requestedTimeZone) {
+    user.programTimeZone = requestedTimeZone;
+    await user.save();
+  }
+  const timeZone = getPatientTimeZone(req, user.programTimeZone);
+  const firstCalendar = getProgramCalendar(user.programStartDate, [], new Date(), timeZone);
+  const logStartDate = firstCalendar.startDate
+    ? dateKeyToUtcDate(firstCalendar.startDate)
+    : null;
+  if (logStartDate) logStartDate.setUTCDate(logStartDate.getUTCDate() - 1);
+  const logs = user.programStartDate
+    ? await HabitLog.find({
+      patientId: user._id,
+      date: { $gte: logStartDate },
+    }).select("date scheduledDate createdAt")
+    : [];
+  const calendar = getProgramCalendar(user.programStartDate, logs, new Date(), timeZone);
+
   return res.status(200).json(new ApiResponse(200, {
-    currentZone: user.currentZone,
-    currentDay: user.currentDay,
+    ...calendar,
+    currentZone: calendar.currentZone || user.currentZone,
+    currentDay: calendar.currentDay || user.currentDay,
     totalDaysInZone: 21, // Each zone is currently 21 days
     programCompleted: user.programCompleted || user.status === "completed" || false,
-    started: true
   }, "Program status fetched"));
 });
 
@@ -39,9 +86,22 @@ export const getProgramStatus = asyncHandler(async (req, res) => {
  */
 export const getTodayHabits = asyncHandler(async (req, res) => {
   const patientId = req.user._id;
-  const todayStart = startOfDay(new Date());
+  const user = await User.findById(patientId).select("programTimeZone");
+  if (!user) throw new ApiError(404, "User not found");
+  const timeZone = getPatientTimeZone(req, user.programTimeZone);
+  const todayDate = getDateKey(new Date(), timeZone);
+  const requestedDate = req.query.date || todayDate;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ||
+      getDateKey(dateKeyToUtcDate(requestedDate), "UTC") !== requestedDate) {
+    throw new ApiError(400, "Invalid session date");
+  }
+  const todayStart = dateKeyToUtcDate(todayDate);
+  const targetStart = dateKeyToUtcDate(requestedDate);
+  if (targetStart > todayStart) {
+    throw new ApiError(400, "Future sessions are not available");
+  }
 
-  const log = await HabitLog.findOne({ patientId, date: todayStart });
+  const log = await findHabitLogForDate(patientId, requestedDate, timeZone);
 
   const habits = HABIT_CODE_LIST.map((code) => {
     const detail = log?.habitDetails?.find((d) => d.habitCode === code);
@@ -53,7 +113,12 @@ export const getTodayHabits = asyncHandler(async (req, res) => {
     };
   });
 
-  return res.status(200).json(new ApiResponse(200, { habits, submitted: !!log }, "Today's habits fetched"));
+  return res.status(200).json(new ApiResponse(200, {
+    habits,
+    submitted: !!log,
+    sessionDate: requestedDate,
+    isHistorical: requestedDate !== todayDate,
+  }, "Daily habits fetched"));
 });
 
 /**
@@ -62,14 +127,12 @@ export const getTodayHabits = asyncHandler(async (req, res) => {
  */
 export const submitHabits = asyncHandler(async (req, res) => {
   const patientId = req.user._id;
-  const { completedHabits, habitDetails, notes, mood } = req.body;
+  const { completedHabits, habitDetails, notes, mood, scheduledDate } = req.body;
 
   const user = await User.findById(patientId);
   if (!user) throw new ApiError(404, "User not found");
-
-  if (user.programCompleted || user.status === "completed") {
-    throw new ApiError(400, "🎉 Program Completed! You have completed all 15 weeks of the HorizonFit program and cannot submit further daily habits.");
-  }
+  const timeZone = getPatientTimeZone(req, user.programTimeZone);
+  if (!user.programTimeZone) user.programTimeZone = timeZone;
 
   // GATING: Verify user has submitted required weekly logs before proceeding with daily habits
   // const logsInCurrentZone = await WeeklyLog.countDocuments({
@@ -104,12 +167,43 @@ export const submitHabits = asyncHandler(async (req, res) => {
   //   }
   // }
 
-  const todayStart = startOfDay(new Date());
+  const todayDate = getDateKey(new Date(), timeZone);
+  const targetDate = scheduledDate || todayDate;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate) ||
+      getDateKey(dateKeyToUtcDate(targetDate), "UTC") !== targetDate) {
+    throw new ApiError(400, "Invalid session date");
+  }
+  const targetStart = dateKeyToUtcDate(targetDate);
+  if (targetStart > dateKeyToUtcDate(todayDate)) {
+    throw new ApiError(400, "Future sessions cannot be submitted");
+  }
+  if ((user.programCompleted || user.status === "completed") && targetDate === todayDate) {
+    throw new ApiError(400, "Your program is complete. Only missed historical sessions can be recorded.");
+  }
+  const previousZone = user.currentZone;
+  const calendar = getProgramCalendar(user.programStartDate, [], new Date(), timeZone);
+  const targetCalendar = getProgramCalendar(
+    user.programStartDate,
+    [],
+    targetDate,
+    timeZone,
+  );
+  if (
+    !targetCalendar.started ||
+    targetCalendar.scheduleComplete ||
+    targetCalendar.programDayNumber > (calendar.programDayNumber || 0)
+  ) {
+    throw new ApiError(400, "This date is outside your program schedule");
+  }
+  if (targetDate === todayDate && calendar.scheduleComplete) {
+    throw new ApiError(400, "Your program schedule has ended. Please contact your doctor for next steps.");
+  }
+  const scheduledZone = targetCalendar.currentZone || user.currentZone;
+  const scheduledDay = targetCalendar.currentDay || user.currentDay;
 
-  // // Prevent duplicate submissions for the same calendar date
-  const existing = await HabitLog.findOne({ patientId, date: todayStart });
+  const existing = await findHabitLogForDate(patientId, targetDate, timeZone);
   if (existing) {
-    throw new ApiError(400, "You have already submitted your habits for today.");
+    throw new ApiError(400, "This daily session has already been submitted.");
   }
 
   // Determine fully completed habits based on habitDetails if provided
@@ -120,7 +214,7 @@ export const submitHabits = asyncHandler(async (req, res) => {
     // Fetch guides for current zone to verify task completion
     const guides = await HabitGuide.find({
       patientId,
-      zone: user.currentZone,
+      zone: scheduledZone,
     });
 
     const calculatedCompletedHabits = [];
@@ -153,65 +247,40 @@ export const submitHabits = asyncHandler(async (req, res) => {
   // Create HabitLog
   const log = await HabitLog.create({
     patientId,
-    zone: user.currentZone,
-    day: user.currentDay,
-    date: todayStart,
+    zone: scheduledZone,
+    day: scheduledDay,
+    date: targetStart,
+    scheduledDate: targetStart,
     completedHabits: validHabits,
     habitDetails: finalHabitDetails,
     notes: notes || "",
     mood: mood || "good",
   });
 
-  // Zone Progression Logic
-  let nextDay = user.currentDay + 1;
-  let nextZone = user.currentZone;
-  let programCompleted = user.programCompleted || false;
-
-  if (nextDay > 21) {
-    if (user.currentZone < 5) {
-      nextDay = 1;
-      nextZone = user.currentZone + 1;
-
-      // Mark current zone as completed and unlock next zone
-      await PatientZoneProgress.findOneAndUpdate(
-        { patientId, zoneNumber: user.currentZone },
-        { isCompleted: true, completedAt: new Date() }
-      );
-      await PatientZoneProgress.findOneAndUpdate(
-        { patientId, zoneNumber: nextZone },
-        { isUnlocked: true, startedAt: new Date() },
-        { upsert: true, new: true }
-      );
-    } else {
-      // Completed Zone 5 Day 21 - Program Completed!
-      nextDay = 21;
-      programCompleted = true;
-      await PatientZoneProgress.findOneAndUpdate(
-        { patientId, zoneNumber: 5 },
-        { isCompleted: true, completedAt: new Date() }
-      );
-    }
+  if (targetDate === todayDate) {
+    user.currentDay = scheduledDay;
+    user.currentZone = scheduledZone;
+    await user.save();
   }
 
-  user.currentDay = nextDay;
-  user.currentZone = nextZone;
-  if (programCompleted) {
-    user.programCompleted = true;
-    user.status = "completed";
-  }
-  await user.save();
-
-  const isUpgrade = nextZone > user.currentZone;
   let message = "Habits submitted successfully";
-  if (programCompleted) {
-    message = "🎉 Congratulations! You have successfully completed the entire 15-week HorizonFit Program!";
-  } else if (isUpgrade) {
-    message = `🎉 Congratulations! You have completed Zone ${user.currentZone}! You are now promoted to Zone ${nextZone}!`;
+  if (targetDate !== todayDate) {
+    message = `Missed session for ${targetDate} saved. Your current program day has not changed.`;
+  } else if (scheduledZone > previousZone) {
+    message = `You are now on Zone ${scheduledZone}, Day ${scheduledDay}.`;
   }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, { log, user: { currentZone: user.currentZone, currentDay: user.currentDay, programCompleted } }, message));
+    .json(new ApiResponse(200, {
+      log,
+      user: {
+        currentZone: user.currentZone,
+        currentDay: user.currentDay,
+        programCompleted: user.programCompleted,
+      },
+      schedule: calendar,
+    }, message));
 });
 
 /**
@@ -235,10 +304,11 @@ export const getHabitGuide = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid habitCode");
   }
 
-  const user = await User.findById(patientId).select("programStartDate currentZone");
+  const user = await User.findById(patientId).select("programStartDate programTimeZone currentZone currentDay");
 
   // ✅ declare currentZone outside the if block so it's always in scope
-  const currentZone = user?.currentZone;
+  const calendar = getProgramCalendar(user?.programStartDate, [], new Date(), user?.programTimeZone || "UTC");
+  const currentZone = calendar.currentZone || user?.currentZone;
   const targetZone = zone ? Number(zone) : currentZone;
   const pId = new mongoose.Types.ObjectId(patientId.toString());
   const guide = await HabitGuide.findOne({

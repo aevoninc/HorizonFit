@@ -11,6 +11,8 @@ export const api = axios.create({
   },
 });
 
+const getLocalTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (value?: unknown) => void;
@@ -208,6 +210,7 @@ export interface ProgramBookingData {
   assignedCategory: "Weight Loss" | "Weight Gain" | "Pre diabetic";
   planTier: ProgramTier;
   programStartDate?: string;
+  programTimeZone?: string;
   paymentToken: string;
   orderId: string;
   razorpaySignature: string;
@@ -256,6 +259,19 @@ export interface ProgramStatus {
   totalDaysInZone: number;
   started: boolean;
   programCompleted?: boolean;
+  programDayNumber: number | null;
+  totalProgramDays: number;
+  startDate?: string;
+  todayDate: string;
+  todayStatus: "unavailable" | "upcoming" | "in-progress" | "logged" | "schedule-complete";
+  missedDays: {
+    programDayNumber: number;
+    zone: number;
+    dayInZone: number;
+    date: string;
+  }[];
+  missedDayCount: number;
+  scheduleComplete: boolean;
 }
 
 export interface HabitLog {
@@ -400,16 +416,22 @@ export const patientApi = {
     api.post('/patients/update-password', data),
 
   // Habit Tracker
-  getProgramStatus: () => api.get<ProgramStatus>('/patients/program-status'),
-  getTodayHabits: () => api.get<{ habits: HabitStatus[]; submitted: boolean }>('/patients/habits/today'),
+  getProgramStatus: () => api.get<ProgramStatus>('/patients/program-status', { params: { timeZone: getLocalTimeZone() } }),
+  getTodayHabits: () => api.get<{ habits: HabitStatus[]; submitted: boolean }>('/patients/habits/today', { params: { timeZone: getLocalTimeZone() } }),
+  getHabitsForDate: (date: string) =>
+    api.get<{ habits: HabitStatus[]; submitted: boolean; sessionDate: string; isHistorical: boolean }>(
+      '/patients/habits/today',
+      { params: { timeZone: getLocalTimeZone(), date } },
+    ),
   submitHabits: (
     completedHabits: HabitCode[],
     habitDetails?: { habitCode: HabitCode; completedTasks: string[]; mainTicked: boolean }[],
     notes?: string,
-    mood?: string
+    mood?: string,
+    scheduledDate?: string,
   ) =>
-    api.post<HabitSubmissionResponse>('/patients/habits/submit', { completedHabits, habitDetails, notes, mood }),
+    api.post<HabitSubmissionResponse>('/patients/habits/submit', { completedHabits, habitDetails, notes, mood, scheduledDate, timeZone: getLocalTimeZone() }),
   getHabitHistory: () => api.get<{ logs: HabitLog[] }>('/patients/habits/history'),
   getHabitGuide: (habitCode: HabitCode, zone?: number) =>
-    api.get<{ guide: HabitGuide | null; zone: number }>(`/patients/habits/${habitCode}/guide`, { params: { zone } }),
+    api.get<{ guide: HabitGuide | null; zone: number }>(`/patients/habits/${habitCode}/guide`, { params: { zone, timeZone: getLocalTimeZone() } }),
 };

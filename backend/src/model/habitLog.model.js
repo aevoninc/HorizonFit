@@ -21,6 +21,10 @@ const habitLogSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    scheduledDate: {
+      type: Date,
+      default: null,
+    },
     completedHabits: {
       type: [String],
       enum: HABIT_CODES,
